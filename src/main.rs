@@ -66,12 +66,7 @@ impl App {
         data.surface = surface;
         data.surface_loader = Some(surface_loader);
 
-        let device = create_logical_device(
-            &instance,
-            &layer_name_pointers,
-            &extension_name_pointers,
-            &mut data,
-        )?;
+        let device = create_logical_device(&instance, &layer_name_pointers, &mut data)?;
 
         Ok(Self {
             entry,
@@ -120,7 +115,7 @@ fn get_instance_info(
         .application_version(vk::make_api_version(0, 1, 0, 0))
         .engine_name(std::ffi::CString::new("No Engine")?.as_c_str())
         .engine_version(vk::make_api_version(0, 1, 0, 0))
-        .api_version(vk::make_api_version(0, 1, 0, 0))
+        .api_version(vk::API_VERSION_1_3)
         .build();
 
     let instance_create_info: vk::InstanceCreateInfo = vk::InstanceCreateInfo::builder()
@@ -142,11 +137,13 @@ fn get_physical_device(instance: &ash::Instance) -> anyhow::Result<vk::PhysicalD
         .into_iter()
         .find_map(|p| {
             let properties = unsafe { instance.get_physical_device_properties(p) };
+
             let name = unsafe { std::ffi::CStr::from_ptr(properties.device_name.as_ptr()) }
                 .to_str()
                 .unwrap();
+            dbg!(name);
             match name {
-                "NVIDIA GeForce RTX 4070 Ti" => Some(p),
+                "NVIDIA GeForce RTX 2060" => Some(p),
                 _ => None,
             }
         })
@@ -200,7 +197,6 @@ fn get_queue_families(
 fn create_logical_device(
     instance: &ash::Instance,
     layer_name_pointers: &Vec<*const i8>,
-    extension_name_pointers: &Vec<*const i8>,
     data: &mut AppData,
 ) -> anyhow::Result<ash::Device> {
     let physical_device = get_physical_device(&instance)?;
@@ -229,7 +225,6 @@ fn create_logical_device(
         .queue_create_infos(&queue_infos)
         .enabled_layer_names(layer_name_pointers)
         .enabled_features(&features);
-    //.enabled_extension_names(extension_name_pointers);
 
     let device = unsafe { instance.create_device(physical_device, &device_create_info, None)? };
 
