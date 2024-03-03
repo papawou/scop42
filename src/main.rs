@@ -59,14 +59,14 @@ impl App {
         let graphics_queue = unsafe { logical_device.get_device_queue(queue_families.0, 0) };
         let transfer_queue = unsafe { logical_device.get_device_queue(queue_families.1, 0) };
 
-        // let _ = create_swapchain(
-        //     &surface_loader,
-        //     surface,
-        //     physical_device,
-        //     &instance,
-        //     &logical_device,
-        //     queue_families.0,
-        // );
+        let _ = create_swapchain(
+            &surface_loader,
+            surface,
+            physical_device,
+            &instance,
+            &logical_device,
+            queue_families.0,
+        );
 
         Ok(Self {
             entry,
@@ -240,6 +240,36 @@ fn create_logical_device(
 }
 
 //swap chain
+struct SurfaceSupport {
+    capabilities: vk::SurfaceCapabilitiesKHR,
+    formats: Vec<vk::SurfaceFormatKHR>,
+    present_modes: Vec<vk::PresentModeKHR>,
+}
+
+impl SurfaceSupport {
+    pub fn get_surface_support(
+        physical_device: vk::PhysicalDevice,
+        surface: vk::SurfaceKHR,
+        surface_loader: &ash::extensions::khr::Surface,
+    ) -> anyhow::Result<Self> {
+        let capabilities = unsafe {
+            surface_loader.get_physical_device_surface_capabilities(physical_device, surface)?
+        };
+        let present_modes = unsafe {
+            surface_loader.get_physical_device_surface_present_modes(physical_device, surface)?
+        };
+        let formats = unsafe {
+            surface_loader.get_physical_device_surface_formats(physical_device, surface)?
+        };
+
+        Ok(Self {
+            capabilities,
+            present_modes,
+            formats,
+        })
+    }
+}
+
 fn create_swapchain(
     surface_loader: &ash::extensions::khr::Surface,
     surface: vk::SurfaceKHR,
@@ -247,38 +277,33 @@ fn create_swapchain(
     instance: &ash::Instance,
     logical_device: &ash::Device,
     queue_graphics_idx: u32,
-) -> anyhow::Result<()> {
-    let surface_capabilities = unsafe {
-        surface_loader.get_physical_device_surface_capabilities(physical_device, surface)?
-    };
-    let surface_present_modes = unsafe {
-        surface_loader.get_physical_device_surface_present_modes(physical_device, surface)?
-    };
-    let surface_formats =
-        unsafe { surface_loader.get_physical_device_surface_formats(physical_device, surface)? };
-
+) -> anyhow::Result<(ash::extensions::khr::Swapchain, vk::SwapchainKHR)> {
     let queue_families = [queue_graphics_idx];
+
+    let surface_support =
+        SurfaceSupport::get_surface_support(physical_device, surface, surface_loader)?;
+
     let swapchain_create_info = vk::SwapchainCreateInfoKHR::builder()
         .surface(surface)
         .min_image_count(
-            3.max(surface_capabilities.min_image_count)
-                .min(surface_capabilities.max_image_count),
+            3.max(surface_support.capabilities.min_image_count)
+                .min(surface_support.capabilities.max_image_count),
         )
-        .image_format(surface_formats.first().unwrap().format)
-        .image_color_space(surface_formats.first().unwrap().color_space)
-        .image_extent(surface_capabilities.current_extent)
+        .image_format(surface_support.formats.first().unwrap().format)
+        .image_color_space(surface_support.formats.first().unwrap().color_space)
+        .image_extent(surface_support.capabilities.current_extent)
         .image_array_layers(1)
         .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
         .image_sharing_mode(vk::SharingMode::EXCLUSIVE)
         .queue_family_indices(&queue_families)
-        .pre_transform(surface_capabilities.current_transform)
+        .pre_transform(surface_support.capabilities.current_transform)
         .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
         .present_mode(vk::PresentModeKHR::FIFO);
 
     let swapchain_loader = ash::extensions::khr::Swapchain::new(&instance, logical_device);
     let swapchain = unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None)? };
 
-    Ok(())
+    Ok((swapchain_loader, swapchain))
 }
 
 //DEBUG
