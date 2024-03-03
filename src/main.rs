@@ -1,5 +1,8 @@
+mod conf;
+
 use anyhow::Ok;
 use ash::vk;
+use conf::{get_layer_names, EXTENSION_NAMES, LAYER_NAMES};
 use winit::platform::windows::WindowExtWindows;
 
 fn main() -> anyhow::Result<()> {
@@ -9,7 +12,10 @@ fn main() -> anyhow::Result<()> {
     let event_loop = winit::event_loop::EventLoop::new();
     let window = winit::window::WindowBuilder::new()
         .with_title("Hello window!")
-        .with_inner_size(winit::dpi::LogicalSize::new(1024, 768))
+        .with_inner_size(winit::dpi::LogicalSize::new(
+            conf::WINDOW_WIDTH,
+            conf::WINDOW_HEIGHT,
+        ))
         .build(&event_loop)?;
 
     let mut app = App::create(entry, &window)?;
@@ -34,23 +40,9 @@ impl App {
 
         let mut debug_info: vk::DebugUtilsMessengerCreateInfoEXT = create_debug_info();
 
-        let layer_names: Vec<std::ffi::CString> =
-            vec![std::ffi::CString::new("VK_LAYER_KHRONOS_validation").unwrap()];
-        let layer_name_pointers: Vec<*const i8> = layer_names
-            .iter()
-            .map(|layer_name| layer_name.as_ptr())
-            .collect();
-        let extension_name_pointers: Vec<*const i8> = vec![
-            ash::extensions::ext::DebugUtils::name().as_ptr(),
-            ash::extensions::khr::Surface::name().as_ptr(),
-            ash::extensions::khr::Win32Surface::name().as_ptr(),
-        ];
+        let (_layer_names, layer_name_pointers) = conf::get_layer_names();
 
-        let instance_info = get_instance_info(
-            &layer_name_pointers,
-            &extension_name_pointers,
-            &mut debug_info,
-        )?;
+        let instance_info = get_instance_info(&layer_name_pointers, &mut debug_info)?;
         let instance = unsafe { entry.create_instance(&instance_info, None)? };
 
         let mut data = AppData::default();
@@ -107,22 +99,23 @@ struct AppData {
 
 fn get_instance_info(
     layer_name_pointers: &Vec<*const i8>,
-    extension_name_pointers: &Vec<*const i8>,
     debug_info: &mut vk::DebugUtilsMessengerCreateInfoEXT,
 ) -> anyhow::Result<vk::InstanceCreateInfo> {
     let application_info = vk::ApplicationInfo::builder()
-        .application_name(std::ffi::CString::new("AppName")?.as_c_str())
-        .application_version(vk::make_api_version(0, 1, 0, 0))
-        .engine_name(std::ffi::CString::new("No Engine")?.as_c_str())
-        .engine_version(vk::make_api_version(0, 1, 0, 0))
-        .api_version(vk::API_VERSION_1_3)
+        .application_name(std::ffi::CString::new(conf::APPLICATION_NAME)?.as_c_str())
+        .application_version(conf::APPLICATION_VERSION)
+        .engine_name(std::ffi::CString::new(conf::ENGINE_NAME)?.as_c_str())
+        .engine_version(conf::ENGINE_VERSION)
+        .api_version(conf::API_VERSION)
         .build();
+
+    //let (_, layer_names_ptr) = conf::get_layer_names();
 
     let instance_create_info: vk::InstanceCreateInfo = vk::InstanceCreateInfo::builder()
         .push_next(debug_info)
         .application_info(&application_info)
         .enabled_layer_names(layer_name_pointers)
-        .enabled_extension_names(extension_name_pointers)
+        .enabled_extension_names(&EXTENSION_NAMES)
         .build();
 
     Ok(instance_create_info)
@@ -143,7 +136,7 @@ fn get_physical_device(instance: &ash::Instance) -> anyhow::Result<vk::PhysicalD
                 .unwrap();
             dbg!(name);
             match name {
-                "NVIDIA GeForce RTX 2060" => Some(p),
+                conf::PHYSICAL_DEVICE_NAME => Some(p),
                 _ => None,
             }
         })
