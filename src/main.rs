@@ -2,7 +2,6 @@ mod conf;
 
 use anyhow::Ok;
 use ash::vk;
-use conf::{get_layer_names, EXTENSION_NAMES, LAYER_NAMES};
 use winit::platform::windows::WindowExtWindows;
 
 fn main() -> anyhow::Result<()> {
@@ -45,56 +44,77 @@ impl App {
         let instance_info = get_instance_info(&layer_name_pointers, &mut debug_info)?;
         let instance = unsafe { entry.create_instance(&instance_info, None)? };
 
-        let mut data = AppData::default();
+        let (debug_utils_loader, debug_utils_messenger) =
+            create_debug(&entry, &instance, &debug_info);
 
-        let (debug_utils, utils_messenger) = create_debug(&entry, &instance, &debug_info);
         //  surface
         let win_surface_loader = ash::extensions::khr::Win32Surface::new(&entry, &instance);
         let surface = unsafe { win_surface_loader.create_win32_surface(&window_info, None) }?;
         let surface_loader = ash::extensions::khr::Surface::new(&entry, &instance);
 
-        data.debug_utils = Some(debug_utils);
-        data.utils_messenger = utils_messenger;
-        data.surface = surface;
-        data.surface_loader = Some(surface_loader);
+        // device
+        let physical_device = get_physical_device(&instance)?;
+        let (logical_device, queue_families) =
+            create_logical_device(&instance, physical_device, &surface_loader, surface)?;
+        let graphics_queue = unsafe { logical_device.get_device_queue(queue_families.0, 0) };
+        let transfer_queue = unsafe { logical_device.get_device_queue(queue_families.1, 0) };
 
-        let device = create_logical_device(&instance, &layer_name_pointers, &mut data)?;
+        // let _ = create_swapchain(
+        //     &surface_loader,
+        //     surface,
+        //     physical_device,
+        //     &instance,
+        //     &logical_device,
+        //     queue_families.0,
+        // );
 
         Ok(Self {
             entry,
             instance,
-            device,
-            data,
+            device: logical_device,
+            data: AppData {
+                debug_utils_loader,
+                debug_utils_messenger,
+                graphics_queue,
+                transfer_queue,
+                physical_device,
+                queue_families,
+                surface,
+                surface_loader,
+            },
         })
     }
 
     unsafe fn destroy(&mut self) {
         self.device.destroy_device(None);
 
-        match &self.data.surface_loader {
-            Some(p) => p.destroy_surface(self.data.surface, None),
-            _ => (),
-        }
-
-        match &self.data.debug_utils {
-            Some(p) => p.destroy_debug_utils_messenger(self.data.utils_messenger, None),
-            _ => (),
-        }
+        self.data
+            .surface_loader
+            .destroy_surface(self.data.surface, None);
+        self.data
+            .debug_utils_loader
+            .destroy_debug_utils_messenger(self.data.debug_utils_messenger, None);
 
         self.instance.destroy_instance(None);
     }
 }
 
-#[derive(Default)]
 struct AppData {
-    debug_utils: Option<ash::extensions::ext::DebugUtils>,
-    utils_messenger: vk::DebugUtilsMessengerEXT,
-    physical_device_queue_families: (u32, u32),
+    debug_utils_loader: ash::extensions::ext::DebugUtils,
+    debug_utils_messenger: vk::DebugUtilsMessengerEXT,
+
+    physical_device: vk::PhysicalDevice,
+    queue_families: (u32, u32),
     graphics_queue: vk::Queue,
     transfer_queue: vk::Queue,
-
+    //surface
     surface: vk::SurfaceKHR,
-    surface_loader: Option<ash::extensions::khr::Surface>,
+    surface_loader: ash::extensions::khr::Surface,
+    // // Swapchain
+    // swapchain_format: vk::Format,
+    // swapchain_extent: vk::Extent2D,
+    // swapchain: vk::SwapchainKHR,
+    // swapchain_images: Vec<vk::Image>,
 }
 
 fn get_instance_info(
@@ -115,7 +135,7 @@ fn get_instance_info(
         .push_next(debug_info)
         .application_info(&application_info)
         .enabled_layer_names(layer_name_pointers)
-        .enabled_extension_names(&EXTENSION_NAMES)
+        .enabled_extension_names(&conf::EXTENSION_NAMES)
         .build();
 
     Ok(instance_create_info)
@@ -134,7 +154,6 @@ fn get_physical_device(instance: &ash::Instance) -> anyhow::Result<vk::PhysicalD
             let name = unsafe { std::ffi::CStr::from_ptr(properties.device_name.as_ptr()) }
                 .to_str()
                 .unwrap();
-            dbg!(name);
             match name {
                 conf::PHYSICAL_DEVICE_NAME => Some(p),
                 _ => None,
@@ -189,16 +208,12 @@ fn get_queue_families(
 
 fn create_logical_device(
     instance: &ash::Instance,
-    layer_name_pointers: &Vec<*const i8>,
-    data: &mut AppData,
-) -> anyhow::Result<ash::Device> {
-    let physical_device = get_physical_device(&instance)?;
-    let physical_device_queue_families = get_queue_families(
-        instance,
-        physical_device,
-        data.surface_loader.as_ref().unwrap(),
-        data.surface,
-    )?;
+    physical_device: vk::PhysicalDevice,
+    surface_loader: &ash::extensions::khr::Surface,
+    surface: vk::SurfaceKHR,
+) -> anyhow::Result<(ash::Device, (u32, u32))> {
+    let physical_device_queue_families =
+        get_queue_families(instance, physical_device, surface_loader, surface)?;
 
     let queue_priorities = [1.0];
     let queue_infos = [
@@ -216,16 +231,54 @@ fn create_logical_device(
 
     let device_create_info = vk::DeviceCreateInfo::builder()
         .queue_create_infos(&queue_infos)
-        .enabled_layer_names(layer_name_pointers)
+        .enabled_extension_names(&conf::DEVICE_EXTENSION_NAMES)
         .enabled_features(&features);
 
     let device = unsafe { instance.create_device(physical_device, &device_create_info, None)? };
 
-    data.physical_device_queue_families = physical_device_queue_families;
-    data.graphics_queue = unsafe { device.get_device_queue(physical_device_queue_families.0, 0) };
-    data.transfer_queue = unsafe { device.get_device_queue(physical_device_queue_families.1, 0) };
+    Ok((device, physical_device_queue_families))
+}
 
-    Ok(device)
+//swap chain
+fn create_swapchain(
+    surface_loader: &ash::extensions::khr::Surface,
+    surface: vk::SurfaceKHR,
+    physical_device: vk::PhysicalDevice,
+    instance: &ash::Instance,
+    logical_device: &ash::Device,
+    queue_graphics_idx: u32,
+) -> anyhow::Result<()> {
+    let surface_capabilities = unsafe {
+        surface_loader.get_physical_device_surface_capabilities(physical_device, surface)?
+    };
+    let surface_present_modes = unsafe {
+        surface_loader.get_physical_device_surface_present_modes(physical_device, surface)?
+    };
+    let surface_formats =
+        unsafe { surface_loader.get_physical_device_surface_formats(physical_device, surface)? };
+
+    let queue_families = [queue_graphics_idx];
+    let swapchain_create_info = vk::SwapchainCreateInfoKHR::builder()
+        .surface(surface)
+        .min_image_count(
+            3.max(surface_capabilities.min_image_count)
+                .min(surface_capabilities.max_image_count),
+        )
+        .image_format(surface_formats.first().unwrap().format)
+        .image_color_space(surface_formats.first().unwrap().color_space)
+        .image_extent(surface_capabilities.current_extent)
+        .image_array_layers(1)
+        .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
+        .image_sharing_mode(vk::SharingMode::EXCLUSIVE)
+        .queue_family_indices(&queue_families)
+        .pre_transform(surface_capabilities.current_transform)
+        .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
+        .present_mode(vk::PresentModeKHR::FIFO);
+
+    let swapchain_loader = ash::extensions::khr::Swapchain::new(&instance, logical_device);
+    let swapchain = unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None)? };
+
+    Ok(())
 }
 
 //DEBUG
@@ -238,9 +291,10 @@ fn create_debug_info() -> vk::DebugUtilsMessengerCreateInfoEXT {
                 | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
         )
         .message_type(
-            vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
-                | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE
-                | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION,
+            //vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
+            vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE | {
+                vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION
+            },
         )
         .pfn_user_callback(Some(vulkan_debug_utils_callback))
         .build()
@@ -251,10 +305,10 @@ fn create_debug(
     instance: &ash::Instance,
     debugcreateinfo: &vk::DebugUtilsMessengerCreateInfoEXT,
 ) -> (ash::extensions::ext::DebugUtils, vk::DebugUtilsMessengerEXT) {
-    let debug_utils = ash::extensions::ext::DebugUtils::new(&entry, &instance);
-    let utils_messenger =
-        unsafe { debug_utils.create_debug_utils_messenger(debugcreateinfo, None) }.unwrap();
-    (debug_utils, utils_messenger)
+    let debug_utils_loader = ash::extensions::ext::DebugUtils::new(&entry, &instance);
+    let debug_utils_messenger =
+        unsafe { debug_utils_loader.create_debug_utils_messenger(debugcreateinfo, None) }.unwrap();
+    (debug_utils_loader, debug_utils_messenger)
 }
 
 unsafe extern "system" fn vulkan_debug_utils_callback(

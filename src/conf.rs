@@ -1,6 +1,6 @@
 use ash::vk;
 
-pub const PHYSICAL_DEVICE_NAME: &str = "NVIDIA GeForce RTX 2060";
+pub const PHYSICAL_DEVICE_NAME: &str = "NVIDIA GeForce RTX 4070 Ti";
 
 pub const APPLICATION_NAME: &str = "AppName";
 pub const APPLICATION_VERSION: u32 = vk::make_api_version(0, 1, 0, 0);
@@ -32,3 +32,6 @@ pub const EXTENSION_NAMES: [*const i8; 3] = [
     ash::extensions::khr::Surface::name().as_ptr(),
     ash::extensions::khr::Win32Surface::name().as_ptr(),
 ];
+
+pub const DEVICE_EXTENSION_NAMES: [*const i8; 1] =
+    [ash::extensions::khr::Swapchain::name().as_ptr()];
