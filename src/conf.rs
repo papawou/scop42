@@ -33,5 +33,4 @@ pub const EXTENSION_NAMES: [*const i8; 3] = [
     ash::extensions::khr::Win32Surface::name().as_ptr(),
 ];
 
-pub const DEVICE_EXTENSION_NAMES: [*const i8; 1] =
-    [ash::extensions::khr::Swapchain::name().as_ptr()];
+pub const DEVICE_EXTENSION_NAMES: [&std::ffi::CStr; 1] = [ash::extensions::khr::Swapchain::name()];

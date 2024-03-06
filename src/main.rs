@@ -1,8 +1,8 @@
 mod conf;
+mod utils;
 
 use anyhow::Ok;
 use ash::vk;
-use conf::DEVICE_EXTENSION_NAMES;
 use winit::platform::windows::WindowExtWindows;
 
 fn main() -> anyhow::Result<()> {
@@ -146,19 +146,19 @@ fn get_instance_info(
 
 fn check_physical_device(
     instance: &ash::Instance,
-    data: &AppData,
     physical_device: vk::PhysicalDevice,
-) -> anyhow::Result<()> {
-    let extensions: Vec<_> = unsafe {
+) -> anyhow::Result<bool> {
+    let extensions: Vec<String> = unsafe {
         instance
             .enumerate_device_extension_properties(physical_device)?
             .iter()
-            .map(|e| e.extension_name)
+            .map(|e| utils::i8_to_str(&e.extension_name).unwrap())
             .collect()
     };
-    let bool = DEVICE_EXTENSION_NAMES
+
+    Ok(conf::DEVICE_EXTENSION_NAMES
         .iter()
-        .all(|&e| extensions.contains(e));
+        .all(|e| extensions.contains(&e.to_str().map(|s| s.to_string()).unwrap())))
 }
 
 fn get_physical_device(instance: &ash::Instance) -> anyhow::Result<vk::PhysicalDevice> {
@@ -261,9 +261,14 @@ fn create_logical_device(
 
     let features = vk::PhysicalDeviceFeatures::builder().build();
 
+    let device_extensions = conf::DEVICE_EXTENSION_NAMES
+        .iter()
+        .map(|e| e.as_ptr())
+        .collect::<Vec<_>>();
+
     let device_create_info = vk::DeviceCreateInfo::builder()
         .queue_create_infos(&queue_infos)
-        .enabled_extension_names(&conf::DEVICE_EXTENSION_NAMES)
+        .enabled_extension_names(device_extensions.as_slice())
         .enabled_features(&features);
 
     let device = unsafe { instance.create_device(physical_device, &device_create_info, None)? };
