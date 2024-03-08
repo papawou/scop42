@@ -1,4 +1,5 @@
 mod conf;
+mod swapchain;
 mod utils;
 
 use anyhow::Ok;
@@ -55,19 +56,24 @@ impl App {
 
         // device
         let physical_device = get_physical_device(&instance)?;
+
+        let surface_support = SurfaceSupport::get(physical_device, surface, &surface_loader)?;
+        if !check_physical_device(&instance, physical_device, &surface_support)? {
+            panic!("physical_device invalid")
+        }
+
         let (logical_device, queue_families) =
             create_logical_device(&instance, physical_device, &surface_loader, surface)?;
         let graphics_queue = unsafe { logical_device.get_device_queue(queue_families.graphics, 0) };
         let present_queue = unsafe { logical_device.get_device_queue(queue_families.present, 0) };
 
-        let _ = create_swapchain(
-            &surface_loader,
+        let _ = swapchain::create_swapchain(
+            &surface_support,
             surface,
-            physical_device,
             &instance,
             &logical_device,
             queue_families.graphics,
-        );
+        )?;
 
         Ok(Self {
             entry,
@@ -143,11 +149,41 @@ fn get_instance_info(
 }
 
 //DEVICES
+struct SurfaceSupport {
+    capabilities: vk::SurfaceCapabilitiesKHR,
+    formats: Vec<vk::SurfaceFormatKHR>,
+    present_modes: Vec<vk::PresentModeKHR>,
+}
+
+impl SurfaceSupport {
+    pub fn get(
+        physical_device: vk::PhysicalDevice,
+        surface: vk::SurfaceKHR,
+        surface_loader: &ash::extensions::khr::Surface,
+    ) -> anyhow::Result<Self> {
+        let capabilities = unsafe {
+            surface_loader.get_physical_device_surface_capabilities(physical_device, surface)?
+        };
+        let present_modes = unsafe {
+            surface_loader.get_physical_device_surface_present_modes(physical_device, surface)?
+        };
+        let formats = unsafe {
+            surface_loader.get_physical_device_surface_formats(physical_device, surface)?
+        };
+
+        Ok(Self {
+            capabilities,
+            present_modes,
+            formats,
+        })
+    }
+}
 
 fn check_physical_device(
     instance: &ash::Instance,
     physical_device: vk::PhysicalDevice,
-) -> anyhow::Result<bool> {
+    surface_support: &SurfaceSupport,
+) -> anyhow::Result<bool, anyhow::Error> {
     let extensions: Vec<String> = unsafe {
         instance
             .enumerate_device_extension_properties(physical_device)?
@@ -156,9 +192,19 @@ fn check_physical_device(
             .collect()
     };
 
-    Ok(conf::DEVICE_EXTENSION_NAMES
+    if conf::DEVICE_EXTENSION_NAMES
         .iter()
-        .all(|e| extensions.contains(&e.to_str().map(|s| s.to_string()).unwrap())))
+        .all(|e| extensions.contains(&e.to_str().map(|s| s.to_string()).unwrap()))
+    {
+        if conf::DEVICE_EXTENSION_NAMES.contains(&ash::extensions::khr::Swapchain::name())
+            && surface_support.present_modes.is_empty()
+            || surface_support.formats.is_empty()
+        {
+            return Ok(false);
+        }
+    }
+
+    Ok(true)
 }
 
 fn get_physical_device(instance: &ash::Instance) -> anyhow::Result<vk::PhysicalDevice> {
@@ -274,73 +320,6 @@ fn create_logical_device(
     let device = unsafe { instance.create_device(physical_device, &device_create_info, None)? };
 
     Ok((device, physical_device_queue_families))
-}
-
-//swap chain
-struct SurfaceSupport {
-    capabilities: vk::SurfaceCapabilitiesKHR,
-    formats: Vec<vk::SurfaceFormatKHR>,
-    present_modes: Vec<vk::PresentModeKHR>,
-}
-
-impl SurfaceSupport {
-    pub fn get_surface_support(
-        physical_device: vk::PhysicalDevice,
-        surface: vk::SurfaceKHR,
-        surface_loader: &ash::extensions::khr::Surface,
-    ) -> anyhow::Result<Self> {
-        let capabilities = unsafe {
-            surface_loader.get_physical_device_surface_capabilities(physical_device, surface)?
-        };
-        let present_modes = unsafe {
-            surface_loader.get_physical_device_surface_present_modes(physical_device, surface)?
-        };
-        let formats = unsafe {
-            surface_loader.get_physical_device_surface_formats(physical_device, surface)?
-        };
-
-        Ok(Self {
-            capabilities,
-            present_modes,
-            formats,
-        })
-    }
-}
-
-fn create_swapchain(
-    surface_loader: &ash::extensions::khr::Surface,
-    surface: vk::SurfaceKHR,
-    physical_device: vk::PhysicalDevice,
-    instance: &ash::Instance,
-    logical_device: &ash::Device,
-    queue_graphics_idx: u32,
-) -> anyhow::Result<(ash::extensions::khr::Swapchain, vk::SwapchainKHR)> {
-    let queue_families = [queue_graphics_idx];
-
-    let surface_support =
-        SurfaceSupport::get_surface_support(physical_device, surface, surface_loader)?;
-
-    let swapchain_create_info = vk::SwapchainCreateInfoKHR::builder()
-        .surface(surface)
-        .min_image_count(
-            3.max(surface_support.capabilities.min_image_count)
-                .min(surface_support.capabilities.max_image_count),
-        )
-        .image_format(surface_support.formats.first().unwrap().format)
-        .image_color_space(surface_support.formats.first().unwrap().color_space)
-        .image_extent(surface_support.capabilities.current_extent)
-        .image_array_layers(1)
-        .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
-        .image_sharing_mode(vk::SharingMode::EXCLUSIVE)
-        .queue_family_indices(&queue_families)
-        .pre_transform(surface_support.capabilities.current_transform)
-        .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
-        .present_mode(vk::PresentModeKHR::FIFO);
-
-    let swapchain_loader = ash::extensions::khr::Swapchain::new(&instance, logical_device);
-    let swapchain = unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None)? };
-
-    Ok((swapchain_loader, swapchain))
 }
 
 //DEBUG
