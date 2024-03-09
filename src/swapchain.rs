@@ -2,6 +2,7 @@ use crate::SurfaceSupport;
 use ash::vk;
 
 pub fn create_swapchain(
+    physical_size: (u32, u32),
     surface_support: &SurfaceSupport,
     surface: vk::SurfaceKHR,
     instance: &ash::Instance,
@@ -11,13 +12,17 @@ pub fn create_swapchain(
     let queue_families = [queue_graphics_idx];
 
     let swap_surface_format = choose_swap_surface_format(&surface_support.formats);
+    let swap_present_mode = choose_swap_present_mode(&surface_support.present_modes);
+    let swap_extent = choose_swap_extent(
+        &surface_support.capabilities,
+        (physical_size.0, physical_size.1),
+    );
+
+    let image_count = surface_support.capabilities.max_image_count.max()
 
     let swapchain_create_info = vk::SwapchainCreateInfoKHR::builder()
         .surface(surface)
-        .min_image_count(
-            3.max(surface_support.capabilities.min_image_count)
-                .min(surface_support.capabilities.max_image_count),
-        )
+        .min_image_count(image_count)
         .image_format(swap_surface_format.format)
         .image_color_space(swap_surface_format.color_space)
         .image_extent(surface_support.capabilities.current_extent)
@@ -46,6 +51,28 @@ fn choose_swap_surface_format(formats: &Vec<vk::SurfaceFormatKHR>) -> vk::Surfac
         .unwrap_or_else(|| formats.get(0).cloned().unwrap())
 }
 
-fn choose_swap_present_mode(prensts: &Vec<vk::PresentModeKHR>) -> vk::PresentModeKHR {
-	
+fn choose_swap_present_mode(presents: &Vec<vk::PresentModeKHR>) -> vk::PresentModeKHR {
+    if presents.contains(&vk::PresentModeKHR::MAILBOX) {
+        return vk::PresentModeKHR::MAILBOX;
+    }
+
+    vk::PresentModeKHR::FIFO
+}
+
+fn choose_swap_extent(
+    capabilities: &vk::SurfaceCapabilitiesKHR,
+    (width, height): (u32, u32),
+) -> vk::Extent2D {
+    if capabilities.current_extent.width != u32::MAX {
+        return capabilities.current_extent;
+    }
+
+    vk::Extent2D {
+        width: width
+            .min(capabilities.max_image_extent.width)
+            .max(capabilities.min_image_extent.width),
+        height: height
+            .min(capabilities.max_image_extent.height)
+            .max(capabilities.min_image_extent.height),
+    }
 }

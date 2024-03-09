@@ -67,7 +67,9 @@ impl App {
         let graphics_queue = unsafe { logical_device.get_device_queue(queue_families.graphics, 0) };
         let present_queue = unsafe { logical_device.get_device_queue(queue_families.present, 0) };
 
+        let window_physical_size = window.inner_size();
         let _ = swapchain::create_swapchain(
+            (window_physical_size.width, window_physical_size.height),
             &surface_support,
             surface,
             &instance,
