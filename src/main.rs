@@ -32,13 +32,26 @@ struct App {
 
     //swapchain
     swapchain_loader: ash::extensions::khr::Swapchain,
-    swapchain: vk::SwapchainKHR,
+    swapchain: swapchain::SwapchainSupport,
 
-    data: AppData,
+    //debug
+    debug_utils_loader: ash::extensions::ext::DebugUtils,
+    debug_utils_messenger: vk::DebugUtilsMessengerEXT,
+
+    //device
+    physical_device: vk::PhysicalDevice,
+    queue_families: QueueFamilies,
+    graphics_queue: vk::Queue,
+    present_queue: vk::Queue,
+
+    //surface
+    surface_loader: ash::extensions::khr::Surface,
+    surface: vk::SurfaceKHR,
 }
 
 impl App {
     fn create(entry: ash::Entry, window: &winit::window::Window) -> anyhow::Result<Self> {
+        let window_physical_size = window.inner_size();
         let window_info = vk::Win32SurfaceCreateInfoKHR::builder()
             .hinstance(window.hinstance())
             .hwnd(window.hwnd());
@@ -56,6 +69,7 @@ impl App {
         //  surface
         let win_surface_loader = ash::extensions::khr::Win32Surface::new(&entry, &instance);
         let surface = unsafe { win_surface_loader.create_win32_surface(&window_info, None) }?;
+        
         let surface_loader = ash::extensions::khr::Surface::new(&entry, &instance);
 
         // device
@@ -66,73 +80,58 @@ impl App {
             panic!("physical_device invalid")
         }
 
-        let (logical_device, queue_families) =
-            create_logical_device(&instance, physical_device, &surface_loader, surface)?;
-        let graphics_queue = unsafe { logical_device.get_device_queue(queue_families.graphics, 0) };
-        let present_queue = unsafe { logical_device.get_device_queue(queue_families.present, 0) };
+        let (device, queue_families) =
+            create_device(&instance, physical_device, &surface_loader, surface)?;
+        let graphics_queue = unsafe { device.get_device_queue(queue_families.graphics, 0) };
+        let present_queue = unsafe { device.get_device_queue(queue_families.present, 0) };
 
-        let window_physical_size = window.inner_size();
-        let (swapchain_loader, swapchain) = swapchain::create_swapchain(
+        let swapchain_loader = ash::extensions::khr::Swapchain::new(&instance, &device);
+        let swapchain = swapchain::create_swapchain(
+            &swapchain_loader,
+            &device,
             (window_physical_size.width, window_physical_size.height),
             &surface_support,
             surface,
-            &instance,
-            &logical_device,
             &queue_families,
         )?;
 
         Ok(Self {
             entry,
             instance,
-            device: logical_device,
-            swapchain,
+            device,
+
             swapchain_loader,
-            data: AppData {
-                debug_utils_loader,
-                debug_utils_messenger,
-                queue_families,
-                graphics_queue,
-                present_queue,
-                physical_device,
-                surface,
-                surface_loader,
-            },
+            swapchain,
+
+            debug_utils_loader,
+            debug_utils_messenger,
+
+            surface_loader,
+            surface,
+
+            physical_device,
+            queue_families,
+            graphics_queue,
+            present_queue,
         })
     }
 
     unsafe fn destroy(&mut self) {
+        for &image_view in self.swapchain.image_views.iter() {
+            self.device.destroy_image_view(image_view, None);
+        }
+
         self.swapchain_loader
-            .destroy_swapchain(self.swapchain, None);
+            .destroy_swapchain(self.swapchain.chain, None);
 
         self.device.destroy_device(None);
 
-        self.data
-            .surface_loader
-            .destroy_surface(self.data.surface, None);
-        self.data
-            .debug_utils_loader
-            .destroy_debug_utils_messenger(self.data.debug_utils_messenger, None);
+        self.surface_loader.destroy_surface(self.surface, None);
+        self.debug_utils_loader
+            .destroy_debug_utils_messenger(self.debug_utils_messenger, None);
 
         self.instance.destroy_instance(None);
     }
-}
-
-struct AppData {
-    debug_utils_loader: ash::extensions::ext::DebugUtils,
-    debug_utils_messenger: vk::DebugUtilsMessengerEXT,
-
-    physical_device: vk::PhysicalDevice,
-    queue_families: QueueFamilies,
-    graphics_queue: vk::Queue,
-    present_queue: vk::Queue,
-    //surface
-    surface: vk::SurfaceKHR,
-    surface_loader: ash::extensions::khr::Surface,
-    // // Swapchain
-    // swapchain_format: vk::Format,
-    // swapchain_extent: vk::Extent2D,
-    // swapchain: vk::SwapchainKHR,
-    // swapchain_images: Vec<vk::Image>,
 }
 
 fn get_instance_info(
@@ -291,7 +290,7 @@ impl QueueFamilies {
     }
 }
 
-fn create_logical_device(
+fn create_device(
     instance: &ash::Instance,
     physical_device: vk::PhysicalDevice,
     surface_loader: &ash::extensions::khr::Surface,

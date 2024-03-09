@@ -1,14 +1,21 @@
 use crate::{QueueFamilies, SurfaceSupport};
 use ash::vk;
 
+pub struct SwapchainSupport {
+    pub extent: vk::Extent2D,
+    pub format: vk::SurfaceFormatKHR,
+    pub chain: vk::SwapchainKHR,
+    pub image_views: Vec<vk::ImageView>,
+}
+
 pub fn create_swapchain(
+    swapchain_loader: &ash::extensions::khr::Swapchain,
+    device: &ash::Device,
     physical_size: (u32, u32),
     surface_support: &SurfaceSupport,
     surface: vk::SurfaceKHR,
-    instance: &ash::Instance,
-    logical_device: &ash::Device,
     queue_families: &QueueFamilies,
-) -> anyhow::Result<(ash::extensions::khr::Swapchain, vk::SwapchainKHR)> {
+) -> anyhow::Result<SwapchainSupport> {
     let swap_surface_format = choose_swap_surface_format(&surface_support.formats);
     let swap_present_mode = choose_swap_present_mode(&surface_support.present_modes);
     let swap_extent = choose_swap_extent(
@@ -48,10 +55,39 @@ pub fn create_swapchain(
         .present_mode(swap_present_mode)
         .clipped(true);
 
-    let swapchain_loader = ash::extensions::khr::Swapchain::new(&instance, logical_device);
     let swapchain = unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None)? };
+    let swapchain_images: Vec<vk::Image> =
+        unsafe { swapchain_loader.get_swapchain_images(swapchain)? };
+    let swapchain_images_view = swapchain_images
+        .iter()
+        .map(|&e| {
+            let image_view_info = vk::ImageViewCreateInfo::builder()
+                .image(e)
+                .view_type(vk::ImageViewType::TYPE_2D)
+                .format(swap_surface_format.format)
+                .components(vk::ComponentMapping {
+                    r: vk::ComponentSwizzle::IDENTITY,
+                    g: vk::ComponentSwizzle::IDENTITY,
+                    b: vk::ComponentSwizzle::IDENTITY,
+                    a: vk::ComponentSwizzle::IDENTITY,
+                })
+                .subresource_range(
+                    vk::ImageSubresourceRange::builder()
+                        .aspect_mask(vk::ImageAspectFlags::COLOR)
+                        .level_count(1)
+                        .layer_count(1)
+                        .build(),
+                );
+            unsafe { device.create_image_view(&image_view_info, None).unwrap() }
+        })
+        .collect::<Vec<_>>();
 
-    Ok((swapchain_loader, swapchain))
+    Ok(SwapchainSupport {
+        extent: swap_extent,
+        format: swap_surface_format,
+        chain: swapchain,
+        image_views: swapchain_images_view,
+    })
 }
 
 fn choose_swap_surface_format(formats: &Vec<vk::SurfaceFormatKHR>) -> vk::SurfaceFormatKHR {
