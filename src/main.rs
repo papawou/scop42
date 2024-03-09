@@ -30,6 +30,10 @@ struct App {
     instance: ash::Instance,
     device: ash::Device,
 
+    //swapchain
+    swapchain_loader: ash::extensions::khr::Swapchain,
+    swapchain: vk::SwapchainKHR,
+
     data: AppData,
 }
 
@@ -68,19 +72,21 @@ impl App {
         let present_queue = unsafe { logical_device.get_device_queue(queue_families.present, 0) };
 
         let window_physical_size = window.inner_size();
-        let _ = swapchain::create_swapchain(
+        let (swapchain_loader, swapchain) = swapchain::create_swapchain(
             (window_physical_size.width, window_physical_size.height),
             &surface_support,
             surface,
             &instance,
             &logical_device,
-            queue_families.graphics,
+            &queue_families,
         )?;
 
         Ok(Self {
             entry,
             instance,
             device: logical_device,
+            swapchain,
+            swapchain_loader,
             data: AppData {
                 debug_utils_loader,
                 debug_utils_messenger,
@@ -95,6 +101,9 @@ impl App {
     }
 
     unsafe fn destroy(&mut self) {
+        self.swapchain_loader
+            .destroy_swapchain(self.swapchain, None);
+
         self.device.destroy_device(None);
 
         self.data
@@ -335,9 +344,8 @@ fn create_debug_info() -> vk::DebugUtilsMessengerCreateInfoEXT {
         )
         .message_type(
             //vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
-            vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE | {
-                vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION
-            },
+            vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE
+                | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION,
         )
         .pfn_user_callback(Some(vulkan_debug_utils_callback))
         .build()
