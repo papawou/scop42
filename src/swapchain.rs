@@ -3,7 +3,7 @@ use ash::vk;
 
 pub struct SwapchainScop {
     pub extent: vk::Extent2D,
-    pub format: vk::SurfaceFormatKHR,
+    pub surface_format: vk::SurfaceFormatKHR,
     pub chain: vk::SwapchainKHR,
     pub images: Vec<vk::Image>,
     pub image_views: Vec<vk::ImageView>,
@@ -85,7 +85,7 @@ pub fn create_swapchain(
 
     Ok(SwapchainScop {
         extent: swap_extent,
-        format: swap_surface_format,
+        surface_format: swap_surface_format,
         chain: swapchain,
         images: swapchain_images,
         image_views: swapchain_images_view,

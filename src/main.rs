@@ -60,6 +60,8 @@ struct App {
     surface: vk::SurfaceKHR,
 
     pipeline_layout: vk::PipelineLayout,
+    render_pass: vk::RenderPass,
+    graphics_pipelines: Vec<vk::Pipeline>,
 }
 
 impl App {
@@ -108,7 +110,10 @@ impl App {
             &queue_families,
         )?;
 
-        let pipeline_layout = create_graphics_pipeline(&device, &swapchain);
+        let pipeline_layout = create_pipeline_layout(&device);
+        let render_pass = create_render_pass(&device, &swapchain);
+        let graphics_pipelines =
+            create_graphics_pipeline(&device, &swapchain, pipeline_layout, render_pass);
 
         Ok(Self {
             entry,
@@ -130,10 +135,18 @@ impl App {
             present_queue,
 
             pipeline_layout,
+            render_pass,
+            graphics_pipelines,
         })
     }
 
     unsafe fn destroy(&mut self) {
+        for &pipeline in self.graphics_pipelines.iter() {
+            self.device.destroy_pipeline(pipeline, None);
+        }
+
+        self.device.destroy_render_pass(self.render_pass, None);
+
         self.device
             .destroy_pipeline_layout(self.pipeline_layout, None);
 
@@ -354,10 +367,13 @@ fn create_device(
 
 //SHADERS
 type ShaderCode = Vec<u8>;
+
 fn create_graphics_pipeline(
     device: &ash::Device,
     swapchain: &swapchain::SwapchainScop,
-) -> vk::PipelineLayout {
+    pipeline_layout: vk::PipelineLayout,
+    render_pass: vk::RenderPass,
+) -> Vec<vk::Pipeline> {
     let shaders_stage_createinfo = get_shaders_stage_createinfo(device);
 
     //pipeline_dynamic_createinfo
@@ -391,12 +407,32 @@ fn create_graphics_pipeline(
 
     let color_blend_createinfo = get_color_blend_info();
 
-    let pipeline_layout_createinfo = vk::PipelineLayoutCreateInfo::builder();
-    //todo call destroy pipeline_layout
-    let pipeline_layout =
-        unsafe { device.create_pipeline_layout(&pipeline_layout_createinfo, None) }.unwrap();
+    let pipeline_info = vk::GraphicsPipelineCreateInfo::builder()
+        .stages(&shaders_stage_createinfo)
+        .vertex_input_state(&vertex_input_createinfo)
+        .input_assembly_state(&assembly_input_createinfo)
+        .viewport_state(&viewport_createinfo)
+        .rasterization_state(&rasterization_createinfo)
+        .multisample_state(&multisample_createinfo)
+        .color_blend_state(&color_blend_createinfo)
+        .dynamic_state(&pipeline_dynamic_createinfo)
+        .layout(pipeline_layout)
+        .render_pass(render_pass)
+        .subpass(0)
+        .build();
 
-    pipeline_layout
+    let pipelines = unsafe {
+        device.create_graphics_pipelines(vk::PipelineCache::null(), &[pipeline_info], None)
+    }
+    .unwrap();
+
+    pipelines
+}
+
+fn create_pipeline_layout(device: &ash::Device) -> vk::PipelineLayout {
+    let pipeline_layout_createinfo = vk::PipelineLayoutCreateInfo::builder();
+
+    unsafe { device.create_pipeline_layout(&pipeline_layout_createinfo, None) }.unwrap()
 }
 
 fn get_color_blend_info() -> vk::PipelineColorBlendStateCreateInfo {
@@ -469,6 +505,38 @@ fn create_shader_module(
 ) -> anyhow::Result<ash::vk::ShaderModule> {
     let createinfo = ash::vk::ShaderModuleCreateInfo::builder().code(code);
     Ok(unsafe { device.create_shader_module(&createinfo, None)? })
+}
+
+fn create_render_pass(
+    device: &ash::Device,
+    swapchain: &swapchain::SwapchainScop,
+) -> vk::RenderPass {
+    let color_attachment = vk::AttachmentDescription::builder()
+        .format(swapchain.surface_format.format)
+        .samples(vk::SampleCountFlags::TYPE_1)
+        .load_op(vk::AttachmentLoadOp::CLEAR)
+        .store_op(vk::AttachmentStoreOp::STORE)
+        .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
+        .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
+        .initial_layout(vk::ImageLayout::UNDEFINED)
+        .final_layout(vk::ImageLayout::PRESENT_SRC_KHR)
+        .build();
+
+    let color_attachment_ref = vk::AttachmentReference::builder()
+        .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+        .build();
+
+    let subpass_description = vk::SubpassDescription::builder()
+        .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
+        .color_attachments(&[color_attachment_ref])
+        .build();
+
+    let render_pass_createinfo = vk::RenderPassCreateInfo::builder()
+        .attachments(&[color_attachment])
+        .subpasses(&[subpass_description])
+        .build();
+
+    unsafe { device.create_render_pass(&render_pass_createinfo, None) }.unwrap()
 }
 
 //DEBUG
