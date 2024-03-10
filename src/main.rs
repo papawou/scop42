@@ -26,15 +26,13 @@ fn main() -> anyhow::Result<()> {
             event: winit::event::WindowEvent::CloseRequested,
             ..
         } => {
+            unsafe { app.destroy() };
             *control_flow = winit::event_loop::ControlFlow::Exit;
         }
         winit::event::Event::MainEventsCleared => {} //request_redraw
         winit::event::Event::RedrawRequested(_) => {} //render
         _ => {}
     });
-
-    unsafe { app.destroy() };
-    Ok(())
 }
 
 struct App {
