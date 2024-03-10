@@ -21,6 +21,18 @@ fn main() -> anyhow::Result<()> {
 
     let mut app = App::create(entry, &window)?;
 
+    event_loop.run(move |event, _, control_flow| match event {
+        winit::event::Event::WindowEvent {
+            event: winit::event::WindowEvent::CloseRequested,
+            ..
+        } => {
+            *control_flow = winit::event_loop::ControlFlow::Exit;
+        }
+        winit::event::Event::MainEventsCleared => {} //request_redraw
+        winit::event::Event::RedrawRequested(_) => {} //render
+        _ => {}
+    });
+
     unsafe { app.destroy() };
     Ok(())
 }
@@ -32,7 +44,7 @@ struct App {
 
     //swapchain
     swapchain_loader: ash::extensions::khr::Swapchain,
-    swapchain: swapchain::SwapchainSupport,
+    swapchain: swapchain::SwapchainScop,
 
     //debug
     debug_utils_loader: ash::extensions::ext::DebugUtils,
@@ -69,7 +81,7 @@ impl App {
         //  surface
         let win_surface_loader = ash::extensions::khr::Win32Surface::new(&entry, &instance);
         let surface = unsafe { win_surface_loader.create_win32_surface(&window_info, None) }?;
-        
+
         let surface_loader = ash::extensions::khr::Surface::new(&entry, &instance);
 
         // device

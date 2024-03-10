@@ -1,10 +1,11 @@
 use crate::{QueueFamilies, SurfaceSupport};
 use ash::vk;
 
-pub struct SwapchainSupport {
+pub struct SwapchainScop {
     pub extent: vk::Extent2D,
     pub format: vk::SurfaceFormatKHR,
     pub chain: vk::SwapchainKHR,
+    pub images: Vec<vk::Image>,
     pub image_views: Vec<vk::ImageView>,
 }
 
@@ -15,7 +16,7 @@ pub fn create_swapchain(
     surface_support: &SurfaceSupport,
     surface: vk::SurfaceKHR,
     queue_families: &QueueFamilies,
-) -> anyhow::Result<SwapchainSupport> {
+) -> anyhow::Result<SwapchainScop> {
     let swap_surface_format = choose_swap_surface_format(&surface_support.formats);
     let swap_present_mode = choose_swap_present_mode(&surface_support.present_modes);
     let swap_extent = choose_swap_extent(
@@ -82,10 +83,11 @@ pub fn create_swapchain(
         })
         .collect::<Vec<_>>();
 
-    Ok(SwapchainSupport {
+    Ok(SwapchainScop {
         extent: swap_extent,
         format: swap_surface_format,
         chain: swapchain,
+        images: swapchain_images,
         image_views: swapchain_images_view,
     })
 }
