@@ -4,6 +4,7 @@ mod utils;
 
 use anyhow::Ok;
 use ash::vk;
+use utils::read_file;
 use winit::platform::windows::WindowExtWindows;
 
 fn main() -> anyhow::Result<()> {
@@ -340,6 +341,30 @@ fn create_device(
     let device = unsafe { instance.create_device(physical_device, &device_create_info, None)? };
 
     Ok((device, physical_device_queue_families))
+}
+
+type ShaderCode = Vec<u8>;
+
+//SHADERS
+fn create_shaders(device: &ash::Device) {
+    let shader_codes = get_shader_codes();
+
+    create_shader_module(device, &utils::from_u8_to_u32(&shader_codes.0)).unwrap();
+}
+
+fn get_shader_codes() -> (ShaderCode, ShaderCode) {
+    let vert_shader_code: ShaderCode = read_file("./shaders/vert.spv").unwrap();
+    let frag_shader_code: ShaderCode = read_file("./shaders/frag.spv").unwrap();
+
+    (vert_shader_code, frag_shader_code)
+}
+
+fn create_shader_module(
+    device: &ash::Device,
+    code: &[u32],
+) -> anyhow::Result<ash::vk::ShaderModule> {
+    let create_info = ash::vk::ShaderModuleCreateInfo::builder().code(code);
+    Ok(unsafe { device.create_shader_module(&create_info, None)? })
 }
 
 //DEBUG
