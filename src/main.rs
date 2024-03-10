@@ -58,6 +58,8 @@ struct App {
     //surface
     surface_loader: ash::extensions::khr::Surface,
     surface: vk::SurfaceKHR,
+
+    pipeline_layout: vk::PipelineLayout,
 }
 
 impl App {
@@ -106,6 +108,8 @@ impl App {
             &queue_families,
         )?;
 
+        let pipeline_layout = create_graphics_pipeline(&device, &swapchain);
+
         Ok(Self {
             entry,
             instance,
@@ -124,10 +128,15 @@ impl App {
             queue_families,
             graphics_queue,
             present_queue,
+
+            pipeline_layout,
         })
     }
 
     unsafe fn destroy(&mut self) {
+        self.device
+            .destroy_pipeline_layout(self.pipeline_layout, None);
+
         for &image_view in self.swapchain.image_views.iter() {
             self.device.destroy_image_view(image_view, None);
         }
@@ -343,28 +352,123 @@ fn create_device(
     Ok((device, physical_device_queue_families))
 }
 
-type ShaderCode = Vec<u8>;
-
 //SHADERS
-fn create_shaders(device: &ash::Device) {
-    let shader_codes = get_shader_codes();
+type ShaderCode = Vec<u8>;
+fn create_graphics_pipeline(
+    device: &ash::Device,
+    swapchain: &swapchain::SwapchainScop,
+) -> vk::PipelineLayout {
+    let shaders_stage_createinfo = get_shaders_stage_createinfo(device);
 
-    create_shader_module(device, &utils::from_u8_to_u32(&shader_codes.0)).unwrap();
+    //pipeline_dynamic_createinfo
+    let pipeline_dynamics = vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR];
+    let pipeline_dynamic_createinfo = vk::PipelineDynamicStateCreateInfo::builder()
+        .dynamic_states(&pipeline_dynamics)
+        .build();
+
+    let vertex_input_createinfo = vk::PipelineVertexInputStateCreateInfo::builder().build();
+    let assembly_input_createinfo = vk::PipelineInputAssemblyStateCreateInfo::builder()
+        .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
+        .primitive_restart_enable(false)
+        .build();
+
+    let viewport_createinfo = get_pipeline_viewport_createinfo(swapchain);
+
+    let rasterization_createinfo = vk::PipelineRasterizationStateCreateInfo::builder()
+        .depth_clamp_enable(false)
+        .rasterizer_discard_enable(false)
+        .polygon_mode(vk::PolygonMode::FILL)
+        .line_width(1.0)
+        .cull_mode(vk::CullModeFlags::BACK)
+        .front_face(vk::FrontFace::CLOCKWISE)
+        .depth_bias_enable(false)
+        .build();
+
+    let multisample_createinfo = vk::PipelineMultisampleStateCreateInfo::builder()
+        .sample_shading_enable(false)
+        .rasterization_samples(vk::SampleCountFlags::TYPE_1)
+        .build();
+
+    let color_blend_createinfo = get_color_blend_info();
+
+    let pipeline_layout_createinfo = vk::PipelineLayoutCreateInfo::builder();
+    //todo call destroy pipeline_layout
+    let pipeline_layout =
+        unsafe { device.create_pipeline_layout(&pipeline_layout_createinfo, None) }.unwrap();
+
+    pipeline_layout
 }
 
-fn get_shader_codes() -> (ShaderCode, ShaderCode) {
-    let vert_shader_code: ShaderCode = read_file("./shaders/vert.spv").unwrap();
-    let frag_shader_code: ShaderCode = read_file("./shaders/frag.spv").unwrap();
+fn get_color_blend_info() -> vk::PipelineColorBlendStateCreateInfo {
+    let color_blend_attachments = vk::PipelineColorBlendAttachmentState::builder()
+        .color_write_mask(vk::ColorComponentFlags::RGBA)
+        .blend_enable(true)
+        //color
+        .src_color_blend_factor(vk::BlendFactor::SRC_ALPHA)
+        .dst_color_blend_factor(vk::BlendFactor::ONE_MINUS_SRC_ALPHA)
+        .color_blend_op(vk::BlendOp::ADD)
+        //alpha
+        .src_alpha_blend_factor(vk::BlendFactor::ONE)
+        .dst_alpha_blend_factor(vk::BlendFactor::ZERO)
+        .alpha_blend_op(vk::BlendOp::ADD)
+        .build();
 
-    (vert_shader_code, frag_shader_code)
+    vk::PipelineColorBlendStateCreateInfo::builder()
+        .logic_op_enable(false)
+        .attachments(&[color_blend_attachments])
+        .build()
+}
+
+fn get_shaders_stage_createinfo(device: &ash::Device) -> Vec<vk::PipelineShaderStageCreateInfo> {
+    let vert_shader_code: ShaderCode = read_file("./shaders/vert.spv").unwrap();
+    let vert_shader_module =
+        create_shader_module(device, &utils::from_u8_to_u32(&vert_shader_code)).unwrap();
+    let vert_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
+        .stage(vk::ShaderStageFlags::VERTEX)
+        .module(vert_shader_module)
+        .name(std::ffi::CString::new("main").unwrap().as_c_str())
+        .build();
+
+    let frag_shader_code: ShaderCode = read_file("./shaders/frag.spv").unwrap();
+    let frag_shader_module =
+        create_shader_module(device, &utils::from_u8_to_u32(&frag_shader_code)).unwrap();
+    let frag_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
+        .stage(vk::ShaderStageFlags::FRAGMENT)
+        .module(frag_shader_module)
+        .name(std::ffi::CString::new("main").unwrap().as_c_str())
+        .build();
+
+    vec![frag_shader_stage_info, vert_shader_stage_info]
+}
+
+fn get_pipeline_viewport_createinfo(
+    swapchain: &swapchain::SwapchainScop,
+) -> vk::PipelineViewportStateCreateInfo {
+    let viewport = vk::Viewport::builder()
+        .width(swapchain.extent.width as f32)
+        .height(swapchain.extent.height as f32)
+        .max_depth(1.0)
+        .build();
+
+    let scissor = vk::Rect2D::builder()
+        .offset(vk::Offset2D { x: 0, y: 0 })
+        .extent(swapchain.extent)
+        .build();
+
+    vk::PipelineViewportStateCreateInfo::builder()
+        .viewport_count(1)
+        .viewports(&[viewport])
+        .scissor_count(1)
+        .scissors(&[scissor])
+        .build()
 }
 
 fn create_shader_module(
     device: &ash::Device,
     code: &[u32],
 ) -> anyhow::Result<ash::vk::ShaderModule> {
-    let create_info = ash::vk::ShaderModuleCreateInfo::builder().code(code);
-    Ok(unsafe { device.create_shader_module(&create_info, None)? })
+    let createinfo = ash::vk::ShaderModuleCreateInfo::builder().code(code);
+    Ok(unsafe { device.create_shader_module(&createinfo, None)? })
 }
 
 //DEBUG
