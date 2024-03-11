@@ -4,7 +4,7 @@ mod utils;
 
 use anyhow::Ok;
 use ash::vk;
-use utils::read_file;
+use swapchain::SwapchainScop;
 use winit::platform::windows::WindowExtWindows;
 
 fn main() -> anyhow::Result<()> {
@@ -62,6 +62,7 @@ struct App {
     pipeline_layout: vk::PipelineLayout,
     render_pass: vk::RenderPass,
     graphics_pipelines: Vec<vk::Pipeline>,
+    framebuffers: Vec<vk::Framebuffer>,
 }
 
 impl App {
@@ -111,6 +112,7 @@ impl App {
         let render_pass = create_render_pass(&device, &swapchain);
         let graphics_pipelines =
             create_graphics_pipeline(&device, &swapchain, pipeline_layout, render_pass);
+        let framebuffers = create_framebuffers(&device, &swapchain, render_pass);
 
         Ok(Self {
             entry,
@@ -134,10 +136,15 @@ impl App {
             pipeline_layout,
             render_pass,
             graphics_pipelines,
+            framebuffers,
         })
     }
 
     unsafe fn destroy(&mut self) {
+        for &framebuffer in self.framebuffers.iter() {
+            self.device.destroy_framebuffer(framebuffer, None);
+        }
+
         for &pipeline in self.graphics_pipelines.iter() {
             self.device.destroy_pipeline(pipeline, None);
         }
@@ -362,7 +369,7 @@ fn create_device(
     Ok((device, physical_device_queue_families))
 }
 
-//SHADERS
+//GRAPHICS
 fn create_graphics_pipeline(
     device: &ash::Device,
     swapchain: &swapchain::SwapchainScop,
@@ -499,6 +506,30 @@ fn create_shader_module(
 ) -> anyhow::Result<ash::vk::ShaderModule> {
     let createinfo = ash::vk::ShaderModuleCreateInfo::builder().code(code);
     Ok(unsafe { device.create_shader_module(&createinfo, None)? })
+}
+
+//FRAMEBUFFERS
+
+fn create_framebuffers(
+    device: &ash::Device,
+    swapchain: &SwapchainScop,
+    render_pass: vk::RenderPass,
+) -> Vec<vk::Framebuffer> {
+    let mut framebuffers: Vec<vk::Framebuffer> = Vec::new();
+
+    for &p in &swapchain.image_views {
+        let p_imageview = [p];
+        let framebuffer_info = vk::FramebufferCreateInfo::builder()
+            .render_pass(render_pass)
+            .attachments(&p_imageview)
+            .width(swapchain.extent.width)
+            .height(swapchain.extent.height)
+            .layers(1);
+
+        framebuffers.push(unsafe { device.create_framebuffer(&framebuffer_info, None) }.unwrap());
+    }
+
+    framebuffers
 }
 
 fn create_render_pass(
