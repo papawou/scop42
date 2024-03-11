@@ -376,6 +376,11 @@ fn create_graphics_pipeline(
 ) -> Vec<vk::Pipeline> {
     let shaders_stage_createinfo = get_shaders_stage_createinfo(device);
 
+    let c_str =
+        unsafe { std::ffi::CStr::from_ptr(shaders_stage_createinfo.get(0).unwrap().p_name) };
+
+    print!("EHOOHH {}", c_str.to_str().unwrap());
+
     //pipeline_dynamic_createinfo
     let pipeline_dynamics = vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR];
     let pipeline_dynamic_createinfo = vk::PipelineDynamicStateCreateInfo::builder()
@@ -437,7 +442,12 @@ fn create_pipeline_layout(device: &ash::Device) -> vk::PipelineLayout {
 
 fn get_color_blend_info() -> vk::PipelineColorBlendStateCreateInfo {
     let color_blend_attachments = vk::PipelineColorBlendAttachmentState::builder()
-        .color_write_mask(vk::ColorComponentFlags::RGBA)
+        .color_write_mask(
+            vk::ColorComponentFlags::R
+                | vk::ColorComponentFlags::G
+                | vk::ColorComponentFlags::B
+                | vk::ColorComponentFlags::A,
+        )
         .blend_enable(true)
         //color
         .src_color_blend_factor(vk::BlendFactor::SRC_ALPHA)
@@ -456,18 +466,18 @@ fn get_color_blend_info() -> vk::PipelineColorBlendStateCreateInfo {
 }
 
 fn get_shaders_stage_createinfo(device: &ash::Device) -> Vec<vk::PipelineShaderStageCreateInfo> {
-    let vert_shader_code: ShaderCode = read_file("./shaders/vert.spv").unwrap();
-    let vert_shader_module =
-        create_shader_module(device, &utils::from_u8_to_u32(&vert_shader_code)).unwrap();
+    let mut vert_shader_file = std::fs::File::open("./shaders/frag.spv").unwrap();
+    let vert_shader_code = ash::util::read_spv(&mut vert_shader_file).unwrap();
+    let vert_shader_module = create_shader_module(device, &vert_shader_code).unwrap();
     let vert_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
         .stage(vk::ShaderStageFlags::VERTEX)
         .module(vert_shader_module)
         .name(std::ffi::CString::new("main").unwrap().as_c_str())
         .build();
 
-    let frag_shader_code: ShaderCode = read_file("./shaders/frag.spv").unwrap();
-    let frag_shader_module =
-        create_shader_module(device, &utils::from_u8_to_u32(&frag_shader_code)).unwrap();
+    let mut frag_shader_file = std::fs::File::open("./shaders/frag.spv").unwrap();
+    let frag_shader_code = ash::util::read_spv(&mut frag_shader_file).unwrap();
+    let frag_shader_module = create_shader_module(device, &frag_shader_code).unwrap();
     let frag_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
         .stage(vk::ShaderStageFlags::FRAGMENT)
         .module(frag_shader_module)
