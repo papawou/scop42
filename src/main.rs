@@ -73,10 +73,7 @@ impl App {
 
         let mut debug_info: vk::DebugUtilsMessengerCreateInfoEXT = create_debug_info();
 
-        let (_layer_names, layer_name_pointers) = conf::get_layer_names();
-
-        let instance_info = get_instance_info(&layer_name_pointers, &mut debug_info)?;
-        let instance = unsafe { entry.create_instance(&instance_info, None)? };
+        let instance = get_instance(&entry, &mut debug_info)?;
 
         let (debug_utils_loader, debug_utils_messenger) =
             create_debug(&entry, &instance, &debug_info);
@@ -167,10 +164,12 @@ impl App {
     }
 }
 
-fn get_instance_info(
-    layer_name_pointers: &Vec<*const i8>,
+fn get_instance(
+    entry: &ash::Entry,
     debug_info: &mut vk::DebugUtilsMessengerCreateInfoEXT,
-) -> anyhow::Result<vk::InstanceCreateInfo> {
+) -> anyhow::Result<ash::Instance> {
+    let (_layer_names, layer_name_pointers) = conf::get_layer_names();
+
     let application_info = vk::ApplicationInfo::builder()
         .application_name(std::ffi::CString::new(conf::APPLICATION_NAME)?.as_c_str())
         .application_version(conf::APPLICATION_VERSION)
@@ -179,16 +178,14 @@ fn get_instance_info(
         .api_version(conf::API_VERSION)
         .build();
 
-    //let (_, layer_names_ptr) = conf::get_layer_names();
-
     let instance_create_info: vk::InstanceCreateInfo = vk::InstanceCreateInfo::builder()
         .push_next(debug_info)
         .application_info(&application_info)
-        .enabled_layer_names(layer_name_pointers)
+        .enabled_layer_names(&layer_name_pointers)
         .enabled_extension_names(&conf::EXTENSION_NAMES)
         .build();
 
-    Ok(instance_create_info)
+    Ok(unsafe { entry.create_instance(&instance_create_info, None) }?)
 }
 
 //DEVICES
@@ -366,20 +363,31 @@ fn create_device(
 }
 
 //SHADERS
-type ShaderCode = Vec<u8>;
-
 fn create_graphics_pipeline(
     device: &ash::Device,
     swapchain: &swapchain::SwapchainScop,
     pipeline_layout: vk::PipelineLayout,
     render_pass: vk::RenderPass,
 ) -> Vec<vk::Pipeline> {
-    let shaders_stage_createinfo = get_shaders_stage_createinfo(device);
+    let main_entry = std::ffi::CString::new("main").unwrap();
+    let mut vert_shader_file = std::fs::File::open("./shaders/vert.spv").unwrap();
+    let vert_shader_code = ash::util::read_spv(&mut vert_shader_file).unwrap();
+    let vert_shader_module = create_shader_module(device, &vert_shader_code).unwrap();
+    let vert_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
+        .stage(vk::ShaderStageFlags::VERTEX)
+        .module(vert_shader_module)
+        .name(main_entry.as_c_str())
+        .build();
 
-    let c_str =
-        unsafe { std::ffi::CStr::from_ptr(shaders_stage_createinfo.get(0).unwrap().p_name) };
-
-    print!("EHOOHH {}", c_str.to_str().unwrap());
+    let mut frag_shader_file = std::fs::File::open("./shaders/frag.spv").unwrap();
+    let frag_shader_code = ash::util::read_spv(&mut frag_shader_file).unwrap();
+    let frag_shader_module = create_shader_module(device, &frag_shader_code).unwrap();
+    let frag_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
+        .stage(vk::ShaderStageFlags::FRAGMENT)
+        .module(frag_shader_module)
+        .name(main_entry.as_c_str())
+        .build();
+    let shaders_stage_createinfo = vec![frag_shader_stage_info, vert_shader_stage_info];
 
     //pipeline_dynamic_createinfo
     let pipeline_dynamics = vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR];
@@ -410,37 +418,6 @@ fn create_graphics_pipeline(
         .rasterization_samples(vk::SampleCountFlags::TYPE_1)
         .build();
 
-    let color_blend_createinfo = get_color_blend_info();
-
-    let pipeline_info = vk::GraphicsPipelineCreateInfo::builder()
-        .stages(&shaders_stage_createinfo)
-        .vertex_input_state(&vertex_input_createinfo)
-        .input_assembly_state(&assembly_input_createinfo)
-        .viewport_state(&viewport_createinfo)
-        .rasterization_state(&rasterization_createinfo)
-        .multisample_state(&multisample_createinfo)
-        .color_blend_state(&color_blend_createinfo)
-        .dynamic_state(&pipeline_dynamic_createinfo)
-        .layout(pipeline_layout)
-        .render_pass(render_pass)
-        .subpass(0)
-        .build();
-
-    let pipelines = unsafe {
-        device.create_graphics_pipelines(vk::PipelineCache::null(), &[pipeline_info], None)
-    }
-    .unwrap();
-
-    pipelines
-}
-
-fn create_pipeline_layout(device: &ash::Device) -> vk::PipelineLayout {
-    let pipeline_layout_createinfo = vk::PipelineLayoutCreateInfo::builder();
-
-    unsafe { device.create_pipeline_layout(&pipeline_layout_createinfo, None) }.unwrap()
-}
-
-fn get_color_blend_info() -> vk::PipelineColorBlendStateCreateInfo {
     let color_blend_attachments = vk::PipelineColorBlendAttachmentState::builder()
         .color_write_mask(
             vk::ColorComponentFlags::R
@@ -458,33 +435,40 @@ fn get_color_blend_info() -> vk::PipelineColorBlendStateCreateInfo {
         .dst_alpha_blend_factor(vk::BlendFactor::ZERO)
         .alpha_blend_op(vk::BlendOp::ADD)
         .build();
-
-    vk::PipelineColorBlendStateCreateInfo::builder()
+    let color_blend_createinfo = vk::PipelineColorBlendStateCreateInfo::builder()
         .logic_op_enable(false)
         .attachments(&[color_blend_attachments])
-        .build()
+        .build();
+
+    let pipeline_info = vk::GraphicsPipelineCreateInfo::builder()
+        .stages(&shaders_stage_createinfo)
+        .vertex_input_state(&vertex_input_createinfo)
+        .input_assembly_state(&assembly_input_createinfo)
+        .viewport_state(&viewport_createinfo)
+        .rasterization_state(&rasterization_createinfo)
+        .multisample_state(&multisample_createinfo)
+        .color_blend_state(&color_blend_createinfo)
+        .dynamic_state(&pipeline_dynamic_createinfo)
+        .layout(pipeline_layout)
+        .render_pass(render_pass)
+        .subpass(0)
+        .build();
+
+    let pipeline = unsafe {
+        device.create_graphics_pipelines(vk::PipelineCache::null(), &[pipeline_info], None)
+    }
+    .unwrap();
+
+    unsafe { device.destroy_shader_module(vert_shader_module, None) };
+    unsafe { device.destroy_shader_module(frag_shader_module, None) };
+
+    pipeline
 }
 
-fn get_shaders_stage_createinfo(device: &ash::Device) -> Vec<vk::PipelineShaderStageCreateInfo> {
-    let mut vert_shader_file = std::fs::File::open("./shaders/frag.spv").unwrap();
-    let vert_shader_code = ash::util::read_spv(&mut vert_shader_file).unwrap();
-    let vert_shader_module = create_shader_module(device, &vert_shader_code).unwrap();
-    let vert_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
-        .stage(vk::ShaderStageFlags::VERTEX)
-        .module(vert_shader_module)
-        .name(std::ffi::CString::new("main").unwrap().as_c_str())
-        .build();
+fn create_pipeline_layout(device: &ash::Device) -> vk::PipelineLayout {
+    let pipeline_layout_createinfo = vk::PipelineLayoutCreateInfo::builder();
 
-    let mut frag_shader_file = std::fs::File::open("./shaders/frag.spv").unwrap();
-    let frag_shader_code = ash::util::read_spv(&mut frag_shader_file).unwrap();
-    let frag_shader_module = create_shader_module(device, &frag_shader_code).unwrap();
-    let frag_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
-        .stage(vk::ShaderStageFlags::FRAGMENT)
-        .module(frag_shader_module)
-        .name(std::ffi::CString::new("main").unwrap().as_c_str())
-        .build();
-
-    vec![frag_shader_stage_info, vert_shader_stage_info]
+    unsafe { device.create_pipeline_layout(&pipeline_layout_createinfo, None) }.unwrap()
 }
 
 fn get_pipeline_viewport_createinfo(
