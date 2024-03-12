@@ -63,6 +63,8 @@ struct App {
     render_pass: vk::RenderPass,
     graphics_pipelines: Vec<vk::Pipeline>,
     framebuffers: Vec<vk::Framebuffer>,
+
+    command_pool: vk::CommandPool,
 }
 
 impl App {
@@ -114,6 +116,8 @@ impl App {
             create_graphics_pipeline(&device, &swapchain, pipeline_layout, render_pass);
         let framebuffers = create_framebuffers(&device, &swapchain, render_pass);
 
+        let command_pool = create_command_pool(&device, queue_families.graphics);
+
         Ok(Self {
             entry,
             instance,
@@ -137,6 +141,8 @@ impl App {
             render_pass,
             graphics_pipelines,
             framebuffers,
+
+            command_pool,
         })
     }
 
@@ -160,6 +166,8 @@ impl App {
 
         self.swapchain_loader
             .destroy_swapchain(self.swapchain.chain, None);
+
+        self.device.destroy_command_pool(self.command_pool, None);
 
         self.device.destroy_device(None);
 
@@ -372,7 +380,7 @@ fn create_device(
 //GRAPHICS
 fn create_graphics_pipeline(
     device: &ash::Device,
-    swapchain: &swapchain::SwapchainScop,
+    swapchain: &swapchain::SwapchainScop, //use fields?
     pipeline_layout: vk::PipelineLayout,
     render_pass: vk::RenderPass,
 ) -> Vec<vk::Pipeline> {
@@ -512,7 +520,7 @@ fn create_shader_module(
 
 fn create_framebuffers(
     device: &ash::Device,
-    swapchain: &SwapchainScop,
+    swapchain: &SwapchainScop, //use fields? no too tide
     render_pass: vk::RenderPass,
 ) -> Vec<vk::Framebuffer> {
     let mut framebuffers: Vec<vk::Framebuffer> = Vec::new();
@@ -534,7 +542,7 @@ fn create_framebuffers(
 
 fn create_render_pass(
     device: &ash::Device,
-    swapchain: &swapchain::SwapchainScop,
+    swapchain: &swapchain::SwapchainScop, //use field?
 ) -> vk::RenderPass {
     let color_attachment = vk::AttachmentDescription::builder()
         .format(swapchain.surface_format.format)
@@ -562,6 +570,15 @@ fn create_render_pass(
         .build();
 
     unsafe { device.create_render_pass(&render_pass_createinfo, None) }.unwrap()
+}
+
+//COMMAND POOL
+fn create_command_pool(device: &ash::Device, graphics_family: u32) -> vk::CommandPool {
+    let command_pool_info = vk::CommandPoolCreateInfo::builder()
+        .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
+        .queue_family_index(graphics_family);
+
+    unsafe { device.create_command_pool(&command_pool_info, None) }.unwrap()
 }
 
 //DEBUG
