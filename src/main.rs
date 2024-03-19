@@ -3,7 +3,7 @@ mod swapchain;
 mod utils;
 
 use anyhow::Ok;
-use ash::vk;
+use ash::vk::{self};
 use swapchain::SwapchainScop;
 use winit::platform::windows::WindowExtWindows;
 
@@ -45,6 +45,10 @@ struct App {
     swapchain_loader: ash::extensions::khr::Swapchain,
     swapchain: swapchain::SwapchainScop,
 
+    image_avalaible_semaphore: vk::Semaphore,
+    render_finished_sempahore: vk::Semaphore,
+    inflight_fence: vk::Fence,
+
     //debug
     debug_utils_loader: ash::extensions::ext::DebugUtils,
     debug_utils_messenger: vk::DebugUtilsMessengerEXT,
@@ -65,6 +69,7 @@ struct App {
     framebuffers: Vec<vk::Framebuffer>,
 
     command_pool: vk::CommandPool,
+    command_buffers: Vec<vk::CommandBuffer>,
 }
 
 impl App {
@@ -110,13 +115,17 @@ impl App {
             &queue_families,
         )?;
 
+        let swapchain_sync = create_sync_objs(&device);
+
+        //global?
         let pipeline_layout = create_pipeline_layout(&device);
         let render_pass = create_render_pass(&device, &swapchain);
         let graphics_pipelines =
             create_graphics_pipeline(&device, &swapchain, pipeline_layout, render_pass);
-        let framebuffers = create_framebuffers(&device, &swapchain, render_pass);
 
+        let framebuffers = create_framebuffers(&device, &swapchain, render_pass);
         let command_pool = create_command_pool(&device, queue_families.graphics);
+        let command_buffers = create_command_buffer(&device, &command_pool);
 
         Ok(Self {
             entry,
@@ -125,6 +134,10 @@ impl App {
 
             swapchain_loader,
             swapchain,
+
+            image_avalaible_semaphore: swapchain_sync.0,
+            render_finished_sempahore: swapchain_sync.1,
+            inflight_fence: swapchain_sync.2,
 
             debug_utils_loader,
             debug_utils_messenger,
@@ -143,10 +156,66 @@ impl App {
             framebuffers,
 
             command_pool,
+            command_buffers,
         })
     }
 
+    unsafe fn draw_frame(&self) {
+        self.device
+            .wait_for_fences(&[self.inflight_fence], true, u64::MAX)
+            .unwrap();
+        self.device.reset_fences(&[self.inflight_fence]).unwrap();
+
+        let (frame_idx, _) = self
+            .swapchain_loader
+            .acquire_next_image(
+                self.swapchain.chain,
+                u64::MAX,
+                self.image_avalaible_semaphore,
+                vk::Fence::null(),
+            )
+            .unwrap();
+
+        self.device
+            .reset_command_buffer(
+                self.command_buffers[0],
+                vk::CommandBufferResetFlags::empty(),
+            )
+            .unwrap();
+
+        record_command_buffer(
+            &self.device,
+            &self.command_buffers[0],
+            &self.swapchain,
+            &self.render_pass,
+            &self.framebuffers[frame_idx as usize],
+            &self.graphics_pipelines[0],
+        );
+
+        let submit_info = vk::SubmitInfo::builder()
+            .command_buffers(&self.command_buffers)
+            .wait_semaphores(&[self.image_avalaible_semaphore])
+            .signal_semaphores(&[self.render_finished_sempahore])
+            .build();
+        self.device
+            .queue_submit(self.graphics_queue, &[submit_info], self.inflight_fence)
+            .unwrap();
+
+        let present_info = vk::PresentInfoKHR::builder()
+            .wait_semaphores(&[self.render_finished_sempahore])
+            .build();
+        self.swapchain_loader
+            .queue_present(self.present_queue, &present_info)
+            .unwrap();
+    }
+
     unsafe fn destroy(&mut self) {
+        self.device
+            .destroy_semaphore(self.image_avalaible_semaphore, None);
+        self.device
+            .destroy_semaphore(self.render_finished_sempahore, None);
+        self.device.destroy_fence(self.inflight_fence, None);
+
         for &framebuffer in self.framebuffers.iter() {
             self.device.destroy_framebuffer(framebuffer, None);
         }
@@ -481,7 +550,7 @@ fn create_graphics_pipeline(
 }
 
 fn create_pipeline_layout(device: &ash::Device) -> vk::PipelineLayout {
-    let pipeline_layout_createinfo = vk::PipelineLayoutCreateInfo::builder();
+    let pipeline_layout_createinfo = vk::PipelineLayoutCreateInfo::builder().build();
 
     unsafe { device.create_pipeline_layout(&pipeline_layout_createinfo, None) }.unwrap()
 }
@@ -579,6 +648,95 @@ fn create_command_pool(device: &ash::Device, graphics_family: u32) -> vk::Comman
         .queue_family_index(graphics_family);
 
     unsafe { device.create_command_pool(&command_pool_info, None) }.unwrap()
+}
+
+fn create_command_buffer(
+    device: &ash::Device,
+    &command_pool: &vk::CommandPool,
+) -> Vec<vk::CommandBuffer> {
+    let allocate_info = vk::CommandBufferAllocateInfo::builder()
+        .command_pool(command_pool)
+        .level(vk::CommandBufferLevel::PRIMARY)
+        .command_buffer_count(1)
+        .build();
+
+    unsafe { device.allocate_command_buffers(&allocate_info) }.unwrap()
+}
+
+fn record_command_buffer(
+    device: &ash::Device,
+    &command_buffer: &vk::CommandBuffer,
+    swapchain: &SwapchainScop,
+    &render_pass: &vk::RenderPass,
+    &framebuffer: &vk::Framebuffer,
+    &graphics_pipeline: &vk::Pipeline,
+) {
+    let begin_info = vk::CommandBufferBeginInfo::builder().build();
+    unsafe { device.begin_command_buffer(command_buffer, &begin_info) }.unwrap();
+
+    let clear_values = vk::ClearValue {
+        color: vk::ClearColorValue {
+            float32: [0.0, 0.0, 0.0, 1.0],
+        },
+    };
+    let render_pass_info = vk::RenderPassBeginInfo::builder()
+        .render_pass(render_pass)
+        .framebuffer(framebuffer)
+        .render_area(vk::Rect2D {
+            extent: swapchain.extent,
+            ..Default::default()
+        })
+        .clear_values(&[clear_values])
+        .build();
+    unsafe {
+        device.cmd_begin_render_pass(
+            command_buffer,
+            &render_pass_info,
+            vk::SubpassContents::INLINE,
+        )
+    };
+
+    unsafe {
+        device.cmd_bind_pipeline(
+            command_buffer,
+            vk::PipelineBindPoint::GRAPHICS,
+            graphics_pipeline,
+        )
+    };
+
+    let viewport = vk::Viewport::builder()
+        .width(swapchain.extent.width as f32)
+        .height(swapchain.extent.height as f32)
+        .min_depth(0.0)
+        .max_depth(1.0)
+        .build();
+    unsafe { device.cmd_set_viewport(command_buffer, 1, &[viewport]) };
+
+    let scissor = vk::Rect2D::builder().extent(swapchain.extent).build();
+    unsafe { device.cmd_set_scissor(command_buffer, 1, &[scissor]) }
+
+    unsafe { device.cmd_draw(command_buffer, 3, 1, 0, 0) };
+    unsafe { device.cmd_end_render_pass(command_buffer) };
+    unsafe { device.end_command_buffer(command_buffer) }.unwrap();
+}
+
+//swapchain
+fn create_sync_objs(device: &ash::Device) -> (vk::Semaphore, vk::Semaphore, vk::Fence) {
+    let image_available_semaphore =
+        unsafe { device.create_semaphore(&vk::SemaphoreCreateInfo::default(), None) }.unwrap();
+    let render_finished_semaphore =
+        unsafe { device.create_semaphore(&vk::SemaphoreCreateInfo::default(), None) }.unwrap();
+
+    let inflight_fence_info = vk::FenceCreateInfo::builder()
+        .flags(vk::FenceCreateFlags::SIGNALED)
+        .build();
+    let inflight_fence = unsafe { device.create_fence(&inflight_fence_info, None) }.unwrap();
+
+    (
+        image_available_semaphore,
+        render_finished_semaphore,
+        inflight_fence,
+    )
 }
 
 //DEBUG

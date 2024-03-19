@@ -4,6 +4,7 @@
 	],
 	"files.associations": {
 		"*.h": "c",
-		"vector": "cpp"
+		"vector": "cpp",
+		"stdexcept": "cpp"
 	}
 }

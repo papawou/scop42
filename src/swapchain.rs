@@ -42,13 +42,13 @@ pub fn create_swapchain(
         .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT);
 
     let swapchain_queue_families = [queue_families.graphics, queue_families.present];
-    if queue_families.graphics != queue_families.present {
-        swapchain_create_info = swapchain_create_info
+    swapchain_create_info = if queue_families.graphics != queue_families.present {
+        swapchain_create_info
             .image_sharing_mode(vk::SharingMode::CONCURRENT)
             .queue_family_indices(&swapchain_queue_families)
     } else {
-        swapchain_create_info = swapchain_create_info.image_sharing_mode(vk::SharingMode::EXCLUSIVE)
-    }
+        swapchain_create_info.image_sharing_mode(vk::SharingMode::EXCLUSIVE)
+    };
 
     swapchain_create_info = swapchain_create_info
         .pre_transform(surface_support.capabilities.current_transform)
