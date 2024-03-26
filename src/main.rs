@@ -27,6 +27,7 @@ fn main() -> anyhow::Result<()> {
             event: winit::event::WindowEvent::CloseRequested,
             ..
         } => {
+            unsafe { app.device.device_wait_idle() }.unwrap();
             unsafe { app.destroy() };
             *control_flow = winit::event_loop::ControlFlow::Exit;
         }
