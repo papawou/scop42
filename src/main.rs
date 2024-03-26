@@ -30,8 +30,8 @@ fn main() -> anyhow::Result<()> {
             unsafe { app.destroy() };
             *control_flow = winit::event_loop::ControlFlow::Exit;
         }
-        winit::event::Event::MainEventsCleared => {} //request_redraw
-        winit::event::Event::RedrawRequested(_) => {} //render
+        winit::event::Event::MainEventsCleared => window.request_redraw(), //request_redraw
+        winit::event::Event::RedrawRequested(_) => unsafe { app.draw_frame() }, //render
         _ => {}
     });
 }
@@ -194,6 +194,7 @@ impl App {
 
         let submit_info = vk::SubmitInfo::builder()
             .command_buffers(&self.command_buffers)
+            .wait_dst_stage_mask(&[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT])
             .wait_semaphores(&[self.image_avalaible_semaphore])
             .signal_semaphores(&[self.render_finished_sempahore])
             .build();
@@ -201,7 +202,10 @@ impl App {
             .queue_submit(self.graphics_queue, &[submit_info], self.inflight_fence)
             .unwrap();
 
+        //PRESENTATION
         let present_info = vk::PresentInfoKHR::builder()
+            .swapchains(&[self.swapchain.chain])
+            .image_indices(&[frame_idx])
             .wait_semaphores(&[self.render_finished_sempahore])
             .build();
         self.swapchain_loader
@@ -570,9 +574,7 @@ fn get_pipeline_viewport_createinfo(
         .build();
 
     vk::PipelineViewportStateCreateInfo::builder()
-        .viewport_count(1)
         .viewports(&[viewport])
-        .scissor_count(1)
         .scissors(&[scissor])
         .build()
 }
@@ -628,6 +630,15 @@ fn create_render_pass(
         .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
         .build();
 
+    let subpass_dependency = vk::SubpassDependency::builder()
+        .src_subpass(vk::SUBPASS_EXTERNAL)
+        .dst_subpass(0)
+        .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+        .src_access_mask(vk::AccessFlags::NONE)
+        .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+        .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
+        .build();
+
     let subpass_description = vk::SubpassDescription::builder()
         .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
         .color_attachments(&[color_attachment_ref])
@@ -636,6 +647,7 @@ fn create_render_pass(
     let render_pass_createinfo = vk::RenderPassCreateInfo::builder()
         .attachments(&[color_attachment])
         .subpasses(&[subpass_description])
+        .dependencies(&[subpass_dependency])
         .build();
 
     unsafe { device.create_render_pass(&render_pass_createinfo, None) }.unwrap()
@@ -710,10 +722,10 @@ fn record_command_buffer(
         .min_depth(0.0)
         .max_depth(1.0)
         .build();
-    unsafe { device.cmd_set_viewport(command_buffer, 1, &[viewport]) };
+    unsafe { device.cmd_set_viewport(command_buffer, 0, &[viewport]) };
 
     let scissor = vk::Rect2D::builder().extent(swapchain.extent).build();
-    unsafe { device.cmd_set_scissor(command_buffer, 1, &[scissor]) }
+    unsafe { device.cmd_set_scissor(command_buffer, 0, &[scissor]) }
 
     unsafe { device.cmd_draw(command_buffer, 3, 1, 0, 0) };
     unsafe { device.cmd_end_render_pass(command_buffer) };
