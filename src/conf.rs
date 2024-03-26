@@ -34,3 +34,5 @@ pub const EXTENSION_NAMES: [*const i8; 3] = [
 ];
 
 pub const DEVICE_EXTENSION_NAMES: [&std::ffi::CStr; 1] = [ash::extensions::khr::Swapchain::name()];
+
+pub const MAX_FRAMES_IN_FLIGHT: usize = 2;

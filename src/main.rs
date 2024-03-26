@@ -2,8 +2,11 @@ mod conf;
 mod swapchain;
 mod utils;
 
+use std::u32::MAX;
+
 use anyhow::Ok;
 use ash::vk::{self};
+use conf::MAX_FRAMES_IN_FLIGHT;
 use swapchain::SwapchainScop;
 use winit::platform::windows::WindowExtWindows;
 
@@ -22,6 +25,8 @@ fn main() -> anyhow::Result<()> {
 
     let mut app = App::create(entry, &window)?;
 
+    let mut current_frame = 0;
+
     event_loop.run(move |event, _, control_flow| match event {
         winit::event::Event::WindowEvent {
             event: winit::event::WindowEvent::CloseRequested,
@@ -31,8 +36,11 @@ fn main() -> anyhow::Result<()> {
             unsafe { app.destroy() };
             *control_flow = winit::event_loop::ControlFlow::Exit;
         }
-        winit::event::Event::MainEventsCleared => window.request_redraw(), //request_redraw
-        winit::event::Event::RedrawRequested(_) => unsafe { app.draw_frame() }, //render
+        winit::event::Event::MainEventsCleared => window.request_redraw(),
+        winit::event::Event::RedrawRequested(_) => {
+            unsafe { app.draw_frame(current_frame) };
+            current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+        }
         _ => {}
     });
 }
@@ -46,9 +54,9 @@ struct App {
     swapchain_loader: ash::extensions::khr::Swapchain,
     swapchain: swapchain::SwapchainScop,
 
-    image_avalaible_semaphore: vk::Semaphore,
-    render_finished_sempahore: vk::Semaphore,
-    inflight_fence: vk::Fence,
+    image_avalaible_semaphores: Vec<vk::Semaphore>,
+    render_finished_sempahores: Vec<vk::Semaphore>,
+    inflight_fences: Vec<vk::Fence>,
 
     //debug
     debug_utils_loader: ash::extensions::ext::DebugUtils,
@@ -126,7 +134,7 @@ impl App {
 
         let framebuffers = create_framebuffers(&device, &swapchain, render_pass);
         let command_pool = create_command_pool(&device, queue_families.graphics);
-        let command_buffers = create_command_buffer(&device, &command_pool);
+        let command_buffers = create_command_buffers(&device, &command_pool);
 
         Ok(Self {
             entry,
@@ -136,9 +144,9 @@ impl App {
             swapchain_loader,
             swapchain,
 
-            image_avalaible_semaphore: swapchain_sync.0,
-            render_finished_sempahore: swapchain_sync.1,
-            inflight_fence: swapchain_sync.2,
+            image_avalaible_semaphores: swapchain_sync.0,
+            render_finished_sempahores: swapchain_sync.1,
+            inflight_fences: swapchain_sync.2,
 
             debug_utils_loader,
             debug_utils_messenger,
@@ -161,32 +169,34 @@ impl App {
         })
     }
 
-    unsafe fn draw_frame(&self) {
+    unsafe fn draw_frame(&self, current_frame: usize) {
+        let inflight_fence = self.inflight_fences[current_frame];
+        let image_avalaible_semaphore = self.image_avalaible_semaphores[current_frame];
+        let render_finished_semaphore = self.render_finished_sempahores[current_frame];
+        let command_buffer = self.command_buffers[current_frame];
+
         self.device
-            .wait_for_fences(&[self.inflight_fence], true, u64::MAX)
+            .wait_for_fences(&[inflight_fence], true, u64::MAX)
             .unwrap();
-        self.device.reset_fences(&[self.inflight_fence]).unwrap();
+        self.device.reset_fences(&[inflight_fence]).unwrap();
 
         let (frame_idx, _) = self
             .swapchain_loader
             .acquire_next_image(
                 self.swapchain.chain,
                 u64::MAX,
-                self.image_avalaible_semaphore,
+                image_avalaible_semaphore,
                 vk::Fence::null(),
             )
             .unwrap();
 
         self.device
-            .reset_command_buffer(
-                self.command_buffers[0],
-                vk::CommandBufferResetFlags::empty(),
-            )
+            .reset_command_buffer(command_buffer, vk::CommandBufferResetFlags::empty())
             .unwrap();
 
         record_command_buffer(
             &self.device,
-            &self.command_buffers[0],
+            &command_buffer,
             &self.swapchain,
             &self.render_pass,
             &self.framebuffers[frame_idx as usize],
@@ -194,20 +204,20 @@ impl App {
         );
 
         let submit_info = vk::SubmitInfo::builder()
-            .command_buffers(&self.command_buffers)
+            .command_buffers(&[command_buffer])
             .wait_dst_stage_mask(&[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT])
-            .wait_semaphores(&[self.image_avalaible_semaphore])
-            .signal_semaphores(&[self.render_finished_sempahore])
+            .wait_semaphores(&[image_avalaible_semaphore])
+            .signal_semaphores(&[render_finished_semaphore])
             .build();
         self.device
-            .queue_submit(self.graphics_queue, &[submit_info], self.inflight_fence)
+            .queue_submit(self.graphics_queue, &[submit_info], inflight_fence)
             .unwrap();
 
         //PRESENTATION
         let present_info = vk::PresentInfoKHR::builder()
             .swapchains(&[self.swapchain.chain])
             .image_indices(&[frame_idx])
-            .wait_semaphores(&[self.render_finished_sempahore])
+            .wait_semaphores(&[render_finished_semaphore])
             .build();
         self.swapchain_loader
             .queue_present(self.present_queue, &present_info)
@@ -215,11 +225,15 @@ impl App {
     }
 
     unsafe fn destroy(&mut self) {
-        self.device
-            .destroy_semaphore(self.image_avalaible_semaphore, None);
-        self.device
-            .destroy_semaphore(self.render_finished_sempahore, None);
-        self.device.destroy_fence(self.inflight_fence, None);
+        self.image_avalaible_semaphores
+            .iter()
+            .for_each(|&e| self.device.destroy_semaphore(e, None));
+        self.render_finished_sempahores
+            .iter()
+            .for_each(|&e| self.device.destroy_semaphore(e, None));
+        self.inflight_fences
+            .iter()
+            .for_each(|&e| self.device.destroy_fence(e, None));
 
         for &framebuffer in self.framebuffers.iter() {
             self.device.destroy_framebuffer(framebuffer, None);
@@ -663,14 +677,14 @@ fn create_command_pool(device: &ash::Device, graphics_family: u32) -> vk::Comman
     unsafe { device.create_command_pool(&command_pool_info, None) }.unwrap()
 }
 
-fn create_command_buffer(
+fn create_command_buffers(
     device: &ash::Device,
     &command_pool: &vk::CommandPool,
 ) -> Vec<vk::CommandBuffer> {
     let allocate_info = vk::CommandBufferAllocateInfo::builder()
         .command_pool(command_pool)
         .level(vk::CommandBufferLevel::PRIMARY)
-        .command_buffer_count(1)
+        .command_buffer_count(MAX_FRAMES_IN_FLIGHT as u32)
         .build();
 
     unsafe { device.allocate_command_buffers(&allocate_info) }.unwrap()
@@ -734,21 +748,32 @@ fn record_command_buffer(
 }
 
 //swapchain
-fn create_sync_objs(device: &ash::Device) -> (vk::Semaphore, vk::Semaphore, vk::Fence) {
-    let image_available_semaphore =
-        unsafe { device.create_semaphore(&vk::SemaphoreCreateInfo::default(), None) }.unwrap();
-    let render_finished_semaphore =
-        unsafe { device.create_semaphore(&vk::SemaphoreCreateInfo::default(), None) }.unwrap();
+fn create_sync_objs(
+    device: &ash::Device,
+) -> (Vec<vk::Semaphore>, Vec<vk::Semaphore>, Vec<vk::Fence>) {
+    let mut image_available_semaphores = vec![];
+    let mut render_finished_semaphores = vec![];
+    let mut inflight_fences = vec![];
 
-    let inflight_fence_info = vk::FenceCreateInfo::builder()
-        .flags(vk::FenceCreateFlags::SIGNALED)
-        .build();
-    let inflight_fence = unsafe { device.create_fence(&inflight_fence_info, None) }.unwrap();
+    for _ in 0..MAX_FRAMES_IN_FLIGHT {
+        let image_available_semaphore =
+            unsafe { device.create_semaphore(&vk::SemaphoreCreateInfo::default(), None) }.unwrap();
+        image_available_semaphores.push(image_available_semaphore);
 
+        let render_finished_semaphore =
+            unsafe { device.create_semaphore(&vk::SemaphoreCreateInfo::default(), None) }.unwrap();
+        render_finished_semaphores.push(render_finished_semaphore);
+
+        let inflight_fence_info = vk::FenceCreateInfo::builder()
+            .flags(vk::FenceCreateFlags::SIGNALED)
+            .build();
+        let inflight_fence = unsafe { device.create_fence(&inflight_fence_info, None) }.unwrap();
+        inflight_fences.push(inflight_fence);
+    }
     (
-        image_available_semaphore,
-        render_finished_semaphore,
-        inflight_fence,
+        image_available_semaphores,
+        render_finished_semaphores,
+        inflight_fences,
     )
 }
 
