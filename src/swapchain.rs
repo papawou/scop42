@@ -9,6 +9,20 @@ pub struct SwapchainScop {
     pub image_views: Vec<vk::ImageView>,
 }
 
+impl SwapchainScop {
+    pub unsafe fn clean_swapchain(
+        &self,
+        device: &ash::Device,
+        swapchain_loader: &ash::extensions::khr::Swapchain,
+    ) {
+        for &image_view in self.image_views.iter() {
+            device.destroy_image_view(image_view, None);
+        }
+
+        swapchain_loader.destroy_swapchain(self.chain, None);
+    }
+}
+
 pub fn create_swapchain(
     swapchain_loader: &ash::extensions::khr::Swapchain,
     device: &ash::Device,
@@ -55,8 +69,8 @@ pub fn create_swapchain(
         .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
         .present_mode(swap_present_mode)
         .clipped(true);
-
     let swapchain = unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None)? };
+
     let swapchain_images: Vec<vk::Image> =
         unsafe { swapchain_loader.get_swapchain_images(swapchain)? };
     let swapchain_images_view = swapchain_images
