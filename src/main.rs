@@ -28,31 +28,34 @@ fn main() -> anyhow::Result<()> {
     let mut framebuffer_resized = false;
 
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
-    event_loop.run(move |event, elwt| match event {
-        winit::event::Event::WindowEvent {
-            event: winit::event::WindowEvent::CloseRequested,
-            ..
-        } => elwt.exit(),
-        winit::event::Event::AboutToWait => window.request_redraw(),
-        winit::event::Event::WindowEvent {
-            event: winit::event::WindowEvent::RedrawRequested,
-            ..
-        } => {
-            if framebuffer_resized && app.handle_resize(&window) {
-                return;
+    event_loop
+        .run(move |event, elwt| match event {
+            winit::event::Event::AboutToWait => window.request_redraw(),
+            winit::event::Event::WindowEvent {
+                event: winit::event::WindowEvent::RedrawRequested,
+                ..
+            } => {
+                if framebuffer_resized && app.handle_resize(&window) {
+                    return;
+                }
+                framebuffer_resized = unsafe { app.draw_frame(current_frame) };
+                current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
             }
-            framebuffer_resized = unsafe { app.draw_frame(current_frame) };
-            current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
-        }
-        winit::event::Event::WindowEvent {
-            event: winit::event::WindowEvent::Resized(_),
-            ..
-        } => framebuffer_resized = true,
-        _ => {}
-    });
-
-    unsafe { app.device.device_wait_idle() }.unwrap();
-    unsafe { app.destroy() };
+            winit::event::Event::WindowEvent {
+                event: winit::event::WindowEvent::Resized(_),
+                ..
+            } => framebuffer_resized = true,
+            winit::event::Event::WindowEvent {
+                event: winit::event::WindowEvent::CloseRequested,
+                ..
+            } => elwt.exit(),
+            winit::event::Event::LoopExiting => {
+                unsafe { app.device.device_wait_idle() }.unwrap();
+                unsafe { app.destroy() };
+            }
+            _ => {}
+        })
+        .unwrap();
 
     Ok(())
 }
@@ -95,14 +98,17 @@ struct App {
 
 impl App {
     fn create(entry: ash::Entry, window: &winit::window::Window) -> anyhow::Result<Self> {
-        let hwnd = match window.window_handle().unwrap() {
-            RawWindowHandle::Win32(handle) => handle.hwnd.get(),
-            _ => panic!("not running on Windows")
-        }; 
-        
+        //window specs
+        let hwnd = match window.window_handle()?.as_raw() {
+            winit::raw_window_handle::RawWindowHandle::Win32(handle) => handle.hwnd.get(),
+            _ => panic!("Unsupported platform!"),
+        };
+        let hinstance = unsafe { winapi::um::libloaderapi::GetModuleHandleW(std::ptr::null()) };
         let window_info = vk::Win32SurfaceCreateInfoKHR::builder()
-            .hinstance(window.())
-            .hwnd(hwnd);
+            .hwnd(hwnd as vk::HWND)
+            .hinstance(hinstance as vk::HINSTANCE)
+            .build();
+        let window_physical_size = window.inner_size();
 
         let mut debug_info: vk::DebugUtilsMessengerCreateInfoEXT = create_debug_info();
 
@@ -132,7 +138,6 @@ impl App {
 
         let swapchain_loader = ash::extensions::khr::Swapchain::new(&instance, &device);
 
-        let window_physical_size = window.inner_size();
         let swapchain = swapchain::create_swapchain(
             &swapchain_loader,
             &device,
