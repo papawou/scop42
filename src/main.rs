@@ -5,12 +5,11 @@ mod utils;
 use anyhow::Ok;
 use ash::vk;
 use conf::MAX_FRAMES_IN_FLIGHT;
-use swapchain::{create_swapchain, SwapchainScop};
+use swapchain::SwapchainScop;
 use winit::platform::windows::WindowExtWindows;
 
 fn main() -> anyhow::Result<()> {
     //std::env::set_var("RUST_BACKTRACE", "1");
-
     let entry = unsafe { ash::Entry::load()? };
 
     //window
@@ -26,6 +25,7 @@ fn main() -> anyhow::Result<()> {
     let mut app = App::create(entry, &window)?;
 
     let mut current_frame = 0;
+    let mut framebuffer_resized = false;
 
     event_loop.run(move |event, _, control_flow| match event {
         winit::event::Event::WindowEvent {
@@ -36,12 +36,19 @@ fn main() -> anyhow::Result<()> {
             unsafe { app.destroy() };
             *control_flow = winit::event_loop::ControlFlow::Exit;
         }
+        winit::event::Event::WindowEvent {
+            event: winit::event::WindowEvent::Resized(_),
+            ..
+        } => framebuffer_resized = true,
         winit::event::Event::MainEventsCleared => window.request_redraw(),
         winit::event::Event::RedrawRequested(_) => {
-            unsafe { app.draw_frame(current_frame, &window) };
+            if framebuffer_resized && app.handle_resize(&window) {
+                return;
+            }
+            framebuffer_resized = unsafe { app.draw_frame(current_frame) };
             current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
         }
-        _ => {}
+        _ => (),
     });
 }
 
@@ -171,7 +178,7 @@ impl App {
         })
     }
 
-    unsafe fn draw_frame(&mut self, current_frame: usize, window: &winit::window::Window) {
+    unsafe fn draw_frame(&mut self, current_frame: usize) -> bool {
         let inflight_fence = self.inflight_fences[current_frame];
         let image_avalaible_semaphore = self.image_avalaible_semaphores[current_frame];
         let render_finished_semaphore = self.render_finished_sempahores[current_frame];
@@ -189,8 +196,7 @@ impl App {
         ) {
             Result::Ok((image_index, _)) => image_index,
             Err(vk::Result::ERROR_OUT_OF_DATE_KHR) | Err(vk::Result::SUBOPTIMAL_KHR) => {
-                self.recreate_swapchain(window);
-                return;
+                return true
             }
             Err(e) => panic!("{}", e),
         };
@@ -225,17 +231,30 @@ impl App {
             .image_indices(&[frame_idx])
             .wait_semaphores(&[render_finished_semaphore])
             .build();
-        match self
+        let present_res = self
             .swapchain_loader
-            .queue_present(self.present_queue, &present_info)
-        {
+            .queue_present(self.present_queue, &present_info);
+
+        match present_res {
             Err(vk::Result::ERROR_OUT_OF_DATE_KHR) | Err(vk::Result::SUBOPTIMAL_KHR) => {
-                self.recreate_swapchain(window);
-                return;
+                return true
             }
             Err(e) => panic!("{}", e),
             _ => (),
+        };
+
+        false
+    }
+
+    fn handle_resize(&mut self, window: &winit::window::Window) -> bool {
+        unsafe { self.device.device_wait_idle().unwrap() };
+        let physical_size = window.inner_size();
+        if physical_size.width == 0 || physical_size.height == 0 {
+            return true;
         }
+        unsafe { self.recreate_swapchain(physical_size) };
+        //recreate render pass
+        return false;
     }
 
     unsafe fn destroy(&mut self) {
@@ -276,21 +295,18 @@ impl App {
         self.instance.destroy_instance(None);
     }
 
-    unsafe fn recreate_swapchain(&mut self, window: &winit::window::Window) {
-        unsafe { self.device.device_wait_idle() }.unwrap();
-
+    unsafe fn recreate_swapchain(&mut self, physical_size: winit::dpi::PhysicalSize<u32>) {
+        //clean
         for &framebuffer in self.framebuffers.iter() {
             self.device.destroy_framebuffer(framebuffer, None);
         }
-
         self.swapchain
             .clean_swapchain(&self.device, &self.swapchain_loader);
 
-        let physical_size = window.inner_size();
         let surface_support =
             SurfaceSupport::get(self.physical_device, self.surface, &self.surface_loader).unwrap();
 
-        self.swapchain = create_swapchain(
+        self.swapchain = swapchain::create_swapchain(
             &self.swapchain_loader,
             &self.device,
             (physical_size.width, physical_size.height),
