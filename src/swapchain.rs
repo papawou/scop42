@@ -11,13 +11,14 @@ pub struct SwapchainScop {
 
 impl SwapchainScop {
     pub fn clean_swapchain(
-        &self,
+        &mut self,
         device: &ash::Device,
         swapchain_loader: &ash::extensions::khr::Swapchain,
     ) {
         for &image_view in self.image_views.iter() {
             unsafe { device.destroy_image_view(image_view, None) };
         }
+        self.image_views.clear();
         unsafe { swapchain_loader.destroy_swapchain(self.chain, None) };
     }
 }

@@ -6,14 +6,14 @@ use anyhow::Ok;
 use ash::vk;
 use conf::MAX_FRAMES_IN_FLIGHT;
 use swapchain::SwapchainScop;
-use winit::platform::windows::WindowExtWindows;
+use winit::{platform::windows::WindowExtWindows, raw_window_handle::HasWindowHandle};
 
 fn main() -> anyhow::Result<()> {
     //std::env::set_var("RUST_BACKTRACE", "1");
     let entry = unsafe { ash::Entry::load()? };
 
     //window
-    let event_loop = winit::event_loop::EventLoop::new();
+    let event_loop = winit::event_loop::EventLoop::new()?;
     let window = winit::window::WindowBuilder::new()
         .with_title("Hello window!")
         .with_inner_size(winit::dpi::LogicalSize::new(
@@ -27,29 +27,34 @@ fn main() -> anyhow::Result<()> {
     let mut current_frame = 0;
     let mut framebuffer_resized = false;
 
-    event_loop.run(move |event, _, control_flow| match event {
+    event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
+    event_loop.run(move |event, elwt| match event {
         winit::event::Event::WindowEvent {
             event: winit::event::WindowEvent::CloseRequested,
             ..
-        } => {
-            unsafe { app.device.device_wait_idle() }.unwrap();
-            unsafe { app.destroy() };
-            *control_flow = winit::event_loop::ControlFlow::Exit;
-        }
+        } => elwt.exit(),
+        winit::event::Event::AboutToWait => window.request_redraw(),
         winit::event::Event::WindowEvent {
-            event: winit::event::WindowEvent::Resized(_),
+            event: winit::event::WindowEvent::RedrawRequested,
             ..
-        } => framebuffer_resized = true,
-        winit::event::Event::MainEventsCleared => window.request_redraw(),
-        winit::event::Event::RedrawRequested(_) => {
+        } => {
             if framebuffer_resized && app.handle_resize(&window) {
                 return;
             }
             framebuffer_resized = unsafe { app.draw_frame(current_frame) };
             current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
         }
-        _ => (),
+        winit::event::Event::WindowEvent {
+            event: winit::event::WindowEvent::Resized(_),
+            ..
+        } => framebuffer_resized = true,
+        _ => {}
     });
+
+    unsafe { app.device.device_wait_idle() }.unwrap();
+    unsafe { app.destroy() };
+
+    Ok(())
 }
 
 struct App {
@@ -61,7 +66,7 @@ struct App {
     swapchain_loader: ash::extensions::khr::Swapchain,
     swapchain: swapchain::SwapchainScop,
 
-    image_avalaible_semaphores: Vec<vk::Semaphore>,
+    image_available_semaphores: Vec<vk::Semaphore>,
     render_finished_sempahores: Vec<vk::Semaphore>,
     inflight_fences: Vec<vk::Fence>,
 
@@ -90,9 +95,14 @@ struct App {
 
 impl App {
     fn create(entry: ash::Entry, window: &winit::window::Window) -> anyhow::Result<Self> {
+        let hwnd = match window.window_handle().unwrap() {
+            RawWindowHandle::Win32(handle) => handle.hwnd.get(),
+            _ => panic!("not running on Windows")
+        }; 
+        
         let window_info = vk::Win32SurfaceCreateInfoKHR::builder()
-            .hinstance(window.hinstance())
-            .hwnd(window.hwnd());
+            .hinstance(window.())
+            .hwnd(hwnd);
 
         let mut debug_info: vk::DebugUtilsMessengerCreateInfoEXT = create_debug_info();
 
@@ -132,7 +142,7 @@ impl App {
             &queue_families,
         )?;
 
-        let (image_avalaible_semaphores, render_finished_sempahores, inflight_fences) =
+        let (image_available_semaphores, render_finished_sempahores, inflight_fences) =
             create_sync_objs(&device);
 
         //global?
@@ -153,7 +163,7 @@ impl App {
             swapchain_loader,
             swapchain,
 
-            image_avalaible_semaphores,
+            image_available_semaphores,
             render_finished_sempahores,
             inflight_fences,
 
@@ -180,7 +190,7 @@ impl App {
 
     unsafe fn draw_frame(&mut self, current_frame: usize) -> bool {
         let inflight_fence = self.inflight_fences[current_frame];
-        let image_avalaible_semaphore = self.image_avalaible_semaphores[current_frame];
+        let image_avalaible_semaphore = self.image_available_semaphores[current_frame];
         let render_finished_semaphore = self.render_finished_sempahores[current_frame];
         let command_buffer = self.command_buffers[current_frame];
 
@@ -258,23 +268,32 @@ impl App {
     }
 
     unsafe fn destroy(&mut self) {
-        self.image_avalaible_semaphores
-            .iter()
-            .for_each(|&e| self.device.destroy_semaphore(e, None));
-        self.render_finished_sempahores
-            .iter()
-            .for_each(|&e| self.device.destroy_semaphore(e, None));
-        self.inflight_fences
-            .iter()
-            .for_each(|&e| self.device.destroy_fence(e, None));
+        for &image_available_semaphore in self.image_available_semaphores.iter() {
+            self.device
+                .destroy_semaphore(image_available_semaphore, None)
+        }
+        self.image_available_semaphores.clear();
+
+        for &render_finished_semaphore in self.render_finished_sempahores.iter() {
+            self.device
+                .destroy_semaphore(render_finished_semaphore, None)
+        }
+        self.render_finished_sempahores.clear();
+
+        for &inflight_fence in self.inflight_fences.iter() {
+            self.device.destroy_fence(inflight_fence, None)
+        }
+        self.inflight_fences.clear();
 
         for &framebuffer in self.framebuffers.iter() {
             self.device.destroy_framebuffer(framebuffer, None);
         }
+        self.framebuffers.clear();
 
         for &pipeline in self.graphics_pipelines.iter() {
             self.device.destroy_pipeline(pipeline, None);
         }
+        self.graphics_pipelines.clear();
 
         self.device.destroy_render_pass(self.render_pass, None);
 
@@ -300,6 +319,8 @@ impl App {
         for &framebuffer in self.framebuffers.iter() {
             self.device.destroy_framebuffer(framebuffer, None);
         }
+        self.framebuffers.clear();
+
         self.swapchain
             .clean_swapchain(&self.device, &self.swapchain_loader);
 
