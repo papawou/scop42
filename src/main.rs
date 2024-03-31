@@ -268,8 +268,52 @@ impl App {
         if physical_size.width == 0 || physical_size.height == 0 {
             return true;
         }
-        unsafe { self.recreate_swapchain(physical_size) };
-        //recreate render pass
+
+        //swapchain
+        let surface_support =
+            SurfaceSupport::get(self.physical_device, self.surface, &self.surface_loader).unwrap();
+        let new_swapchain = swapchain::create_swapchain(
+            &self.swapchain_loader,
+            &self.device,
+            (physical_size.width, physical_size.height),
+            &surface_support,
+            self.surface,
+            &self.queue_families,
+            Some(self.swapchain.chain),
+        )
+        .unwrap();
+
+        //clean
+        for &framebuffer in self.framebuffers.iter() {
+            unsafe { self.device.destroy_framebuffer(framebuffer, None) };
+        }
+        self.framebuffers.clear();
+
+        for &pipeline in self.graphics_pipelines.iter() {
+            unsafe { self.device.destroy_pipeline(pipeline, None) };
+        }
+        self.graphics_pipelines.clear();
+
+        unsafe {
+            self.device.destroy_render_pass(self.render_pass, None);
+        }
+
+        self.swapchain
+            .clean_swapchain(&self.device, &self.swapchain_loader);
+
+        //init
+        self.swapchain = new_swapchain;
+        self.render_pass = create_render_pass(&self.device, &self.swapchain);
+
+        self.graphics_pipelines = create_graphics_pipeline(
+            &self.device,
+            &self.swapchain,
+            self.pipeline_layout,
+            self.render_pass,
+        );
+
+        self.framebuffers = create_framebuffers(&self.device, &self.swapchain, self.render_pass);
+
         return false;
     }
 
@@ -318,35 +362,6 @@ impl App {
             .destroy_debug_utils_messenger(self.debug_utils_messenger, None);
 
         self.instance.destroy_instance(None);
-    }
-
-    unsafe fn recreate_swapchain(&mut self, physical_size: winit::dpi::PhysicalSize<u32>) {
-        let surface_support =
-            SurfaceSupport::get(self.physical_device, self.surface, &self.surface_loader).unwrap();
-
-        let new_swapchain = swapchain::create_swapchain(
-            &self.swapchain_loader,
-            &self.device,
-            (physical_size.width, physical_size.height),
-            &surface_support,
-            self.surface,
-            &self.queue_families,
-            Some(self.swapchain.chain),
-        )
-        .unwrap();
-
-        //clean old
-        for &framebuffer in self.framebuffers.iter() {
-            self.device.destroy_framebuffer(framebuffer, None);
-        }
-        self.framebuffers.clear();
-
-        self.swapchain
-            .clean_swapchain(&self.device, &self.swapchain_loader);
-
-        //create new
-        self.swapchain = new_swapchain;
-        self.framebuffers = create_framebuffers(&self.device, &self.swapchain, self.render_pass);
     }
 }
 
@@ -587,7 +602,7 @@ fn create_graphics_pipeline(
         .primitive_restart_enable(false)
         .build();
 
-    let viewport_createinfo = get_pipeline_viewport_createinfo(swapchain);
+    let viewport_createinfo = get_pipeline_viewport_createinfo(swapchain.extent);
 
     let rasterization_createinfo = vk::PipelineRasterizationStateCreateInfo::builder()
         .depth_clamp_enable(false)
@@ -657,18 +672,16 @@ fn create_pipeline_layout(device: &ash::Device) -> vk::PipelineLayout {
     unsafe { device.create_pipeline_layout(&pipeline_layout_createinfo, None) }.unwrap()
 }
 
-fn get_pipeline_viewport_createinfo(
-    swapchain: &swapchain::SwapchainScop,
-) -> vk::PipelineViewportStateCreateInfo {
+fn get_pipeline_viewport_createinfo(extent: vk::Extent2D) -> vk::PipelineViewportStateCreateInfo {
     let viewport = vk::Viewport::builder()
-        .width(swapchain.extent.width as f32)
-        .height(swapchain.extent.height as f32)
+        .width(extent.width as f32)
+        .height(extent.height as f32)
         .max_depth(1.0)
         .build();
 
     let scissor = vk::Rect2D::builder()
         .offset(vk::Offset2D { x: 0, y: 0 })
-        .extent(swapchain.extent)
+        .extent(extent)
         .build();
 
     vk::PipelineViewportStateCreateInfo::builder()
