@@ -30,6 +30,7 @@ pub fn create_swapchain(
     surface_support: &SurfaceSupport,
     surface: vk::SurfaceKHR,
     queue_families: &QueueFamilies,
+    old_swapchain: Option<vk::SwapchainKHR>,
 ) -> anyhow::Result<SwapchainScop> {
     let swap_surface_format = choose_swap_surface_format(&surface_support.formats);
     let swap_present_mode = choose_swap_present_mode(&surface_support.present_modes);
@@ -63,7 +64,10 @@ pub fn create_swapchain(
     } else {
         swapchain_create_info.image_sharing_mode(vk::SharingMode::EXCLUSIVE)
     };
-
+    swapchain_create_info = match old_swapchain {
+        Some(p) => swapchain_create_info.old_swapchain(p),
+        None => swapchain_create_info,
+    };
     swapchain_create_info = swapchain_create_info
         .pre_transform(surface_support.capabilities.current_transform)
         .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)

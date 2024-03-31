@@ -145,6 +145,7 @@ impl App {
             &surface_support,
             surface,
             &queue_families,
+            None,
         )?;
 
         let (image_available_semaphores, render_finished_sempahores, inflight_fences) =
@@ -320,7 +321,21 @@ impl App {
     }
 
     unsafe fn recreate_swapchain(&mut self, physical_size: winit::dpi::PhysicalSize<u32>) {
-        //clean
+        let surface_support =
+            SurfaceSupport::get(self.physical_device, self.surface, &self.surface_loader).unwrap();
+
+        let new_swapchain = swapchain::create_swapchain(
+            &self.swapchain_loader,
+            &self.device,
+            (physical_size.width, physical_size.height),
+            &surface_support,
+            self.surface,
+            &self.queue_families,
+            Some(self.swapchain.chain),
+        )
+        .unwrap();
+
+        //clean old
         for &framebuffer in self.framebuffers.iter() {
             self.device.destroy_framebuffer(framebuffer, None);
         }
@@ -329,19 +344,8 @@ impl App {
         self.swapchain
             .clean_swapchain(&self.device, &self.swapchain_loader);
 
-        let surface_support =
-            SurfaceSupport::get(self.physical_device, self.surface, &self.surface_loader).unwrap();
-
-        self.swapchain = swapchain::create_swapchain(
-            &self.swapchain_loader,
-            &self.device,
-            (physical_size.width, physical_size.height),
-            &surface_support,
-            self.surface,
-            &self.queue_families,
-        )
-        .unwrap();
-
+        //create new
+        self.swapchain = new_swapchain;
         self.framebuffers = create_framebuffers(&self.device, &self.swapchain, self.render_pass);
     }
 }
