@@ -1,11 +1,13 @@
 mod conf;
 mod swapchain;
 mod utils;
+mod vector;
 
 use anyhow::Ok;
 use ash::vk;
 use conf::MAX_FRAMES_IN_FLIGHT;
 use swapchain::SwapchainScop;
+use vector::{Vec2, Vec3, Vec4};
 use winit::{platform::windows::WindowExtWindows, raw_window_handle::HasWindowHandle};
 
 fn main() -> anyhow::Result<()> {
@@ -912,4 +914,12 @@ unsafe extern "system" fn vulkan_debug_utils_callback(
     let ty = format!("{:?}", message_type).to_lowercase();
     println!("[Debug][{}][{}] {:?}", severity, ty, message);
     vk::FALSE
+}
+
+//VERTEX
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+struct Vertex {
+    pos: Vec2<f32>,
+    color: Vec3<f32>,
 }
