@@ -1,18 +1,24 @@
 mod conf;
 mod swapchain;
 mod utils;
-mod vector;
+mod vertex;
 
 use anyhow::Ok;
 use ash::vk;
 use conf::MAX_FRAMES_IN_FLIGHT;
 use swapchain::SwapchainScop;
-use vector::{Vec2, Vec3, Vec4};
+use vertex::Vertex;
 use winit::{platform::windows::WindowExtWindows, raw_window_handle::HasWindowHandle};
 
 fn main() -> anyhow::Result<()> {
     //std::env::set_var("RUST_BACKTRACE", "1");
     let entry = unsafe { ash::Entry::load()? };
+
+    let vertices: Vec<Vertex> = vec![
+        Vertex::new(glam::vec2(0.0, 0.5), glam::vec3(0.0, 1.0, 0.5)),
+        Vertex::new(glam::vec2(0.5, 0.0), glam::vec3(0.0, 1.0, 0.5)),
+        Vertex::new(glam::vec2(0.5, 0.5), glam::vec3(0.0, 1.0, 0.5)),
+    ];
 
     //window
     let event_loop = winit::event_loop::EventLoop::new()?;
@@ -914,12 +920,4 @@ unsafe extern "system" fn vulkan_debug_utils_callback(
     let ty = format!("{:?}", message_type).to_lowercase();
     println!("[Debug][{}][{}] {:?}", severity, ty, message);
     vk::FALSE
-}
-
-//VERTEX
-#[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
-struct Vertex {
-    pos: Vec2<f32>,
-    color: Vec3<f32>,
 }
