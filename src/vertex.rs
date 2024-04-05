@@ -1,5 +1,3 @@
-use std::intrinsics::size_of;
-
 use ash::vk;
 
 //VERTEX
@@ -17,7 +15,7 @@ impl Vertex {
     pub fn vkVertexInputBindingDescription() -> ash::vk::VertexInputBindingDescription {
         let binding_description = ash::vk::VertexInputBindingDescription::builder()
             .binding(0)
-            .stride(size_of::<Vertex>() as u32)
+            .stride(std::mem::size_of::<Vertex>() as u32)
             .input_rate(vk::VertexInputRate::VERTEX)
             .build();
 
