@@ -604,7 +604,13 @@ fn create_graphics_pipeline(
         .dynamic_states(&pipeline_dynamics)
         .build();
 
-    let vertex_input_createinfo = vk::PipelineVertexInputStateCreateInfo::builder().build();
+    let binding_description = Vertex::binding_description();
+    let attribute_descriptions = Vertex::attribute_descriptions();
+    let vertex_input_createinfo = vk::PipelineVertexInputStateCreateInfo::builder()
+        .vertex_binding_descriptions(&[binding_description])
+        .vertex_attribute_descriptions(&attribute_descriptions)
+        .build();
+
     let assembly_input_createinfo = vk::PipelineInputAssemblyStateCreateInfo::builder()
         .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
         .primitive_restart_enable(false)

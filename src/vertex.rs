@@ -12,14 +12,31 @@ impl Vertex {
         Self { pos, color }
     }
 
-    pub fn vkVertexInputBindingDescription() -> ash::vk::VertexInputBindingDescription {
-        let binding_description = ash::vk::VertexInputBindingDescription::builder()
+    pub fn binding_description() -> vk::VertexInputBindingDescription {
+        let binding_description = vk::VertexInputBindingDescription::builder()
             .binding(0)
-            .stride(std::mem::size_of::<Vertex>() as u32)
+            .stride(std::mem::size_of::<Self>() as u32)
             .input_rate(vk::VertexInputRate::VERTEX)
             .build();
 
         binding_description
+    }
+
+    pub fn attribute_descriptions() -> [vk::VertexInputAttributeDescription; 2] {
+        [
+            vk::VertexInputAttributeDescription::builder()
+                .binding(0)
+                .location(0)
+                .format(vk::Format::R32G32_SFLOAT)
+                .offset(0)
+                .build(),
+            vk::VertexInputAttributeDescription::builder()
+                .binding(0)
+                .location(1)
+                .format(vk::Format::R32G32B32_SFLOAT)
+                .offset(std::mem::size_of::<glam::Vec2>() as u32)
+                .build(),
+        ]
     }
 }
 
