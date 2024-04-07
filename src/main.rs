@@ -4,21 +4,21 @@ mod utils;
 mod vertex;
 
 use anyhow::Ok;
-use ash::vk;
+use ash::vk::{self, MemoryPropertyFlags};
 use conf::MAX_FRAMES_IN_FLIGHT;
 use swapchain::SwapchainScop;
 use vertex::Vertex;
 use winit::{platform::windows::WindowExtWindows, raw_window_handle::HasWindowHandle};
 
+const VERTICES: [Vertex; 3] = [
+    Vertex::new(glam::vec2(0.0, -0.5), glam::vec3(1.0, 1.0, 1.0)),
+    Vertex::new(glam::vec2(0.5, 0.5), glam::vec3(0.0, 1.0, 0.0)),
+    Vertex::new(glam::vec2(-0.5, 0.5), glam::vec3(0.0, 0.0, 1.0)),
+];
+
 fn main() -> anyhow::Result<()> {
     //std::env::set_var("RUST_BACKTRACE", "1");
     let entry = unsafe { ash::Entry::load()? };
-
-    let vertices: Vec<Vertex> = vec![
-        Vertex::new(glam::vec2(0.0, 0.5), glam::vec3(0.0, 1.0, 0.5)),
-        Vertex::new(glam::vec2(0.5, 0.0), glam::vec3(0.0, 1.0, 0.5)),
-        Vertex::new(glam::vec2(0.5, 0.5), glam::vec3(0.0, 1.0, 0.5)),
-    ];
 
     //window
     let event_loop = winit::event_loop::EventLoop::new()?;
@@ -101,6 +101,8 @@ struct App {
     framebuffers: Vec<vk::Framebuffer>,
 
     command_pool: vk::CommandPool,
+    vertex_buffer: vk::Buffer,
+    vertex_buffer_memory: vk::DeviceMemory,
     command_buffers: Vec<vk::CommandBuffer>,
 }
 
@@ -166,7 +168,16 @@ impl App {
             create_graphics_pipeline(&device, &swapchain, pipeline_layout, render_pass);
 
         let framebuffers = create_framebuffers(&device, &swapchain, render_pass);
+
         let command_pool = create_command_pool(&device, queue_families.graphics);
+
+        let (vertex_buffer, vertex_buffer_memory) = create_vertex_buffer(
+            &instance,
+            &device,
+            physical_device,
+            std::mem::size_of_val(&VERTICES) as vk::DeviceSize,
+        );
+
         let command_buffers = create_command_buffers(&device, &command_pool);
 
         Ok(Self {
@@ -198,6 +209,8 @@ impl App {
             framebuffers,
 
             command_pool,
+            vertex_buffer,
+            vertex_buffer_memory,
             command_buffers,
         })
     }
@@ -236,6 +249,7 @@ impl App {
             &self.render_pass,
             &self.framebuffers[frame_idx as usize],
             &self.graphics_pipelines[0],
+            &[self.vertex_buffer],
         );
 
         self.device.reset_fences(&[inflight_fence]).unwrap();
@@ -268,6 +282,56 @@ impl App {
         };
 
         false
+    }
+
+    unsafe fn destroy(&mut self) {
+        for &image_available_semaphore in self.image_available_semaphores.iter() {
+            self.device
+                .destroy_semaphore(image_available_semaphore, None)
+        }
+        self.image_available_semaphores.clear();
+
+        for &render_finished_semaphore in self.render_finished_sempahores.iter() {
+            self.device
+                .destroy_semaphore(render_finished_semaphore, None)
+        }
+        self.render_finished_sempahores.clear();
+
+        for &inflight_fence in self.inflight_fences.iter() {
+            self.device.destroy_fence(inflight_fence, None)
+        }
+        self.inflight_fences.clear();
+
+        for &framebuffer in self.framebuffers.iter() {
+            self.device.destroy_framebuffer(framebuffer, None);
+        }
+        self.framebuffers.clear();
+
+        for &pipeline in self.graphics_pipelines.iter() {
+            self.device.destroy_pipeline(pipeline, None);
+        }
+        self.graphics_pipelines.clear();
+
+        self.device.destroy_render_pass(self.render_pass, None);
+
+        self.device
+            .destroy_pipeline_layout(self.pipeline_layout, None);
+
+        self.swapchain
+            .clean_swapchain(&self.device, &self.swapchain_loader);
+
+        self.device.destroy_buffer(self.vertex_buffer, None);
+        self.device.free_memory(self.vertex_buffer_memory, None);
+
+        self.device.destroy_command_pool(self.command_pool, None);
+
+        self.device.destroy_device(None);
+
+        self.surface_loader.destroy_surface(self.surface, None);
+        self.debug_utils_loader
+            .destroy_debug_utils_messenger(self.debug_utils_messenger, None);
+
+        self.instance.destroy_instance(None);
     }
 
     fn handle_resize(&mut self, window: &winit::window::Window) -> bool {
@@ -323,53 +387,6 @@ impl App {
         self.framebuffers = create_framebuffers(&self.device, &self.swapchain, self.render_pass);
 
         return false;
-    }
-
-    unsafe fn destroy(&mut self) {
-        for &image_available_semaphore in self.image_available_semaphores.iter() {
-            self.device
-                .destroy_semaphore(image_available_semaphore, None)
-        }
-        self.image_available_semaphores.clear();
-
-        for &render_finished_semaphore in self.render_finished_sempahores.iter() {
-            self.device
-                .destroy_semaphore(render_finished_semaphore, None)
-        }
-        self.render_finished_sempahores.clear();
-
-        for &inflight_fence in self.inflight_fences.iter() {
-            self.device.destroy_fence(inflight_fence, None)
-        }
-        self.inflight_fences.clear();
-
-        for &framebuffer in self.framebuffers.iter() {
-            self.device.destroy_framebuffer(framebuffer, None);
-        }
-        self.framebuffers.clear();
-
-        for &pipeline in self.graphics_pipelines.iter() {
-            self.device.destroy_pipeline(pipeline, None);
-        }
-        self.graphics_pipelines.clear();
-
-        self.device.destroy_render_pass(self.render_pass, None);
-
-        self.device
-            .destroy_pipeline_layout(self.pipeline_layout, None);
-
-        self.swapchain
-            .clean_swapchain(&self.device, &self.swapchain_loader);
-
-        self.device.destroy_command_pool(self.command_pool, None);
-
-        self.device.destroy_device(None);
-
-        self.surface_loader.destroy_surface(self.surface, None);
-        self.debug_utils_loader
-            .destroy_debug_utils_messenger(self.debug_utils_messenger, None);
-
-        self.instance.destroy_instance(None);
     }
 }
 
@@ -604,10 +621,10 @@ fn create_graphics_pipeline(
         .dynamic_states(&pipeline_dynamics)
         .build();
 
-    let binding_description = Vertex::binding_description();
+    let binding_description = &[Vertex::binding_description()];
     let attribute_descriptions = Vertex::attribute_descriptions();
     let vertex_input_createinfo = vk::PipelineVertexInputStateCreateInfo::builder()
-        .vertex_binding_descriptions(&[binding_description])
+        .vertex_binding_descriptions(binding_description)
         .vertex_attribute_descriptions(&attribute_descriptions)
         .build();
 
@@ -806,6 +823,7 @@ fn record_command_buffer(
     &render_pass: &vk::RenderPass,
     &framebuffer: &vk::Framebuffer,
     &graphics_pipeline: &vk::Pipeline,
+    vertex_buffers: &[vk::Buffer],
 ) {
     let begin_info = vk::CommandBufferBeginInfo::builder().build();
     unsafe { device.begin_command_buffer(command_buffer, &begin_info) }.unwrap();
@@ -851,7 +869,10 @@ fn record_command_buffer(
     let scissor = vk::Rect2D::builder().extent(swapchain.extent).build();
     unsafe { device.cmd_set_scissor(command_buffer, 0, &[scissor]) }
 
-    unsafe { device.cmd_draw(command_buffer, 3, 1, 0, 0) };
+    let offsets = [0];
+    unsafe { device.cmd_bind_vertex_buffers(command_buffer, 0, vertex_buffers, &offsets) };
+
+    unsafe { device.cmd_draw(command_buffer, VERTICES.len() as u32, 1, 0, 0) };
     unsafe { device.cmd_end_render_pass(command_buffer) };
     unsafe { device.end_command_buffer(command_buffer) }.unwrap();
 }
@@ -884,6 +905,24 @@ fn create_sync_objs(
         render_finished_semaphores,
         inflight_fences,
     )
+}
+
+//Memory
+fn get_memory_type_index(
+    device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    memory_requirements: &vk::MemoryRequirements,
+    memory_properties: vk::MemoryPropertyFlags,
+) -> usize {
+    device_memory_properties
+        .memory_types
+        .iter()
+        .enumerate()
+        .find(|(i, value)| {
+            ((memory_requirements.memory_type_bits) & (1 << i)) != 0
+                && value.property_flags & memory_properties == memory_properties
+        })
+        .map(|(i, _)| i)
+        .unwrap()
 }
 
 //DEBUG
@@ -926,4 +965,57 @@ unsafe extern "system" fn vulkan_debug_utils_callback(
     let ty = format!("{:?}", message_type).to_lowercase();
     println!("[Debug][{}][{}] {:?}", severity, ty, message);
     vk::FALSE
+}
+
+fn create_vertex_buffer(
+    instance: &ash::Instance,
+    device: &ash::Device,
+    physical_device: vk::PhysicalDevice,
+    mesh_size: vk::DeviceSize,
+) -> (vk::Buffer, vk::DeviceMemory) {
+    let memory_properties =
+        unsafe { instance.get_physical_device_memory_properties(physical_device) };
+    let vertex_buffer = {
+        let buffer_info = vk::BufferCreateInfo::builder()
+            .size(mesh_size)
+            .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE)
+            .build();
+        unsafe { device.create_buffer(&buffer_info, None) }.unwrap()
+    };
+    let vertex_memory_requirements =
+        unsafe { device.get_buffer_memory_requirements(vertex_buffer) };
+    let memory_type_index = get_memory_type_index(
+        &memory_properties,
+        &vertex_memory_requirements,
+        vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+    );
+    let vertex_buffer_memory = {
+        let allocate_info = vk::MemoryAllocateInfo::builder()
+            .memory_type_index(memory_type_index as u32)
+            .allocation_size(vertex_memory_requirements.size)
+            .build();
+        unsafe { device.allocate_memory(&allocate_info, None) }.unwrap()
+    };
+    unsafe { device.bind_buffer_memory(vertex_buffer, vertex_buffer_memory, 0) }.unwrap();
+
+    let vertex_data_ptr = unsafe {
+        device.map_memory(
+            vertex_buffer_memory,
+            0,
+            mesh_size,
+            vk::MemoryMapFlags::empty(),
+        )
+    }
+    .unwrap();
+    unsafe {
+        std::ptr::copy_nonoverlapping(
+            VERTICES.as_ptr(),
+            vertex_data_ptr as *mut Vertex,
+            VERTICES.len(),
+        );
+    }
+    unsafe { device.unmap_memory(vertex_buffer_memory) }
+
+    (vertex_buffer, vertex_buffer_memory)
 }

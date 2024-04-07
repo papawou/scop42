@@ -1,6 +1,7 @@
 use ash::vk;
 
 //VERTEX
+#[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct Vertex {
     pub pos: glam::Vec2,
@@ -8,7 +9,7 @@ pub struct Vertex {
 }
 
 impl Vertex {
-    pub fn new(pos: glam::Vec2, color: glam::Vec3) -> Self {
+    pub const fn new(pos: glam::Vec2, color: glam::Vec3) -> Self {
         Self { pos, color }
     }
 
