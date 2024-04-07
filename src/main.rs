@@ -10,11 +10,14 @@ use swapchain::SwapchainScop;
 use vertex::Vertex;
 use winit::{platform::windows::WindowExtWindows, raw_window_handle::HasWindowHandle};
 
-const VERTICES: [Vertex; 3] = [
-    Vertex::new(glam::vec2(0.0, -0.5), glam::vec3(1.0, 1.0, 1.0)),
-    Vertex::new(glam::vec2(0.5, 0.5), glam::vec3(0.0, 1.0, 0.0)),
-    Vertex::new(glam::vec2(-0.5, 0.5), glam::vec3(0.0, 0.0, 1.0)),
+const VERTICES: [Vertex; 4] = [
+    Vertex::new(glam::vec2(-0.5, -0.5), glam::vec3(1.0, 0.0, 0.0)),
+    Vertex::new(glam::vec2(0.5, -0.5), glam::vec3(0.0, 1.0, 0.0)),
+    Vertex::new(glam::vec2(0.5, 0.5), glam::vec3(0.0, 0.0, 1.0)),
+    Vertex::new(glam::vec2(-0.5, 0.5), glam::vec3(1.0, 1.0, 1.0)),
 ];
+
+const INDEX_VERTICES: [u16; 6] = [0, 1, 2, 2, 3, 0];
 
 fn main() -> anyhow::Result<()> {
     //std::env::set_var("RUST_BACKTRACE", "1");
@@ -103,6 +106,8 @@ struct App {
     command_pool: vk::CommandPool,
     vertex_buffer: vk::Buffer,
     vertex_buffer_memory: vk::DeviceMemory,
+    index_buffer: vk::Buffer,
+    index_buffer_memory: vk::DeviceMemory,
     command_buffers: Vec<vk::CommandBuffer>,
 }
 
@@ -178,6 +183,13 @@ impl App {
             command_pool,
             graphics_queue,
         );
+        let (index_buffer, index_buffer_memory) = create_index_buffer(
+            &device,
+            unsafe { instance.get_physical_device_memory_properties(physical_device) },
+            std::mem::size_of_val(&INDEX_VERTICES) as vk::DeviceSize,
+            command_pool,
+            graphics_queue,
+        );
 
         let command_buffers = create_command_buffers(&device, &command_pool);
 
@@ -212,6 +224,8 @@ impl App {
             command_pool,
             vertex_buffer,
             vertex_buffer_memory,
+            index_buffer,
+            index_buffer_memory,
             command_buffers,
         })
     }
@@ -251,6 +265,7 @@ impl App {
             &self.framebuffers[frame_idx as usize],
             &self.graphics_pipelines[0],
             &[self.vertex_buffer],
+            self.index_buffer,
         );
 
         self.device.reset_fences(&[inflight_fence]).unwrap();
@@ -320,6 +335,9 @@ impl App {
 
         self.swapchain
             .clean_swapchain(&self.device, &self.swapchain_loader);
+
+        self.device.destroy_buffer(self.index_buffer, None);
+        self.device.free_memory(self.index_buffer_memory, None);
 
         self.device.destroy_buffer(self.vertex_buffer, None);
         self.device.free_memory(self.vertex_buffer_memory, None);
@@ -825,6 +843,7 @@ fn record_command_buffer(
     &framebuffer: &vk::Framebuffer,
     &graphics_pipeline: &vk::Pipeline,
     vertex_buffers: &[vk::Buffer],
+    index_buffer: vk::Buffer,
 ) {
     let begin_info = vk::CommandBufferBeginInfo::builder().build();
     unsafe { device.begin_command_buffer(command_buffer, &begin_info) }.unwrap();
@@ -872,8 +891,9 @@ fn record_command_buffer(
 
     let offsets = [0];
     unsafe { device.cmd_bind_vertex_buffers(command_buffer, 0, vertex_buffers, &offsets) };
+    unsafe { device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, vk::IndexType::UINT16) };
 
-    unsafe { device.cmd_draw(command_buffer, VERTICES.len() as u32, 1, 0, 0) };
+    unsafe { device.cmd_draw_indexed(command_buffer, INDEX_VERTICES.len() as u32, 1, 0, 0, 0) };
     unsafe { device.cmd_end_render_pass(command_buffer) };
     unsafe { device.end_command_buffer(command_buffer) }.unwrap();
 }
@@ -1060,6 +1080,60 @@ fn create_vertex_buffer(
     unsafe { device.free_memory(staging_buffer_memory, None) };
 
     (vertex_buffer, vertex_buffer_memory)
+}
+
+fn create_index_buffer(
+    device: &ash::Device,
+    device_memory_properties: vk::PhysicalDeviceMemoryProperties,
+    buffer_size: vk::DeviceSize,
+    command_pool: vk::CommandPool,
+    queue: vk::Queue,
+) -> (vk::Buffer, vk::DeviceMemory) {
+    let (staging_buffer, staging_buffer_memory) = create_buffer(
+        &device,
+        device_memory_properties,
+        buffer_size,
+        vk::BufferUsageFlags::TRANSFER_SRC,
+        vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+    );
+    let staging_data_ptr = unsafe {
+        device.map_memory(
+            staging_buffer_memory,
+            0,
+            buffer_size,
+            vk::MemoryMapFlags::empty(),
+        )
+    }
+    .unwrap();
+    unsafe {
+        std::ptr::copy_nonoverlapping(
+            INDEX_VERTICES.as_ptr(),
+            staging_data_ptr as *mut u16,
+            INDEX_VERTICES.len(),
+        );
+    }
+    unsafe { device.unmap_memory(staging_buffer_memory) };
+
+    let (index_buffer, index_buffer_memory) = create_buffer(
+        device,
+        device_memory_properties,
+        buffer_size,
+        vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::INDEX_BUFFER,
+        vk::MemoryPropertyFlags::DEVICE_LOCAL,
+    );
+
+    copy_buffer(
+        device,
+        staging_buffer,
+        index_buffer,
+        buffer_size,
+        command_pool,
+        queue,
+    );
+    unsafe { device.destroy_buffer(staging_buffer, None) };
+    unsafe { device.free_memory(staging_buffer_memory, None) };
+
+    (index_buffer, index_buffer_memory)
 }
 
 fn copy_buffer(
