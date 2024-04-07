@@ -172,9 +172,8 @@ impl App {
         let command_pool = create_command_pool(&device, queue_families.graphics);
 
         let (vertex_buffer, vertex_buffer_memory) = create_vertex_buffer(
-            &instance,
             &device,
-            physical_device,
+            unsafe { instance.get_physical_device_memory_properties(physical_device) },
             std::mem::size_of_val(&VERTICES) as vk::DeviceSize,
         );
 
@@ -967,43 +966,61 @@ unsafe extern "system" fn vulkan_debug_utils_callback(
     vk::FALSE
 }
 
-fn create_vertex_buffer(
-    instance: &ash::Instance,
+//BUFFERS
+fn create_buffer(
     device: &ash::Device,
-    physical_device: vk::PhysicalDevice,
-    mesh_size: vk::DeviceSize,
+    device_memory_properties: vk::PhysicalDeviceMemoryProperties,
+    buffer_size: vk::DeviceSize,
+    buffer_usage: vk::BufferUsageFlags,
+    memory_properties: vk::MemoryPropertyFlags,
 ) -> (vk::Buffer, vk::DeviceMemory) {
-    let memory_properties =
-        unsafe { instance.get_physical_device_memory_properties(physical_device) };
-    let vertex_buffer = {
+    let buffer = {
         let buffer_info = vk::BufferCreateInfo::builder()
-            .size(mesh_size)
-            .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
+            .size(buffer_size)
+            .usage(buffer_usage)
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
             .build();
         unsafe { device.create_buffer(&buffer_info, None) }.unwrap()
     };
-    let vertex_memory_requirements =
-        unsafe { device.get_buffer_memory_requirements(vertex_buffer) };
+
+    let buffer_memory_requirements = unsafe { device.get_buffer_memory_requirements(buffer) };
+
     let memory_type_index = get_memory_type_index(
-        &memory_properties,
-        &vertex_memory_requirements,
-        vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        &device_memory_properties,
+        &buffer_memory_requirements,
+        memory_properties,
     );
-    let vertex_buffer_memory = {
+
+    let buffer_memory = {
         let allocate_info = vk::MemoryAllocateInfo::builder()
             .memory_type_index(memory_type_index as u32)
-            .allocation_size(vertex_memory_requirements.size)
+            .allocation_size(buffer_memory_requirements.size)
             .build();
         unsafe { device.allocate_memory(&allocate_info, None) }.unwrap()
     };
-    unsafe { device.bind_buffer_memory(vertex_buffer, vertex_buffer_memory, 0) }.unwrap();
+    unsafe { device.bind_buffer_memory(buffer, buffer_memory, 0) }.unwrap();
+
+    (buffer, buffer_memory)
+}
+
+fn create_vertex_buffer(
+    device: &ash::Device,
+    device_memory_properties: vk::PhysicalDeviceMemoryProperties,
+    buffer_size: vk::DeviceSize,
+) -> (vk::Buffer, vk::DeviceMemory) {
+    let (vertex_buffer, vertex_buffer_memory) = create_buffer(
+        &device,
+        device_memory_properties,
+        buffer_size,
+        vk::BufferUsageFlags::VERTEX_BUFFER,
+        vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+    );
 
     let vertex_data_ptr = unsafe {
         device.map_memory(
             vertex_buffer_memory,
             0,
-            mesh_size,
+            buffer_size,
             vk::MemoryMapFlags::empty(),
         )
     }
@@ -1015,7 +1032,6 @@ fn create_vertex_buffer(
             VERTICES.len(),
         );
     }
-    unsafe { device.unmap_memory(vertex_buffer_memory) }
-
+    unsafe { device.unmap_memory(vertex_buffer_memory) };
     (vertex_buffer, vertex_buffer_memory)
 }
