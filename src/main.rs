@@ -175,6 +175,8 @@ impl App {
             &device,
             unsafe { instance.get_physical_device_memory_properties(physical_device) },
             std::mem::size_of_val(&VERTICES) as vk::DeviceSize,
+            command_pool,
+            graphics_queue,
         );
 
         let command_buffers = create_command_buffers(&device, &command_pool);
@@ -1007,18 +1009,19 @@ fn create_vertex_buffer(
     device: &ash::Device,
     device_memory_properties: vk::PhysicalDeviceMemoryProperties,
     buffer_size: vk::DeviceSize,
+    command_pool: vk::CommandPool,
+    queue: vk::Queue,
 ) -> (vk::Buffer, vk::DeviceMemory) {
-    let (vertex_buffer, vertex_buffer_memory) = create_buffer(
+    let (staging_buffer, staging_buffer_memory) = create_buffer(
         &device,
         device_memory_properties,
         buffer_size,
-        vk::BufferUsageFlags::VERTEX_BUFFER,
+        vk::BufferUsageFlags::TRANSFER_SRC,
         vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
     );
-
-    let vertex_data_ptr = unsafe {
+    let staging_data_ptr = unsafe {
         device.map_memory(
-            vertex_buffer_memory,
+            staging_buffer_memory,
             0,
             buffer_size,
             vk::MemoryMapFlags::empty(),
@@ -1028,10 +1031,70 @@ fn create_vertex_buffer(
     unsafe {
         std::ptr::copy_nonoverlapping(
             VERTICES.as_ptr(),
-            vertex_data_ptr as *mut Vertex,
+            staging_data_ptr as *mut Vertex,
             VERTICES.len(),
         );
     }
-    unsafe { device.unmap_memory(vertex_buffer_memory) };
+    unsafe { device.unmap_memory(staging_buffer_memory) };
+
+    //staging copied
+
+    let (vertex_buffer, vertex_buffer_memory) = create_buffer(
+        &device,
+        device_memory_properties,
+        buffer_size,
+        vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::VERTEX_BUFFER,
+        vk::MemoryPropertyFlags::DEVICE_LOCAL,
+    );
+
+    copy_buffer(
+        device,
+        staging_buffer,
+        vertex_buffer,
+        buffer_size,
+        command_pool,
+        queue,
+    );
+
+    unsafe { device.destroy_buffer(staging_buffer, None) };
+    unsafe { device.free_memory(staging_buffer_memory, None) };
+
     (vertex_buffer, vertex_buffer_memory)
+}
+
+fn copy_buffer(
+    device: &ash::Device,
+    src_buffer: vk::Buffer,
+    dst_buffer: vk::Buffer,
+    size: vk::DeviceSize,
+    command_pool: vk::CommandPool,
+    queue: vk::Queue,
+) {
+    let allocation_info = vk::CommandBufferAllocateInfo::builder()
+        .level(vk::CommandBufferLevel::PRIMARY)
+        .command_pool(command_pool)
+        .command_buffer_count(1)
+        .build();
+
+    let command_buffer = unsafe { device.allocate_command_buffers(&allocation_info) }.unwrap()[0];
+
+    let begin_info =
+        vk::CommandBufferBeginInfo::builder().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+    unsafe { device.begin_command_buffer(command_buffer, &begin_info) }.unwrap();
+    let copy_region = vk::BufferCopy::builder()
+        .src_offset(0)
+        .dst_offset(0)
+        .size(size)
+        .build();
+    unsafe { device.cmd_copy_buffer(command_buffer, src_buffer, dst_buffer, &[copy_region]) };
+    unsafe { device.end_command_buffer(command_buffer) }.unwrap();
+
+    let submit_info = vk::SubmitInfo::builder()
+        .command_buffers(&[command_buffer])
+        .build();
+
+    unsafe { device.queue_submit(queue, &[submit_info], vk::Fence::null()) }.unwrap();
+    unsafe { device.queue_wait_idle(queue) }.unwrap();
+
+    unsafe { device.free_command_buffers(command_pool, &[command_buffer]) }
 }
