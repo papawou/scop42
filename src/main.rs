@@ -98,6 +98,7 @@ struct App {
     surface_loader: ash::extensions::khr::Surface,
     surface: vk::SurfaceKHR,
 
+    descriptor_layout: vk::DescriptorSetLayout,
     pipeline_layout: vk::PipelineLayout,
     render_pass: vk::RenderPass,
     graphics_pipelines: Vec<vk::Pipeline>,
@@ -109,6 +110,9 @@ struct App {
     index_buffer: vk::Buffer,
     index_buffer_memory: vk::DeviceMemory,
     command_buffers: Vec<vk::CommandBuffer>,
+    uniform_buffers: Vec<vk::Buffer>,
+    uniform_buffers_memory: Vec<vk::DeviceMemory>,
+    uniform_buffers_mapped: Vec<*mut std::ffi::c_void>,
 }
 
 impl App {
@@ -166,8 +170,9 @@ impl App {
         let (image_available_semaphores, render_finished_sempahores, inflight_fences) =
             create_sync_objs(&device);
 
+        let descriptor_layout = create_descriptor_layout(&device);
         //global?
-        let pipeline_layout = create_pipeline_layout(&device);
+        let pipeline_layout = create_pipeline_layout(&device, &[descriptor_layout]);
         let render_pass = create_render_pass(&device, &swapchain);
         let graphics_pipelines =
             create_graphics_pipeline(&device, &swapchain, pipeline_layout, render_pass);
@@ -192,6 +197,14 @@ impl App {
         );
 
         let command_buffers = create_command_buffers(&device, &command_pool);
+        let (uniform_buffers, uniform_buffers_memory, uniform_buffers_mapped) =
+            create_uniform_buffers(
+                &device,
+                unsafe { instance.get_physical_device_memory_properties(physical_device) },
+                std::mem::size_of::<UniformBufferObject>() as vk::DeviceSize,
+                command_pool,
+                conf::MAX_FRAMES_IN_FLIGHT,
+            );
 
         Ok(Self {
             entry,
@@ -216,6 +229,7 @@ impl App {
             graphics_queue,
             present_queue,
 
+            descriptor_layout,
             pipeline_layout,
             render_pass,
             graphics_pipelines,
@@ -227,6 +241,9 @@ impl App {
             index_buffer,
             index_buffer_memory,
             command_buffers,
+            uniform_buffers,
+            uniform_buffers_memory,
+            uniform_buffers_mapped,
         })
     }
 
@@ -332,6 +349,15 @@ impl App {
 
         self.device
             .destroy_pipeline_layout(self.pipeline_layout, None);
+
+        for &uniform_buffer in self.uniform_buffers.iter() {
+            self.device.destroy_buffer(uniform_buffer, None);
+        }
+        for &uniform_buffer_memory in self.uniform_buffers_memory.iter() {
+            self.device.free_memory(uniform_buffer_memory, None);
+        }
+        self.device
+            .destroy_descriptor_set_layout(self.descriptor_layout, None);
 
         self.swapchain
             .clean_swapchain(&self.device, &self.swapchain_loader);
@@ -716,8 +742,13 @@ fn create_graphics_pipeline(
     pipeline
 }
 
-fn create_pipeline_layout(device: &ash::Device) -> vk::PipelineLayout {
-    let pipeline_layout_createinfo = vk::PipelineLayoutCreateInfo::builder().build();
+fn create_pipeline_layout(
+    device: &ash::Device,
+    descriptor_layouts: &[vk::DescriptorSetLayout],
+) -> vk::PipelineLayout {
+    let pipeline_layout_createinfo = vk::PipelineLayoutCreateInfo::builder()
+        .set_layouts(descriptor_layouts)
+        .build();
 
     unsafe { device.create_pipeline_layout(&pipeline_layout_createinfo, None) }.unwrap()
 }
@@ -1136,6 +1167,44 @@ fn create_index_buffer(
     (index_buffer, index_buffer_memory)
 }
 
+fn create_uniform_buffers(
+    device: &ash::Device,
+    device_memory_properties: vk::PhysicalDeviceMemoryProperties,
+    buffer_size: vk::DeviceSize,
+    command_pool: vk::CommandPool,
+    count: usize,
+) -> (
+    Vec<vk::Buffer>,
+    Vec<vk::DeviceMemory>,
+    Vec<*mut std::ffi::c_void>,
+) {
+    let mut uniform_buffers: Vec<vk::Buffer> = vec![];
+    let mut uniform_buffers_memory: Vec<vk::DeviceMemory> = vec![];
+    let mut uniform_buffers_mapped: Vec<*mut std::ffi::c_void> = vec![];
+
+    for i in 0..count {
+        let (buffer, buffer_memory) = create_buffer(
+            device,
+            device_memory_properties,
+            buffer_size,
+            vk::BufferUsageFlags::UNIFORM_BUFFER,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        );
+        let map_memory = unsafe {
+            device.map_memory(buffer_memory, 0, buffer_size, vk::MemoryMapFlags::empty())
+        }
+        .unwrap();
+        uniform_buffers.push(buffer);
+        uniform_buffers_memory.push(buffer_memory);
+        uniform_buffers_mapped.push(map_memory);
+    }
+    (
+        uniform_buffers,
+        uniform_buffers_memory,
+        uniform_buffers_mapped,
+    )
+}
+
 fn copy_buffer(
     device: &ash::Device,
     src_buffer: vk::Buffer,
@@ -1171,4 +1240,81 @@ fn copy_buffer(
     unsafe { device.queue_wait_idle(queue) }.unwrap();
 
     unsafe { device.free_command_buffers(command_pool, &[command_buffer]) }
+}
+
+struct UniformBufferObject {
+    model: glam::Mat4,
+    view: glam::Mat4,
+    proj: glam::Mat4,
+}
+
+fn create_descriptor_layout(device: &ash::Device) -> vk::DescriptorSetLayout {
+    let layout_binding = vk::DescriptorSetLayoutBinding::builder()
+        .binding(0)
+        .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+        .descriptor_count(1)
+        .stage_flags(vk::ShaderStageFlags::VERTEX)
+        .build();
+
+    let layout_info = vk::DescriptorSetLayoutCreateInfo::builder()
+        .bindings(&[layout_binding])
+        .build();
+    unsafe { device.create_descriptor_set_layout(&layout_info, None) }.unwrap()
+}
+
+fn update_uniform_buffers(
+    swapchain: &swapchain::SwapchainScop,
+    uniform_buffer_mapped: *mut std::ffi::c_void,
+) {
+    //static start_time = now();
+    //let current_time = now();
+    //let delta_time =current_time - start_time;
+
+    let angle = 90.0_f32.to_radians();
+
+    let mut proj = glam::Mat4::perspective_rh(
+        45.0_f32.to_radians(),
+        swapchain.extent.width as f32 / swapchain.extent.height as f32,
+        0.1,
+        10.0,
+    );
+    proj.w_axis[1] *= -1.0;
+
+    let ubo = UniformBufferObject {
+        model: glam::Mat4::from_rotation_translation(
+            glam::Quat::from_axis_angle(glam::vec3(0.0, 0.0, 1.0), angle),
+            glam::vec3(0.0, 0.0, 1.0),
+        ),
+        view: glam::Mat4::look_at_rh(
+            glam::vec3(2.0, 2.0, 2.0),
+            glam::vec3(0.0, 0.0, 0.0),
+            glam::vec3(0.0, 0.0, 1.0),
+        ),
+        proj,
+    };
+
+    unsafe {
+        std::ptr::copy_nonoverlapping(
+            &ubo,
+            uniform_buffer_mapped as *mut UniformBufferObject,
+            INDEX_VERTICES.len(),
+        );
+    }
+}
+
+fn create_descriptor_pool(device: &ash::Device, max_sets: u32) -> vk::DescriptorPool {
+    let pool_size = vk::DescriptorPoolSize::builder()
+        .ty(vk::DescriptorType::UNIFORM_BUFFER)
+        .build();
+
+    let pool_info = vk::DescriptorPoolCreateInfo::builder()
+        .pool_sizes(&[pool_size])
+        .max_sets(max_sets)
+        .build();
+
+    unsafe { device.create_descriptor_pool(&pool_info, None) }.unwrap()
+}
+
+fn create_descriptor_sets() {
+    
 }
