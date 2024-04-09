@@ -4,7 +4,7 @@ mod utils;
 mod vertex;
 
 use anyhow::Ok;
-use ash::vk::{self, MemoryPropertyFlags};
+use ash::vk::{self};
 use conf::MAX_FRAMES_IN_FLIGHT;
 use swapchain::SwapchainScop;
 use vertex::Vertex;
@@ -98,7 +98,10 @@ struct App {
     surface_loader: ash::extensions::khr::Surface,
     surface: vk::SurfaceKHR,
 
-    descriptor_layout: vk::DescriptorSetLayout,
+    descriptor_pool: vk::DescriptorPool,
+    descriptor_set_layout: vk::DescriptorSetLayout,
+    descriptor_sets: Vec<vk::DescriptorSet>,
+
     pipeline_layout: vk::PipelineLayout,
     render_pass: vk::RenderPass,
     graphics_pipelines: Vec<vk::Pipeline>,
@@ -170,9 +173,19 @@ impl App {
         let (image_available_semaphores, render_finished_sempahores, inflight_fences) =
             create_sync_objs(&device);
 
-        let descriptor_layout = create_descriptor_layout(&device);
-        //global?
-        let pipeline_layout = create_pipeline_layout(&device, &[descriptor_layout]);
+        let descriptor_pool = create_descriptor_pool(
+            &device,
+            MAX_FRAMES_IN_FLIGHT as u32,
+            MAX_FRAMES_IN_FLIGHT as u32,
+        );
+        let descriptor_set_layout = create_descriptor_set_layout(&device); //todo descriptor_set_layouts
+        let descriptor_sets = create_descriptor_sets(
+            &device,
+            descriptor_pool,
+            &[descriptor_set_layout; MAX_FRAMES_IN_FLIGHT],
+        );
+
+        let pipeline_layout = create_pipeline_layout(&device, &[descriptor_set_layout]);
         let render_pass = create_render_pass(&device, &swapchain);
         let graphics_pipelines =
             create_graphics_pipeline(&device, &swapchain, pipeline_layout, render_pass);
@@ -206,6 +219,25 @@ impl App {
                 conf::MAX_FRAMES_IN_FLIGHT,
             );
 
+        //populate descriptors sets
+        {
+            for i in 0..MAX_FRAMES_IN_FLIGHT {
+                let buffer_info = vk::DescriptorBufferInfo::builder()
+                    .buffer(uniform_buffers[i])
+                    .offset(0)
+                    .range(std::mem::size_of::<UniformBufferObject>() as u64)
+                    .build();
+
+                let descriptor_write = vk::WriteDescriptorSet::builder()
+                    .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                    .dst_set(descriptor_sets[i])
+                    .dst_binding(0)
+                    .dst_array_element(0)
+                    .buffer_info(&[buffer_info])
+                    .build();
+                unsafe { device.update_descriptor_sets(&[descriptor_write], &[]) };
+            }
+        }
         Ok(Self {
             entry,
             instance,
@@ -229,7 +261,10 @@ impl App {
             graphics_queue,
             present_queue,
 
-            descriptor_layout,
+            descriptor_pool,
+            descriptor_set_layout,
+            descriptor_sets,
+
             pipeline_layout,
             render_pass,
             graphics_pipelines,
@@ -280,9 +315,11 @@ impl App {
             &self.swapchain,
             &self.render_pass,
             &self.framebuffers[frame_idx as usize],
+            self.pipeline_layout,
             &self.graphics_pipelines[0],
             &[self.vertex_buffer],
             self.index_buffer,
+            &[self.descriptor_sets[current_frame]],
         );
 
         self.device.reset_fences(&[inflight_fence]).unwrap();
@@ -357,8 +394,9 @@ impl App {
             self.device.free_memory(uniform_buffer_memory, None);
         }
         self.device
-            .destroy_descriptor_set_layout(self.descriptor_layout, None);
-
+            .destroy_descriptor_set_layout(self.descriptor_set_layout, None);
+        self.device
+            .destroy_descriptor_pool(self.descriptor_pool, None);
         self.swapchain
             .clean_swapchain(&self.device, &self.swapchain_loader);
 
@@ -744,10 +782,10 @@ fn create_graphics_pipeline(
 
 fn create_pipeline_layout(
     device: &ash::Device,
-    descriptor_layouts: &[vk::DescriptorSetLayout],
+    descriptor_set_layouts: &[vk::DescriptorSetLayout],
 ) -> vk::PipelineLayout {
     let pipeline_layout_createinfo = vk::PipelineLayoutCreateInfo::builder()
-        .set_layouts(descriptor_layouts)
+        .set_layouts(descriptor_set_layouts)
         .build();
 
     unsafe { device.create_pipeline_layout(&pipeline_layout_createinfo, None) }.unwrap()
@@ -872,9 +910,11 @@ fn record_command_buffer(
     swapchain: &SwapchainScop,
     &render_pass: &vk::RenderPass,
     &framebuffer: &vk::Framebuffer,
+    pipeline_layout: vk::PipelineLayout,
     &graphics_pipeline: &vk::Pipeline,
     vertex_buffers: &[vk::Buffer],
     index_buffer: vk::Buffer,
+    descriptor_sets: &[vk::DescriptorSet],
 ) {
     let begin_info = vk::CommandBufferBeginInfo::builder().build();
     unsafe { device.begin_command_buffer(command_buffer, &begin_info) }.unwrap();
@@ -923,6 +963,17 @@ fn record_command_buffer(
     let offsets = [0];
     unsafe { device.cmd_bind_vertex_buffers(command_buffer, 0, vertex_buffers, &offsets) };
     unsafe { device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, vk::IndexType::UINT16) };
+
+    unsafe {
+        device.cmd_bind_descriptor_sets(
+            command_buffer,
+            vk::PipelineBindPoint::GRAPHICS,
+            pipeline_layout,
+            0,
+            descriptor_sets,
+            &[],
+        )
+    }
 
     unsafe { device.cmd_draw_indexed(command_buffer, INDEX_VERTICES.len() as u32, 1, 0, 0, 0) };
     unsafe { device.cmd_end_render_pass(command_buffer) };
@@ -1248,7 +1299,7 @@ struct UniformBufferObject {
     proj: glam::Mat4,
 }
 
-fn create_descriptor_layout(device: &ash::Device) -> vk::DescriptorSetLayout {
+fn create_descriptor_set_layout(device: &ash::Device) -> vk::DescriptorSetLayout {
     let layout_binding = vk::DescriptorSetLayoutBinding::builder()
         .binding(0)
         .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
@@ -1302,9 +1353,14 @@ fn update_uniform_buffers(
     }
 }
 
-fn create_descriptor_pool(device: &ash::Device, max_sets: u32) -> vk::DescriptorPool {
+fn create_descriptor_pool(
+    device: &ash::Device,
+    descriptor_count: u32,
+    max_sets: u32,
+) -> vk::DescriptorPool {
     let pool_size = vk::DescriptorPoolSize::builder()
         .ty(vk::DescriptorType::UNIFORM_BUFFER)
+        .descriptor_count(descriptor_count)
         .build();
 
     let pool_info = vk::DescriptorPoolCreateInfo::builder()
@@ -1315,6 +1371,15 @@ fn create_descriptor_pool(device: &ash::Device, max_sets: u32) -> vk::Descriptor
     unsafe { device.create_descriptor_pool(&pool_info, None) }.unwrap()
 }
 
-fn create_descriptor_sets() {
-    
+fn create_descriptor_sets(
+    device: &ash::Device,
+    descriptor_pool: vk::DescriptorPool,
+    set_layouts: &[vk::DescriptorSetLayout],
+) -> Vec<vk::DescriptorSet> {
+    let alloc_info = vk::DescriptorSetAllocateInfo::builder()
+        .descriptor_pool(descriptor_pool)
+        .set_layouts(&set_layouts)
+        .build();
+
+    unsafe { device.allocate_descriptor_sets(&alloc_info) }.unwrap()
 }
