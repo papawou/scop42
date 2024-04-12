@@ -309,6 +309,8 @@ impl App {
             .reset_command_buffer(command_buffer, vk::CommandBufferResetFlags::empty())
             .unwrap();
 
+        update_uniform_buffers(&self.swapchain, self.uniform_buffers_mapped[current_frame]);
+
         record_command_buffer(
             &self.device,
             &command_buffer,
@@ -724,7 +726,7 @@ fn create_graphics_pipeline(
         .polygon_mode(vk::PolygonMode::FILL)
         .line_width(1.0)
         .cull_mode(vk::CullModeFlags::BACK)
-        .front_face(vk::FrontFace::CLOCKWISE)
+        .front_face(vk::FrontFace::COUNTER_CLOCKWISE)
         .depth_bias_enable(false)
         .build();
 
@@ -1317,11 +1319,16 @@ fn update_uniform_buffers(
     swapchain: &swapchain::SwapchainScop,
     uniform_buffer_mapped: *mut std::ffi::c_void,
 ) {
-    //static start_time = now();
-    //let current_time = now();
-    //let delta_time =current_time - start_time;
+    static mut START_TIME: Option<std::time::Instant> = None;
 
-    let angle = 90.0_f32.to_radians();
+    unsafe {
+        if START_TIME.is_none() {
+            START_TIME = Some(std::time::Instant::now());
+        }
+    }
+    let elapsed_time = unsafe { START_TIME.unwrap().elapsed() }.as_secs_f32();
+
+    let angle = 90.0_f32.to_radians() * elapsed_time;
 
     let mut proj = glam::Mat4::perspective_rh(
         45.0_f32.to_radians(),
@@ -1329,12 +1336,11 @@ fn update_uniform_buffers(
         0.1,
         10.0,
     );
-    proj.w_axis[1] *= -1.0;
-
+    proj.y_axis[1] *= -1.0;
     let ubo = UniformBufferObject {
         model: glam::Mat4::from_rotation_translation(
             glam::Quat::from_axis_angle(glam::vec3(0.0, 0.0, 1.0), angle),
-            glam::vec3(0.0, 0.0, 1.0),
+            glam::vec3(0.0, 0.0, 0.0),
         ),
         view: glam::Mat4::look_at_rh(
             glam::vec3(2.0, 2.0, 2.0),
