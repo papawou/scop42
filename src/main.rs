@@ -215,7 +215,6 @@ impl App {
                 &device,
                 unsafe { instance.get_physical_device_memory_properties(physical_device) },
                 std::mem::size_of::<UniformBufferObject>() as vk::DeviceSize,
-                command_pool,
                 conf::MAX_FRAMES_IN_FLIGHT,
             );
 
@@ -1040,7 +1039,7 @@ fn create_debug_info() -> vk::DebugUtilsMessengerCreateInfoEXT {
                 | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
         )
         .message_type(
-            //vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
+            // vk::DebugUtilsMessageTypeFlagsEXT::GENERAL |
             vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE
                 | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION,
         )
@@ -1141,8 +1140,6 @@ fn create_vertex_buffer(
     }
     unsafe { device.unmap_memory(staging_buffer_memory) };
 
-    //staging copied
-
     let (vertex_buffer, vertex_buffer_memory) = create_buffer(
         &device,
         device_memory_properties,
@@ -1224,7 +1221,6 @@ fn create_uniform_buffers(
     device: &ash::Device,
     device_memory_properties: vk::PhysicalDeviceMemoryProperties,
     buffer_size: vk::DeviceSize,
-    command_pool: vk::CommandPool,
     count: usize,
 ) -> (
     Vec<vk::Buffer>,
@@ -1235,7 +1231,7 @@ fn create_uniform_buffers(
     let mut uniform_buffers_memory: Vec<vk::DeviceMemory> = vec![];
     let mut uniform_buffers_mapped: Vec<*mut std::ffi::c_void> = vec![];
 
-    for i in 0..count {
+    for _ in 0..count {
         let (buffer, buffer_memory) = create_buffer(
             device,
             device_memory_properties,
@@ -1351,11 +1347,7 @@ fn update_uniform_buffers(
     };
 
     unsafe {
-        std::ptr::copy_nonoverlapping(
-            &ubo,
-            uniform_buffer_mapped as *mut UniformBufferObject,
-            INDEX_VERTICES.len(),
-        );
+        std::ptr::copy_nonoverlapping(&ubo, uniform_buffer_mapped as *mut UniformBufferObject, 1);
     }
 }
 

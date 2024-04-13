@@ -1,7 +1,7 @@
 use ash::vk;
 
-//pub const PHYSICAL_DEVICE_NAME: &str = "NVIDIA GeForce RTX 2060";
-pub const PHYSICAL_DEVICE_NAME: &str = "NVIDIA GeForce RTX 4070 Ti";
+pub const PHYSICAL_DEVICE_NAME: &str = "NVIDIA GeForce RTX 2060";
+//pub const PHYSICAL_DEVICE_NAME: &str = "NVIDIA GeForce RTX 4070 Ti";
 
 pub const APPLICATION_NAME: &str = "AppName";
 pub const APPLICATION_VERSION: u32 = vk::make_api_version(0, 1, 0, 0);
