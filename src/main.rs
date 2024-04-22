@@ -116,6 +116,9 @@ struct App {
     uniform_buffers: Vec<vk::Buffer>,
     uniform_buffers_memory: Vec<vk::DeviceMemory>,
     uniform_buffers_mapped: Vec<*mut std::ffi::c_void>,
+
+    //vkGuide
+    frames: [FrameData; MAX_FRAMES_IN_FLIGHT],
 }
 
 impl App {
@@ -237,6 +240,10 @@ impl App {
                 unsafe { device.update_descriptor_sets(&[descriptor_write], &[]) };
             }
         }
+
+        //vkguide
+        let frames = init_framesdata(&device, queue_families.graphics);
+
         Ok(Self {
             entry,
             instance,
@@ -278,6 +285,8 @@ impl App {
             uniform_buffers,
             uniform_buffers_memory,
             uniform_buffers_mapped,
+            //frames
+            frames,
         })
     }
 
@@ -356,29 +365,33 @@ impl App {
     }
 
     unsafe fn destroy(&mut self) {
-        for &image_available_semaphore in self.image_available_semaphores.iter() {
+        for frame in &self.frames {
+            self.device.destroy_command_pool(frame.command_pool, None)
+        }
+
+        for &image_available_semaphore in &self.image_available_semaphores {
             self.device
                 .destroy_semaphore(image_available_semaphore, None)
         }
         self.image_available_semaphores.clear();
 
-        for &render_finished_semaphore in self.render_finished_sempahores.iter() {
+        for &render_finished_semaphore in &self.render_finished_sempahores {
             self.device
                 .destroy_semaphore(render_finished_semaphore, None)
         }
         self.render_finished_sempahores.clear();
 
-        for &inflight_fence in self.inflight_fences.iter() {
+        for &inflight_fence in &self.inflight_fences {
             self.device.destroy_fence(inflight_fence, None)
         }
         self.inflight_fences.clear();
 
-        for &framebuffer in self.framebuffers.iter() {
+        for &framebuffer in &self.framebuffers {
             self.device.destroy_framebuffer(framebuffer, None);
         }
         self.framebuffers.clear();
 
-        for &pipeline in self.graphics_pipelines.iter() {
+        for &pipeline in &self.graphics_pipelines {
             self.device.destroy_pipeline(pipeline, None);
         }
         self.graphics_pipelines.clear();
@@ -388,10 +401,10 @@ impl App {
         self.device
             .destroy_pipeline_layout(self.pipeline_layout, None);
 
-        for &uniform_buffer in self.uniform_buffers.iter() {
+        for &uniform_buffer in &self.uniform_buffers {
             self.device.destroy_buffer(uniform_buffer, None);
         }
-        for &uniform_buffer_memory in self.uniform_buffers_memory.iter() {
+        for &uniform_buffer_memory in &self.uniform_buffers_memory {
             self.device.free_memory(uniform_buffer_memory, None);
         }
         self.device
@@ -1380,4 +1393,40 @@ fn create_descriptor_sets(
         .build();
 
     unsafe { device.allocate_descriptor_sets(&alloc_info) }.unwrap()
+}
+
+//vkGuide
+#[derive(Debug)]
+struct FrameData {
+    command_pool: vk::CommandPool,
+    command_buffer: vk::CommandBuffer,
+}
+
+fn init_framesdata(
+    device: &ash::Device,
+    graphics_family: u32,
+) -> [FrameData; MAX_FRAMES_IN_FLIGHT] {
+    let mut frames = Vec::with_capacity(MAX_FRAMES_IN_FLIGHT);
+
+    let command_pool_info = vk::CommandPoolCreateInfo::builder()
+        .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
+        .queue_family_index(graphics_family)
+        .build();
+    for _ in 0..MAX_FRAMES_IN_FLIGHT {
+        let command_pool = unsafe { device.create_command_pool(&command_pool_info, None) }.unwrap();
+
+        let command_buffer_info = vk::CommandBufferAllocateInfo::builder()
+            .command_pool(command_pool)
+            .level(vk::CommandBufferLevel::PRIMARY)
+            .command_buffer_count(1)
+            .build();
+        let command_buffer =
+            unsafe { device.allocate_command_buffers(&command_buffer_info) }.unwrap()[0];
+
+        frames.push(FrameData {
+            command_pool,
+            command_buffer,
+        });
+    }
+    frames.try_into().unwrap()
 }
