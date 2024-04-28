@@ -94,7 +94,9 @@ struct App {
     surface_loader: ash::extensions::khr::Surface,
     surface: vk::SurfaceKHR,
 
-    renderpass: vk::RenderPass,
+    render_pass: vk::RenderPass,
+    framebuffers: Vec<vk::Framebuffer>,
+
     frames: [FrameData; MAX_FRAMES_IN_FLIGHT],
 }
 
@@ -150,6 +152,9 @@ impl App {
             None,
         )?;
 
+        let render_pass = init_default_render_pass(&device, &swapchain);
+        let framebuffers = init_framebuffers(&device, &swapchain, render_pass);
+
         //vkguide
         let frames = init_framesdata(&device, queue_families.graphics);
 
@@ -172,7 +177,9 @@ impl App {
             graphics_queue,
             present_queue,
 
-            //frames
+            render_pass,
+            framebuffers,
+
             frames,
         })
     }
@@ -194,6 +201,16 @@ impl App {
         for frame in &self.frames {
             self.device.destroy_command_pool(frame.command_pool, None)
         }
+
+        self.device.destroy_render_pass(self.render_pass, None);
+
+        for framebuffer in self.framebuffers {
+            self.device.destroy_framebuffer(framebuffer, None);
+        }
+        self.framebuffers.clear();
+
+        self.swapchain
+            .clean_swapchain(&self.device, &self.swapchain_loader);
 
         self.device.destroy_device(None);
 
@@ -226,7 +243,6 @@ impl App {
         .unwrap();
 
         //clean
-
         self.swapchain
             .clean_swapchain(&self.device, &self.swapchain_loader);
 
@@ -576,8 +592,8 @@ fn init_framesdata(
     frames.try_into().unwrap()
 }
 
-fn init_default_renderpass(swapchain: &SwapchainScop) {
-    let color_attachment = vk::AttachmentDescription::builder()
+fn init_default_render_pass(device: &ash::Device, swapchain: &SwapchainScop) -> vk::RenderPass {
+    let color_attachment_desc = vk::AttachmentDescription::builder()
         .format(swapchain.surface_format.format)
         .samples(vk::SampleCountFlags::TYPE_1)
         .load_op(vk::AttachmentLoadOp::CLEAR)
@@ -587,12 +603,43 @@ fn init_default_renderpass(swapchain: &SwapchainScop) {
         .initial_layout(vk::ImageLayout::UNDEFINED)
         .final_layout(vk::ImageLayout::PRESENT_SRC_KHR)
         .build();
+
     let color_attachment_ref = vk::AttachmentReference::builder()
-        .attachment(0) //attachment number will index into the pAttachments array in the parent renderpass itself
+        .attachment(0) //index link to renderpass.attachments
         .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
         .build();
-
     let subpass = vk::SubpassDescription::builder()
         .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
-        .color_attachments(&[color_attachment_ref]);
+        .color_attachments(&[color_attachment_ref])
+        .build();
+
+    let render_pass_info = vk::RenderPassCreateInfo::builder()
+        .attachments(&[color_attachment_desc])
+        .subpasses(&[subpass])
+        .build();
+    unsafe { device.create_render_pass(&render_pass_info, None).unwrap() }
+}
+
+fn init_framebuffers(
+    device: &ash::Device,
+    swapchain: &SwapchainScop,
+    render_pass: vk::RenderPass,
+) -> Vec<vk::Framebuffer> {
+    let mut framebuffers = Vec::with_capacity(swapchain.image_views.len());
+
+    let framebuffer_info_builder = vk::FramebufferCreateInfo::builder()
+        .render_pass(render_pass)
+        .attachment_count(1)
+        .width(swapchain.extent.width)
+        .height(swapchain.extent.height)
+        .layers(1);
+
+    //When rendering, the swapchain will give us the index of the image to render into, so we will use the framebuffer of the same index.
+    for &image_view in &swapchain.image_views {
+        let framebuffer_info = framebuffer_info_builder.attachments(&[image_view]).build();
+        let framebuffer = unsafe { device.create_framebuffer(&framebuffer_info, None).unwrap() };
+        framebuffers.push(framebuffer);
+    }
+
+    framebuffers
 }
