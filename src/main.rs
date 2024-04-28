@@ -1,12 +1,12 @@
 mod conf;
-mod swapchain;
+mod swapchain_scop;
 mod utils;
 mod vertex;
 
 use anyhow::Ok;
 use ash::vk::{self};
 use conf::MAX_FRAMES_IN_FLIGHT;
-use swapchain::SwapchainScop;
+use swapchain_scop::SwapchainScop;
 use vertex::Vertex;
 use winit::{platform::windows::WindowExtWindows, raw_window_handle::HasWindowHandle};
 
@@ -78,7 +78,7 @@ struct App {
 
     //swapchain
     swapchain_loader: ash::extensions::khr::Swapchain,
-    swapchain: swapchain::SwapchainScop,
+    swapchain: swapchain_scop::SwapchainScop,
 
     //debug
     debug_utils_loader: ash::extensions::ext::DebugUtils,
@@ -94,13 +94,13 @@ struct App {
     surface_loader: ash::extensions::khr::Surface,
     surface: vk::SurfaceKHR,
 
-    //vkGuide
+    renderpass: vk::RenderPass,
     frames: [FrameData; MAX_FRAMES_IN_FLIGHT],
 }
 
 impl App {
     fn create(entry: ash::Entry, window: &winit::window::Window) -> anyhow::Result<Self> {
-        //window specs
+        //  window
         let hwnd = match window.window_handle()?.as_raw() {
             winit::raw_window_handle::RawWindowHandle::Win32(handle) => handle.hwnd.get(),
             _ => panic!("Unsupported platform!"),
@@ -140,7 +140,7 @@ impl App {
 
         let swapchain_loader = ash::extensions::khr::Swapchain::new(&instance, &device);
 
-        let swapchain = swapchain::create_swapchain(
+        let swapchain = swapchain_scop::create_swapchain(
             &swapchain_loader,
             &device,
             (window_physical_size.width, window_physical_size.height),
@@ -179,7 +179,6 @@ impl App {
 
     unsafe fn draw_frame(&mut self, current_frame: usize) -> bool {
         //PRESENTATION
-
         match present_res {
             Err(vk::Result::ERROR_OUT_OF_DATE_KHR) | Err(vk::Result::SUBOPTIMAL_KHR) => {
                 return true
@@ -215,7 +214,7 @@ impl App {
         //swapchain
         let surface_support =
             SurfaceSupport::get(self.physical_device, self.surface, &self.surface_loader).unwrap();
-        let new_swapchain = swapchain::create_swapchain(
+        let new_swapchain = swapchain_scop::create_swapchain(
             &self.swapchain_loader,
             &self.device,
             (physical_size.width, physical_size.height),
@@ -438,7 +437,7 @@ fn create_device(
 //GRAPHICS
 fn create_graphics_pipeline(
     device: &ash::Device,
-    swapchain: &swapchain::SwapchainScop, //use fields?
+    swapchain: &swapchain_scop::SwapchainScop, //use fields?
     pipeline_layout: vk::PipelineLayout,
     render_pass: vk::RenderPass,
 ) -> Vec<vk::Pipeline> {
@@ -461,8 +460,6 @@ fn create_graphics_pipeline(
         .name(main_entry.as_c_str())
         .build();
     let shaders_stage_createinfo = vec![frag_shader_stage_info, vert_shader_stage_info];
-
-    //pipeline_dynamic_createinfo
 
     let pipeline = unsafe {
         device.create_graphics_pipelines(vk::PipelineCache::null(), &[pipeline_info], None)
@@ -577,4 +574,25 @@ fn init_framesdata(
         });
     }
     frames.try_into().unwrap()
+}
+
+fn init_default_renderpass(swapchain: &SwapchainScop) {
+    let color_attachment = vk::AttachmentDescription::builder()
+        .format(swapchain.surface_format.format)
+        .samples(vk::SampleCountFlags::TYPE_1)
+        .load_op(vk::AttachmentLoadOp::CLEAR)
+        .store_op(vk::AttachmentStoreOp::STORE)
+        .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
+        .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
+        .initial_layout(vk::ImageLayout::UNDEFINED)
+        .final_layout(vk::ImageLayout::PRESENT_SRC_KHR)
+        .build();
+    let color_attachment_ref = vk::AttachmentReference::builder()
+        .attachment(0) //attachment number will index into the pAttachments array in the parent renderpass itself
+        .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+        .build();
+
+    let subpass = vk::SubpassDescription::builder()
+        .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
+        .color_attachments(&[color_attachment_ref]);
 }
