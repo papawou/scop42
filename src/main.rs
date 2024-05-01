@@ -10,6 +10,8 @@ use swapchain_scop::SwapchainScop;
 use vertex::Vertex;
 use winit::{platform::windows::WindowExtWindows, raw_window_handle::HasWindowHandle};
 
+const ONE_SEC: u64 = u64::MAX;
+
 const VERTICES: [Vertex; 4] = [
     Vertex::new(glam::vec2(-0.5, -0.5), glam::vec3(1.0, 0.0, 0.0)),
     Vertex::new(glam::vec2(0.5, -0.5), glam::vec3(0.0, 1.0, 0.0)),
@@ -185,8 +187,90 @@ impl App {
     }
 
     unsafe fn draw_frame(&mut self, current_frame: usize) -> bool {
+        let FrameData {
+            command_buffer: cmd,
+            fence,
+            present_semaphore,
+            render_semaphore,
+            ..
+        } = self.frames[current_frame];
+
+        self.device
+            .wait_for_fences(&[fence], true, ONE_SEC)
+            .unwrap();
+
+        let swapchain_image_idx = match self.swapchain_loader.acquire_next_image(
+            self.swapchain.chain,
+            u64::MAX,
+            present_semaphore,
+            vk::Fence::null(),
+        ) {
+            Result::Ok((image_index, _)) => image_index,
+            Err(vk::Result::ERROR_OUT_OF_DATE_KHR) | Err(vk::Result::SUBOPTIMAL_KHR) => {
+                return true
+            }
+            Err(e) => panic!("{}", e),
+        };
+
+        let framebuffer = self.framebuffers[swapchain_image_idx as usize];
+
+        self.device
+            .reset_command_buffer(cmd, vk::CommandBufferResetFlags::empty())
+            .unwrap();
+
+        //RECORD
+        let cmd_begin_info = vk::CommandBufferBeginInfo::builder()
+            .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT)
+            .build();
+        self.device
+            .begin_command_buffer(cmd, &cmd_begin_info)
+            .unwrap();
+
+        let flash = f32::abs(f32::sin(current_frame as f32 / 120.0f32));
+        let clear_value = vk::ClearValue {
+            color: vk::ClearColorValue {
+                float32: [0.0f32, 0.0f32, flash, 1.0f32],
+            },
+        };
+
+        let renderpass_info = vk::RenderPassBeginInfo::builder()
+            .render_pass(self.render_pass)
+            .render_area(vk::Rect2D {
+                offset: vk::Offset2D { x: 0, y: 0 },
+                extent: self.swapchain.extent,
+            })
+            .framebuffer(framebuffer)
+            .clear_values(&[clear_value])
+            .build();
+        self.device
+            .cmd_begin_render_pass(cmd, &renderpass_info, vk::SubpassContents::INLINE);
+
+        self.device.cmd_end_render_pass(cmd);
+        self.device.end_command_buffer(cmd).unwrap();
+
+        //SUBMIT
+        self.device.reset_fences(&[fence]).unwrap();
+
+        let submit_info = vk::SubmitInfo::builder()
+            .command_buffers(&[cmd])
+            .wait_dst_stage_mask(&[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT])
+            .wait_semaphores(&[present_semaphore])
+            .signal_semaphores(&[render_semaphore])
+            .build();
+        self.device
+            .queue_submit(self.graphics_queue, &[submit_info], fence)
+            .unwrap();
+
         //PRESENTATION
-        match present_res {
+        let present_info = vk::PresentInfoKHR::builder()
+            .swapchains(&[self.swapchain.chain])
+            .wait_semaphores(&[render_semaphore])
+            .image_indices(&[swapchain_image_idx])
+            .build();
+        match self
+            .swapchain_loader
+            .queue_present(self.graphics_queue, &present_info)
+        {
             Err(vk::Result::ERROR_OUT_OF_DATE_KHR) | Err(vk::Result::SUBOPTIMAL_KHR) => {
                 return true
             }
@@ -204,7 +288,7 @@ impl App {
 
         self.device.destroy_render_pass(self.render_pass, None);
 
-        for framebuffer in self.framebuffers {
+        for &framebuffer in &self.framebuffers {
             self.device.destroy_framebuffer(framebuffer, None);
         }
         self.framebuffers.clear();
@@ -243,11 +327,24 @@ impl App {
         .unwrap();
 
         //clean
+        for &framebuffer in &self.framebuffers {
+            unsafe { self.device.destroy_framebuffer(framebuffer, None) }
+        }
+        //self.framebuffers.clear()
+
+        unsafe {
+            self.device.destroy_render_pass(self.render_pass, None);
+        }
+
         self.swapchain
             .clean_swapchain(&self.device, &self.swapchain_loader);
 
         //init
         self.swapchain = new_swapchain;
+
+        self.render_pass = init_default_render_pass(&self.device, &self.swapchain);
+        self.framebuffers = init_framebuffers(&self.device, &self.swapchain, self.render_pass);
+
         return false;
     }
 }
@@ -450,43 +547,43 @@ fn create_device(
     Ok((device, physical_device_queue_families))
 }
 
-//GRAPHICS
-fn create_graphics_pipeline(
-    device: &ash::Device,
-    swapchain: &swapchain_scop::SwapchainScop, //use fields?
-    pipeline_layout: vk::PipelineLayout,
-    render_pass: vk::RenderPass,
-) -> Vec<vk::Pipeline> {
-    let main_entry = std::ffi::CString::new("main").unwrap();
-    let mut vert_shader_file = std::fs::File::open("./shaders/vert.spv").unwrap();
-    let vert_shader_code = ash::util::read_spv(&mut vert_shader_file).unwrap();
-    let vert_shader_module = create_shader_module(device, &vert_shader_code).unwrap();
-    let vert_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
-        .stage(vk::ShaderStageFlags::VERTEX)
-        .module(vert_shader_module)
-        .name(main_entry.as_c_str())
-        .build();
+// //GRAPHICS
+// fn create_graphics_pipeline(
+//     device: &ash::Device,
+//     swapchain: &swapchain_scop::SwapchainScop, //use fields?
+//     pipeline_layout: vk::PipelineLayout,
+//     render_pass: vk::RenderPass,
+// ) -> Vec<vk::Pipeline> {
+//     let main_entry = std::ffi::CString::new("main").unwrap();
+//     let mut vert_shader_file = std::fs::File::open("./shaders/vert.spv").unwrap();
+//     let vert_shader_code = ash::util::read_spv(&mut vert_shader_file).unwrap();
+//     let vert_shader_module = create_shader_module(device, &vert_shader_code).unwrap();
+//     let vert_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
+//         .stage(vk::ShaderStageFlags::VERTEX)
+//         .module(vert_shader_module)
+//         .name(main_entry.as_c_str())
+//         .build();
 
-    let mut frag_shader_file = std::fs::File::open("./shaders/frag.spv").unwrap();
-    let frag_shader_code = ash::util::read_spv(&mut frag_shader_file).unwrap();
-    let frag_shader_module = create_shader_module(device, &frag_shader_code).unwrap();
-    let frag_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
-        .stage(vk::ShaderStageFlags::FRAGMENT)
-        .module(frag_shader_module)
-        .name(main_entry.as_c_str())
-        .build();
-    let shaders_stage_createinfo = vec![frag_shader_stage_info, vert_shader_stage_info];
+//     let mut frag_shader_file = std::fs::File::open("./shaders/frag.spv").unwrap();
+//     let frag_shader_code = ash::util::read_spv(&mut frag_shader_file).unwrap();
+//     let frag_shader_module = create_shader_module(device, &frag_shader_code).unwrap();
+//     let frag_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
+//         .stage(vk::ShaderStageFlags::FRAGMENT)
+//         .module(frag_shader_module)
+//         .name(main_entry.as_c_str())
+//         .build();
+//     let shaders_stage_createinfo = vec![frag_shader_stage_info, vert_shader_stage_info];
 
-    let pipeline = unsafe {
-        device.create_graphics_pipelines(vk::PipelineCache::null(), &[pipeline_info], None)
-    }
-    .unwrap();
+//     let pipeline = unsafe {
+//         device.create_graphics_pipelines(vk::PipelineCache::null(), &[pipeline_info], None)
+//     }
+//     .unwrap();
 
-    unsafe { device.destroy_shader_module(vert_shader_module, None) };
-    unsafe { device.destroy_shader_module(frag_shader_module, None) };
+//     unsafe { device.destroy_shader_module(vert_shader_module, None) };
+//     unsafe { device.destroy_shader_module(frag_shader_module, None) };
 
-    pipeline
-}
+//     pipeline
+// }
 
 fn get_pipeline_viewport_createinfo(extent: vk::Extent2D) -> vk::PipelineViewportStateCreateInfo {
     let viewport = vk::Viewport::builder()
@@ -561,6 +658,10 @@ unsafe extern "system" fn vulkan_debug_utils_callback(
 struct FrameData {
     command_pool: vk::CommandPool,
     command_buffer: vk::CommandBuffer,
+
+    fence: vk::Fence,
+    render_semaphore: vk::Semaphore,
+    present_semaphore: vk::Semaphore,
 }
 
 fn init_framesdata(
@@ -569,11 +670,11 @@ fn init_framesdata(
 ) -> [FrameData; MAX_FRAMES_IN_FLIGHT] {
     let mut frames = Vec::with_capacity(MAX_FRAMES_IN_FLIGHT);
 
-    let command_pool_info = vk::CommandPoolCreateInfo::builder()
-        .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
-        .queue_family_index(graphics_family)
-        .build();
     for _ in 0..MAX_FRAMES_IN_FLIGHT {
+        let command_pool_info = vk::CommandPoolCreateInfo::builder()
+            .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
+            .queue_family_index(graphics_family)
+            .build();
         let command_pool = unsafe { device.create_command_pool(&command_pool_info, None) }.unwrap();
 
         let command_buffer_info = vk::CommandBufferAllocateInfo::builder()
@@ -584,9 +685,21 @@ fn init_framesdata(
         let command_buffer =
             unsafe { device.allocate_command_buffers(&command_buffer_info) }.unwrap()[0];
 
+        let fence_info = vk::FenceCreateInfo::builder()
+            .flags(vk::FenceCreateFlags::SIGNALED)
+            .build();
+        let fence = unsafe { device.create_fence(&fence_info, None).unwrap() };
+
+        let semaphore_info = vk::SemaphoreCreateInfo::builder().build();
+        let render_semaphore = unsafe { device.create_semaphore(&semaphore_info, None).unwrap() };
+        let present_semaphore = unsafe { device.create_semaphore(&semaphore_info, None).unwrap() };
+
         frames.push(FrameData {
             command_pool,
             command_buffer,
+            fence,
+            render_semaphore,
+            present_semaphore,
         });
     }
     frames.try_into().unwrap()
@@ -627,16 +740,15 @@ fn init_framebuffers(
 ) -> Vec<vk::Framebuffer> {
     let mut framebuffers = Vec::with_capacity(swapchain.image_views.len());
 
-    let framebuffer_info_builder = vk::FramebufferCreateInfo::builder()
-        .render_pass(render_pass)
-        .attachment_count(1)
-        .width(swapchain.extent.width)
-        .height(swapchain.extent.height)
-        .layers(1);
-
     //When rendering, the swapchain will give us the index of the image to render into, so we will use the framebuffer of the same index.
     for &image_view in &swapchain.image_views {
-        let framebuffer_info = framebuffer_info_builder.attachments(&[image_view]).build();
+        let framebuffer_info = vk::FramebufferCreateInfo::builder()
+            .render_pass(render_pass)
+            .attachments(&[image_view])
+            .width(swapchain.extent.width)
+            .height(swapchain.extent.height)
+            .layers(1)
+            .build();
         let framebuffer = unsafe { device.create_framebuffer(&framebuffer_info, None).unwrap() };
         framebuffers.push(framebuffer);
     }
