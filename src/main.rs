@@ -283,15 +283,18 @@ impl App {
 
     unsafe fn destroy(&mut self) {
         for frame in &self.frames {
+            self.device.destroy_semaphore(frame.present_semaphore, None);
+            self.device.destroy_semaphore(frame.render_semaphore, None);
+            self.device.destroy_fence(frame.fence, None);
             self.device.destroy_command_pool(frame.command_pool, None)
         }
-
-        self.device.destroy_render_pass(self.render_pass, None);
 
         for &framebuffer in &self.framebuffers {
             self.device.destroy_framebuffer(framebuffer, None);
         }
         self.framebuffers.clear();
+
+        self.device.destroy_render_pass(self.render_pass, None);
 
         self.swapchain
             .clean_swapchain(&self.device, &self.swapchain_loader);
