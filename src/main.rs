@@ -160,6 +160,8 @@ impl App {
         //vkguide
         let frames = init_framesdata(&device, queue_families.graphics);
 
+        init_pipelines(&device);
+
         Ok(Self {
             entry,
             instance,
@@ -244,8 +246,8 @@ impl App {
             .build();
         self.device
             .cmd_begin_render_pass(cmd, &renderpass_info, vk::SubpassContents::INLINE);
-
         self.device.cmd_end_render_pass(cmd);
+
         self.device.end_command_buffer(cmd).unwrap();
 
         //SUBMIT
@@ -550,42 +552,58 @@ fn create_device(
     Ok((device, physical_device_queue_families))
 }
 
-// //GRAPHICS
+//GRAPHICS
+
+fn init_pipelines(device: &ash::Device) {
+    let main_entry = std::ffi::CString::new("main").unwrap();
+    let vert_shader_module = create_shader_module(device, "./shaders/vert.spv").unwrap();
+    let vert_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
+        .stage(vk::ShaderStageFlags::VERTEX)
+        .module(vert_shader_module)
+        .name(main_entry.as_c_str())
+        .build();
+
+    let frag_shader_module = create_shader_module(device, "./shaders/frag.spv").unwrap();
+    let frag_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
+        .stage(vk::ShaderStageFlags::FRAGMENT)
+        .module(frag_shader_module)
+        .name(main_entry.as_c_str())
+        .build();
+
+    let pipeline_vertex_input_state_info =
+        vk::PipelineVertexInputStateCreateInfo::builder().build();
+
+    let pipeline_input_assembly_state_info =
+        vk::PipelineInputAssemblyStateCreateInfo::builder().primitive_restart_enable(false);
+
+    let pipeline_raster_state_info = vk::PipelineRasterizationStateCreateInfo::builder()
+        .line_width(1.0f32)
+        .cull_mode(vk::CullModeFlags::NONE)
+        .front_face(vk::FrontFace::CLOCKWISE)
+        .build();
+
+    let pipeline_multisample_state_info = vk::PipelineMultisampleStateCreateInfo::builder()
+        .rasterization_samples(vk::SampleCountFlags::TYPE_1)
+        .min_sample_shading(1.0f32)
+        .build();
+
+    let pipeline_color_blend_attachment_state = vk::PipelineColorBlendAttachmentState::builder()
+        .color_write_mask(vk::ColorComponentFlags::RGBA)
+        .build();
+
+    unsafe { device.destroy_shader_module(vert_shader_module, None) };
+    unsafe { device.destroy_shader_module(frag_shader_module, None) };
+}
+
 // fn create_graphics_pipeline(
 //     device: &ash::Device,
 //     swapchain: &swapchain_scop::SwapchainScop, //use fields?
 //     pipeline_layout: vk::PipelineLayout,
 //     render_pass: vk::RenderPass,
-// ) -> Vec<vk::Pipeline> {
-//     let main_entry = std::ffi::CString::new("main").unwrap();
-//     let mut vert_shader_file = std::fs::File::open("./shaders/vert.spv").unwrap();
-//     let vert_shader_code = ash::util::read_spv(&mut vert_shader_file).unwrap();
-//     let vert_shader_module = create_shader_module(device, &vert_shader_code).unwrap();
-//     let vert_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
-//         .stage(vk::ShaderStageFlags::VERTEX)
-//         .module(vert_shader_module)
-//         .name(main_entry.as_c_str())
-//         .build();
+// ) {
+//     //let shaders_stage_createinfo = vec![frag_shader_stage_info, vert_shader_stage_info];
 
-//     let mut frag_shader_file = std::fs::File::open("./shaders/frag.spv").unwrap();
-//     let frag_shader_code = ash::util::read_spv(&mut frag_shader_file).unwrap();
-//     let frag_shader_module = create_shader_module(device, &frag_shader_code).unwrap();
-//     let frag_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
-//         .stage(vk::ShaderStageFlags::FRAGMENT)
-//         .module(frag_shader_module)
-//         .name(main_entry.as_c_str())
-//         .build();
-//     let shaders_stage_createinfo = vec![frag_shader_stage_info, vert_shader_stage_info];
-
-//     let pipeline = unsafe {
-//         device.create_graphics_pipelines(vk::PipelineCache::null(), &[pipeline_info], None)
-//     }
-//     .unwrap();
-
-//     unsafe { device.destroy_shader_module(vert_shader_module, None) };
-//     unsafe { device.destroy_shader_module(frag_shader_module, None) };
-
-//     pipeline
+//
 // }
 
 fn get_pipeline_viewport_createinfo(extent: vk::Extent2D) -> vk::PipelineViewportStateCreateInfo {
@@ -608,9 +626,12 @@ fn get_pipeline_viewport_createinfo(extent: vk::Extent2D) -> vk::PipelineViewpor
 
 fn create_shader_module(
     device: &ash::Device,
-    code: &[u32],
+    filename: &str,
 ) -> anyhow::Result<ash::vk::ShaderModule> {
-    let createinfo = ash::vk::ShaderModuleCreateInfo::builder().code(code);
+    let mut shader_file = std::fs::File::open("./shaders/vert.spv").unwrap();
+    let shader_code = ash::util::read_spv(&mut shader_file).unwrap();
+
+    let createinfo = ash::vk::ShaderModuleCreateInfo::builder().code(&shader_code);
     Ok(unsafe { device.create_shader_module(&createinfo, None)? })
 }
 
