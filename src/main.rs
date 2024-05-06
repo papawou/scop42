@@ -100,6 +100,8 @@ struct App {
     framebuffers: Vec<vk::Framebuffer>,
 
     frames: [FrameData; MAX_FRAMES_IN_FLIGHT],
+    pipeline_layout: vk::PipelineLayout,
+    graphics_pipeline: vk::Pipeline,
 }
 
 impl App {
@@ -154,13 +156,15 @@ impl App {
             None,
         )?;
 
-        let render_pass = init_default_render_pass(&device, &swapchain);
-        let framebuffers = init_framebuffers(&device, &swapchain, render_pass);
+        let render_pass = create_default_render_pass(&device, &swapchain);
 
-        //vkguide
-        let frames = init_framesdata(&device, queue_families.graphics);
+        let framebuffers = create_framebuffers(&device, &swapchain, render_pass);
 
-        init_pipelines(&device);
+        let frames = create_framesdata(&device, queue_families.graphics);
+
+        let pipeline_layout = create_pipeline_layout(&device);
+        let graphics_pipeline =
+            create_graphics_pipeline(&device, render_pass, pipeline_layout, &swapchain);
 
         Ok(Self {
             entry,
@@ -185,6 +189,8 @@ impl App {
             framebuffers,
 
             frames,
+            pipeline_layout,
+            graphics_pipeline,
         })
     }
 
@@ -228,10 +234,14 @@ impl App {
             .begin_command_buffer(cmd, &cmd_begin_info)
             .unwrap();
 
-        let flash = f32::abs(f32::sin(current_frame as f32 / 120.0f32));
         let clear_value = vk::ClearValue {
             color: vk::ClearColorValue {
-                float32: [0.0f32, 0.0f32, flash, 1.0f32],
+                float32: [
+                    0.0f32,
+                    0.0f32,
+                    f32::abs(f32::sin(current_frame as f32 / 120.0f32)),
+                    1.0f32,
+                ],
             },
         };
 
@@ -246,6 +256,11 @@ impl App {
             .build();
         self.device
             .cmd_begin_render_pass(cmd, &renderpass_info, vk::SubpassContents::INLINE);
+
+        self.device
+            .cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, self.graphics_pipeline);
+        self.device.cmd_draw(cmd, 3, 1, 0, 0);
+
         self.device.cmd_end_render_pass(cmd);
 
         self.device.end_command_buffer(cmd).unwrap();
@@ -284,6 +299,10 @@ impl App {
     }
 
     unsafe fn destroy(&mut self) {
+        self.device.destroy_pipeline(self.graphics_pipeline, None);
+        self.device
+            .destroy_pipeline_layout(self.pipeline_layout, None);
+
         for frame in &self.frames {
             self.device.destroy_semaphore(frame.present_semaphore, None);
             self.device.destroy_semaphore(frame.render_semaphore, None);
@@ -347,8 +366,8 @@ impl App {
         //init
         self.swapchain = new_swapchain;
 
-        self.render_pass = init_default_render_pass(&self.device, &self.swapchain);
-        self.framebuffers = init_framebuffers(&self.device, &self.swapchain, self.render_pass);
+        self.render_pass = create_default_render_pass(&self.device, &self.swapchain);
+        self.framebuffers = create_framebuffers(&self.device, &self.swapchain, self.render_pass);
 
         return false;
     }
@@ -554,81 +573,97 @@ fn create_device(
 
 //GRAPHICS
 
-fn init_pipelines(device: &ash::Device) {
+fn create_graphics_pipeline(
+    device: &ash::Device,
+    render_pass: vk::RenderPass,
+    layout: vk::PipelineLayout,
+    swapchain: &SwapchainScop,
+) -> vk::Pipeline {
     let main_entry = std::ffi::CString::new("main").unwrap();
     let vert_shader_module = create_shader_module(device, "./shaders/vert.spv").unwrap();
-    let vert_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
+    let vert_shader_stage = vk::PipelineShaderStageCreateInfo::builder()
         .stage(vk::ShaderStageFlags::VERTEX)
         .module(vert_shader_module)
         .name(main_entry.as_c_str())
         .build();
-
     let frag_shader_module = create_shader_module(device, "./shaders/frag.spv").unwrap();
-    let frag_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
+    let frag_shader_stage = vk::PipelineShaderStageCreateInfo::builder()
         .stage(vk::ShaderStageFlags::FRAGMENT)
         .module(frag_shader_module)
         .name(main_entry.as_c_str())
         .build();
+    let stages = [vert_shader_stage, frag_shader_stage];
 
-    let pipeline_vertex_input_state_info =
-        vk::PipelineVertexInputStateCreateInfo::builder().build();
+    let vertex_input_state = vk::PipelineVertexInputStateCreateInfo::builder().build();
 
-    let pipeline_input_assembly_state_info =
-        vk::PipelineInputAssemblyStateCreateInfo::builder().primitive_restart_enable(false);
+    let input_assembly_state = vk::PipelineInputAssemblyStateCreateInfo::builder()
+        .primitive_restart_enable(false)
+        .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
+        .build();
 
-    let pipeline_raster_state_info = vk::PipelineRasterizationStateCreateInfo::builder()
+    let rasterization_state = vk::PipelineRasterizationStateCreateInfo::builder()
         .line_width(1.0f32)
         .cull_mode(vk::CullModeFlags::NONE)
         .front_face(vk::FrontFace::CLOCKWISE)
+        .polygon_mode(vk::PolygonMode::FILL)
         .build();
 
-    let pipeline_multisample_state_info = vk::PipelineMultisampleStateCreateInfo::builder()
+    let multisample_state = vk::PipelineMultisampleStateCreateInfo::builder()
         .rasterization_samples(vk::SampleCountFlags::TYPE_1)
         .min_sample_shading(1.0f32)
         .build();
 
-    let pipeline_color_blend_attachment_state = vk::PipelineColorBlendAttachmentState::builder()
-        .color_write_mask(vk::ColorComponentFlags::RGBA)
+    //BUILD PIPELINE
+    let viewports = [vk::Viewport::builder()
+        .width(swapchain.extent.width as f32)
+        .height(swapchain.extent.height as f32)
+        .max_depth(1.0)
+        .build()];
+    let scissors = [vk::Rect2D::builder()
+        .offset(vk::Offset2D { x: 0, y: 0 })
+        .extent(swapchain.extent)
+        .build()];
+    let viewport_state = vk::PipelineViewportStateCreateInfo::builder()
+        .viewports(&viewports)
+        .scissors(&scissors)
         .build();
+
+    let color_blend_state = vk::PipelineColorBlendStateCreateInfo::builder()
+        .logic_op(vk::LogicOp::COPY)
+        .attachments(&[vk::PipelineColorBlendAttachmentState::builder()
+            .color_write_mask(vk::ColorComponentFlags::RGBA)
+            .build()])
+        .build();
+
+    let pipeline_info = vk::GraphicsPipelineCreateInfo::builder()
+        .stages(&stages)
+        .vertex_input_state(&vertex_input_state)
+        .input_assembly_state(&input_assembly_state)
+        .viewport_state(&viewport_state)
+        .rasterization_state(&rasterization_state)
+        .multisample_state(&multisample_state)
+        .color_blend_state(&color_blend_state)
+        .layout(layout)
+        .render_pass(render_pass)
+        .build();
+
+    let pipelines = unsafe {
+        device
+            .create_graphics_pipelines(vk::PipelineCache::null(), &[pipeline_info], None)
+            .unwrap()
+    };
 
     unsafe { device.destroy_shader_module(vert_shader_module, None) };
     unsafe { device.destroy_shader_module(frag_shader_module, None) };
-}
 
-// fn create_graphics_pipeline(
-//     device: &ash::Device,
-//     swapchain: &swapchain_scop::SwapchainScop, //use fields?
-//     pipeline_layout: vk::PipelineLayout,
-//     render_pass: vk::RenderPass,
-// ) {
-//     //let shaders_stage_createinfo = vec![frag_shader_stage_info, vert_shader_stage_info];
-
-//
-// }
-
-fn get_pipeline_viewport_createinfo(extent: vk::Extent2D) -> vk::PipelineViewportStateCreateInfo {
-    let viewport = vk::Viewport::builder()
-        .width(extent.width as f32)
-        .height(extent.height as f32)
-        .max_depth(1.0)
-        .build();
-
-    let scissor = vk::Rect2D::builder()
-        .offset(vk::Offset2D { x: 0, y: 0 })
-        .extent(extent)
-        .build();
-
-    vk::PipelineViewportStateCreateInfo::builder()
-        .viewports(&[viewport])
-        .scissors(&[scissor])
-        .build()
+    pipelines[0]
 }
 
 fn create_shader_module(
     device: &ash::Device,
     filename: &str,
 ) -> anyhow::Result<ash::vk::ShaderModule> {
-    let mut shader_file = std::fs::File::open("./shaders/vert.spv").unwrap();
+    let mut shader_file = std::fs::File::open(filename).unwrap();
     let shader_code = ash::util::read_spv(&mut shader_file).unwrap();
 
     let createinfo = ash::vk::ShaderModuleCreateInfo::builder().code(&shader_code);
@@ -688,7 +723,7 @@ struct FrameData {
     present_semaphore: vk::Semaphore,
 }
 
-fn init_framesdata(
+fn create_framesdata(
     device: &ash::Device,
     graphics_family: u32,
 ) -> [FrameData; MAX_FRAMES_IN_FLIGHT] {
@@ -729,7 +764,7 @@ fn init_framesdata(
     frames.try_into().unwrap()
 }
 
-fn init_default_render_pass(device: &ash::Device, swapchain: &SwapchainScop) -> vk::RenderPass {
+fn create_default_render_pass(device: &ash::Device, swapchain: &SwapchainScop) -> vk::RenderPass {
     let color_attachment_desc = vk::AttachmentDescription::builder()
         .format(swapchain.surface_format.format)
         .samples(vk::SampleCountFlags::TYPE_1)
@@ -757,7 +792,7 @@ fn init_default_render_pass(device: &ash::Device, swapchain: &SwapchainScop) -> 
     unsafe { device.create_render_pass(&render_pass_info, None).unwrap() }
 }
 
-fn init_framebuffers(
+fn create_framebuffers(
     device: &ash::Device,
     swapchain: &SwapchainScop,
     render_pass: vk::RenderPass,
@@ -778,4 +813,10 @@ fn init_framebuffers(
     }
 
     framebuffers
+}
+
+fn create_pipeline_layout(device: &ash::Device) -> vk::PipelineLayout {
+    let info = vk::PipelineLayoutCreateInfo::builder().build();
+
+    unsafe { device.create_pipeline_layout(&info, None).unwrap() }
 }
