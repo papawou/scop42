@@ -796,7 +796,7 @@ fn create_graphics_pipeline(
     unsafe { device.destroy_shader_module(colored_tri_frag_module, None) };
     unsafe { device.destroy_shader_module(colored_tri_vert_module, None) };
 
-    pipelines[1]
+    pipelines[0]
 }
 
 fn create_default_render_pass(device: &ash::Device, swapchain: &SwapchainScop) -> vk::RenderPass {
