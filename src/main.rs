@@ -23,6 +23,11 @@ const VERTICES: [Vertex; 4] = [
 
 const INDEX_VERTICES: [u16; 6] = [0, 1, 2, 2, 3, 0];
 
+enum GraphicsPipelineType {
+    Tri,
+    TriColored,
+}
+
 fn main() -> anyhow::Result<()> {
     //std::env::set_var("RUST_BACKTRACE", "1");
     let entry = unsafe { ash::Entry::load()? };
@@ -42,32 +47,52 @@ fn main() -> anyhow::Result<()> {
     let mut current_frame = 0;
     let mut framebuffer_resized = false;
 
+    let mut selected_pipeline = GraphicsPipelineType::Tri;
+
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
     event_loop
         .run(move |event, elwt| match event {
             winit::event::Event::AboutToWait => window.request_redraw(),
-            winit::event::Event::WindowEvent {
-                event: winit::event::WindowEvent::RedrawRequested,
-                ..
-            } => {
-                if framebuffer_resized && app.handle_resize(&window) {
-                    return;
-                }
-                framebuffer_resized = unsafe { app.draw_frame(current_frame) };
-                current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
-            }
-            winit::event::Event::WindowEvent {
-                event: winit::event::WindowEvent::Resized(_),
-                ..
-            } => framebuffer_resized = true,
-            winit::event::Event::WindowEvent {
-                event: winit::event::WindowEvent::CloseRequested,
-                ..
-            } => elwt.exit(),
             winit::event::Event::LoopExiting => {
                 unsafe { app.device.device_wait_idle() }.unwrap();
                 unsafe { app.destroy() };
             }
+            //WINDOW EVENTS
+            winit::event::Event::WindowEvent { event, .. } => match event {
+                //WINDOW MANAGENMENT
+                winit::event::WindowEvent::RedrawRequested => {
+                    if framebuffer_resized && unsafe { app.handle_resize(&window) } {
+                        return;
+                    }
+                    let selected_pipeline = match selected_pipeline {
+                        GraphicsPipelineType::Tri => app.tri_pipeline,
+                        GraphicsPipelineType::TriColored => app.tri_colored_pipeline,
+                    };
+                    framebuffer_resized =
+                        unsafe { app.draw_frame(current_frame, selected_pipeline) };
+                    current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+                }
+                winit::event::WindowEvent::Resized(_) => framebuffer_resized = true,
+                winit::event::WindowEvent::CloseRequested => elwt.exit(),
+                //CONTROLS
+                winit::event::WindowEvent::KeyboardInput {
+                    event:
+                        winit::event::KeyEvent {
+                            physical_key:
+                                winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::KeyW),
+                            state: winit::event::ElementState::Pressed,
+                            repeat: false,
+                            ..
+                        },
+                    ..
+                } => {
+                    selected_pipeline = match selected_pipeline {
+                        GraphicsPipelineType::Tri => GraphicsPipelineType::TriColored,
+                        GraphicsPipelineType::TriColored => GraphicsPipelineType::Tri,
+                    }
+                }
+                _ => {}
+            },
             _ => {}
         })
         .unwrap();
@@ -103,7 +128,8 @@ struct App {
 
     frames: [FrameData; MAX_FRAMES_IN_FLIGHT],
     pipeline_layout: vk::PipelineLayout,
-    graphics_pipeline: vk::Pipeline,
+    tri_pipeline: vk::Pipeline,
+    tri_colored_pipeline: vk::Pipeline,
 }
 
 impl App {
@@ -166,7 +192,7 @@ impl App {
 
         let pipeline_layout = create_pipeline_layout(&device);
 
-        let graphics_pipeline =
+        let (tri_pipeline, tri_colored_pipeline) =
             create_graphics_pipeline(&device, render_pass, pipeline_layout, &swapchain);
 
         Ok(Self {
@@ -193,11 +219,12 @@ impl App {
 
             frames,
             pipeline_layout,
-            graphics_pipeline,
+            tri_pipeline,
+            tri_colored_pipeline,
         })
     }
 
-    unsafe fn draw_frame(&mut self, current_frame: usize) -> bool {
+    unsafe fn draw_frame(&mut self, current_frame: usize, pipeline: vk::Pipeline) -> bool {
         let FrameData {
             command_buffer: cmd,
             fence,
@@ -256,7 +283,7 @@ impl App {
             .cmd_begin_render_pass(cmd, &renderpass_info, vk::SubpassContents::INLINE);
 
         self.device
-            .cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, self.graphics_pipeline);
+            .cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, pipeline);
         self.device.cmd_draw(cmd, 3, 1, 0, 0);
 
         self.device.cmd_end_render_pass(cmd);
@@ -297,7 +324,10 @@ impl App {
     }
 
     unsafe fn destroy(&mut self) {
-        self.device.destroy_pipeline(self.graphics_pipeline, None);
+        self.device
+            .destroy_pipeline(self.tri_colored_pipeline, None);
+        self.device.destroy_pipeline(self.tri_pipeline, None);
+
         self.device
             .destroy_pipeline_layout(self.pipeline_layout, None);
 
@@ -327,8 +357,8 @@ impl App {
         self.instance.destroy_instance(None);
     }
 
-    fn handle_resize(&mut self, window: &winit::window::Window) -> bool {
-        unsafe { self.device.device_wait_idle().unwrap() };
+    unsafe fn handle_resize(&mut self, window: &winit::window::Window) -> bool {
+        self.device.device_wait_idle().unwrap();
         let physical_size = window.inner_size();
         if physical_size.width == 0 || physical_size.height == 0 {
             return true;
@@ -349,15 +379,15 @@ impl App {
         .unwrap();
 
         //clean
-        unsafe { self.device.destroy_pipeline(self.graphics_pipeline, None) }
+        self.device
+            .destroy_pipeline(self.tri_colored_pipeline, None);
+        self.device.destroy_pipeline(self.tri_pipeline, None);
 
         for &framebuffer in &self.framebuffers {
-            unsafe { self.device.destroy_framebuffer(framebuffer, None) }
+            self.device.destroy_framebuffer(framebuffer, None)
         }
 
-        unsafe {
-            self.device.destroy_render_pass(self.render_pass, None);
-        }
+        self.device.destroy_render_pass(self.render_pass, None);
 
         self.swapchain
             .clean_swapchain(&self.device, &self.swapchain_loader);
@@ -367,12 +397,15 @@ impl App {
 
         self.render_pass = create_default_render_pass(&self.device, &self.swapchain);
         self.framebuffers = create_framebuffers(&self.device, &self.swapchain, self.render_pass);
-        self.graphics_pipeline = create_graphics_pipeline(
+        let (tri_pipeline, tri_colored_pipeline) = create_graphics_pipeline(
             &self.device,
             self.render_pass,
             self.pipeline_layout,
             &self.swapchain,
         );
+
+        self.tri_pipeline = tri_pipeline;
+        self.tri_colored_pipeline = tri_colored_pipeline;
 
         return false;
     }
@@ -687,7 +720,7 @@ fn create_graphics_pipeline(
     render_pass: vk::RenderPass,
     layout: vk::PipelineLayout,
     swapchain: &SwapchainScop,
-) -> vk::Pipeline {
+) -> (vk::Pipeline, vk::Pipeline) {
     //SHADERS
     let main_entry = std::ffi::CString::new("main").unwrap();
 
@@ -796,7 +829,7 @@ fn create_graphics_pipeline(
     unsafe { device.destroy_shader_module(colored_tri_frag_module, None) };
     unsafe { device.destroy_shader_module(colored_tri_vert_module, None) };
 
-    pipelines[0]
+    (pipelines[1], pipelines[0])
 }
 
 fn create_default_render_pass(device: &ash::Device, swapchain: &SwapchainScop) -> vk::RenderPass {
