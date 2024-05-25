@@ -1,21 +1,21 @@
 use ash::vk;
 
-pub struct GraphicsPipeline {
-    pub vertex_input_state: vk::PipelineVertexInputStateCreateInfo,
-    pub input_assembly_state: vk::PipelineInputAssemblyStateCreateInfo,
-    pub rasterization_state: vk::PipelineRasterizationStateCreateInfo,
-    pub multisample_state: vk::PipelineMultisampleStateCreateInfo,
-    pub color_blend_state: vk::PipelineColorBlendStateCreateInfo,
-    pub viewport_state: vk::PipelineViewportStateCreateInfo,
+pub struct GraphicsPipeline<'a> {
+    pub vertex_input_state: vk::PipelineVertexInputStateCreateInfo<'a>,
+    pub input_assembly_state: vk::PipelineInputAssemblyStateCreateInfo<'a>,
+    pub rasterization_state: vk::PipelineRasterizationStateCreateInfo<'a>,
+    pub multisample_state: vk::PipelineMultisampleStateCreateInfo<'a>,
+    pub color_blend_state: vk::PipelineColorBlendStateCreateInfo<'a>,
+    pub viewport_state: vk::PipelineViewportStateCreateInfo<'a>,
 }
 
-impl GraphicsPipeline {
-    pub fn builder<'a>() -> GraphicsPipelineBuilder<'a> {
+impl<'a> GraphicsPipeline<'a> {
+    pub fn builder() -> GraphicsPipelineBuilder<'a> {
         GraphicsPipelineBuilder::new()
     }
 
-    pub fn create_pipeline_builder(&self) -> vk::GraphicsPipelineCreateInfoBuilder {
-        vk::GraphicsPipelineCreateInfo::builder()
+    pub fn create_pipeline_builder(&'a self) -> vk::GraphicsPipelineCreateInfo<'a> {
+        vk::GraphicsPipelineCreateInfo::default()
             .vertex_input_state(&self.vertex_input_state)
             .input_assembly_state(&self.input_assembly_state)
             .rasterization_state(&self.rasterization_state)
@@ -26,21 +26,21 @@ impl GraphicsPipeline {
 }
 
 pub struct GraphicsPipelineBuilder<'a> {
-    pub vertex_input_state: vk::PipelineVertexInputStateCreateInfoBuilder<'a>,
-    pub input_assembly_state: vk::PipelineInputAssemblyStateCreateInfoBuilder<'a>,
-    pub rasterization_state: vk::PipelineRasterizationStateCreateInfoBuilder<'a>,
-    pub multisample_state: vk::PipelineMultisampleStateCreateInfoBuilder<'a>,
-    pub color_blend_state: vk::PipelineColorBlendStateCreateInfoBuilder<'a>,
-    pub viewport_state: vk::PipelineViewportStateCreateInfoBuilder<'a>,
+    pub vertex_input_state: vk::PipelineVertexInputStateCreateInfo<'a>,
+    pub input_assembly_state: vk::PipelineInputAssemblyStateCreateInfo<'a>,
+    pub rasterization_state: vk::PipelineRasterizationStateCreateInfo<'a>,
+    pub multisample_state: vk::PipelineMultisampleStateCreateInfo<'a>,
+    pub color_blend_state: vk::PipelineColorBlendStateCreateInfo<'a>,
+    pub viewport_state: vk::PipelineViewportStateCreateInfo<'a>,
 }
 
 impl<'a> GraphicsPipelineBuilder<'a> {
     pub fn new() -> Self {
         Self {
-            vertex_input_state: vk::PipelineVertexInputStateCreateInfo::builder(),
-            input_assembly_state: vk::PipelineInputAssemblyStateCreateInfo::builder()
+            vertex_input_state: vk::PipelineVertexInputStateCreateInfo::default(),
+            input_assembly_state: vk::PipelineInputAssemblyStateCreateInfo::default()
                 .primitive_restart_enable(false),
-            rasterization_state: vk::PipelineRasterizationStateCreateInfo::builder()
+            rasterization_state: vk::PipelineRasterizationStateCreateInfo::default()
                 .depth_clamp_enable(false)
                 .rasterizer_discard_enable(false)
                 .line_width(1.0)
@@ -52,22 +52,22 @@ impl<'a> GraphicsPipelineBuilder<'a> {
                 .depth_bias_constant_factor(0.0)
                 .depth_bias_clamp(0.0)
                 .depth_bias_slope_factor(0.0),
-            multisample_state: vk::PipelineMultisampleStateCreateInfo::builder()
+            multisample_state: vk::PipelineMultisampleStateCreateInfo::default()
                 .sample_shading_enable(false)
                 //multisamping defaulted to no multisampling (1 sample per pixel)
                 .rasterization_samples(vk::SampleCountFlags::TYPE_1)
                 .min_sample_shading(1.0)
                 .alpha_to_coverage_enable(false)
                 .alpha_to_one_enable(false),
-            color_blend_state: vk::PipelineColorBlendStateCreateInfo::builder()
+            color_blend_state: vk::PipelineColorBlendStateCreateInfo::default()
                 .logic_op(vk::LogicOp::COPY),
-            viewport_state: vk::PipelineViewportStateCreateInfo::builder(),
+            viewport_state: vk::PipelineViewportStateCreateInfo::default(),
         }
     }
 
     pub fn vertex_input_state(
         mut self,
-        vertex_input_state: vk::PipelineVertexInputStateCreateInfoBuilder<'a>,
+        vertex_input_state: vk::PipelineVertexInputStateCreateInfo<'a>,
     ) -> Self {
         self.vertex_input_state = vertex_input_state;
         self
@@ -75,7 +75,7 @@ impl<'a> GraphicsPipelineBuilder<'a> {
 
     pub fn input_assembly_state(
         mut self,
-        input_assembly_state: vk::PipelineInputAssemblyStateCreateInfoBuilder<'a>,
+        input_assembly_state: vk::PipelineInputAssemblyStateCreateInfo<'a>,
     ) -> Self {
         self.input_assembly_state = input_assembly_state;
         self
@@ -83,7 +83,7 @@ impl<'a> GraphicsPipelineBuilder<'a> {
 
     pub fn rasterization_state(
         mut self,
-        rasterization_state: vk::PipelineRasterizationStateCreateInfoBuilder<'a>,
+        rasterization_state: vk::PipelineRasterizationStateCreateInfo<'a>,
     ) -> Self {
         self.rasterization_state = rasterization_state;
         self
@@ -91,7 +91,7 @@ impl<'a> GraphicsPipelineBuilder<'a> {
 
     pub fn multisample_state(
         mut self,
-        multisample_state: vk::PipelineMultisampleStateCreateInfoBuilder<'a>,
+        multisample_state: vk::PipelineMultisampleStateCreateInfo<'a>,
     ) -> Self {
         self.multisample_state = multisample_state;
         self
@@ -99,7 +99,7 @@ impl<'a> GraphicsPipelineBuilder<'a> {
 
     pub fn color_blend_state(
         mut self,
-        color_blend_state: vk::PipelineColorBlendStateCreateInfoBuilder<'a>,
+        color_blend_state: vk::PipelineColorBlendStateCreateInfo<'a>,
     ) -> Self {
         self.color_blend_state = color_blend_state;
         self
@@ -107,20 +107,20 @@ impl<'a> GraphicsPipelineBuilder<'a> {
 
     pub fn viewport_state(
         mut self,
-        viewport_state: vk::PipelineViewportStateCreateInfoBuilder<'a>,
+        viewport_state: vk::PipelineViewportStateCreateInfo<'a>,
     ) -> Self {
         self.viewport_state = viewport_state;
         self
     }
 
-    pub fn build(self) -> GraphicsPipeline {
+    pub fn build(self) -> GraphicsPipeline<'a> {
         GraphicsPipeline {
-            vertex_input_state: self.vertex_input_state.build(),
-            input_assembly_state: self.input_assembly_state.build(),
-            rasterization_state: self.rasterization_state.build(),
-            multisample_state: self.multisample_state.build(),
-            color_blend_state: self.color_blend_state.build(),
-            viewport_state: self.viewport_state.build(),
+            vertex_input_state: self.vertex_input_state,
+            input_assembly_state: self.input_assembly_state,
+            rasterization_state: self.rasterization_state,
+            multisample_state: self.multisample_state,
+            color_blend_state: self.color_blend_state,
+            viewport_state: self.viewport_state,
         }
     }
 }

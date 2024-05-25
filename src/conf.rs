@@ -29,11 +29,11 @@ pub fn get_layer_names() -> (Vec<std::ffi::CString>, Vec<*const i8>) {
 }
 
 pub const EXTENSION_NAMES: [*const i8; 3] = [
-    ash::extensions::ext::DebugUtils::name().as_ptr(),
-    ash::extensions::khr::Surface::name().as_ptr(),
-    ash::extensions::khr::Win32Surface::name().as_ptr(),
+    ash::ext::debug_utils::NAME.as_ptr(),
+    ash::khr::surface::NAME.as_ptr(),
+    ash::khr::win32_surface::NAME.as_ptr(),
 ];
 
-pub const DEVICE_EXTENSION_NAMES: [&std::ffi::CStr; 1] = [ash::extensions::khr::Swapchain::name()];
+pub const DEVICE_EXTENSION_NAMES: [&std::ffi::CStr; 1] = [ash::khr::swapchain::NAME];
 
 pub const MAX_FRAMES_IN_FLIGHT: usize = 2;

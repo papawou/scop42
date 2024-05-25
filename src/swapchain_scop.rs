@@ -13,7 +13,7 @@ impl SwapchainScop {
     pub fn clean_swapchain(
         &mut self,
         device: &ash::Device,
-        swapchain_loader: &ash::extensions::khr::Swapchain,
+        swapchain_loader: &ash::khr::swapchain::Device,
     ) {
         for &image_view in &self.image_views {
             unsafe { device.destroy_image_view(image_view, None) };
@@ -24,7 +24,7 @@ impl SwapchainScop {
 }
 
 pub fn create_swapchain(
-    swapchain_loader: &ash::extensions::khr::Swapchain,
+    swapchain_loader: &ash::khr::swapchain::Device,
     device: &ash::Device,
     physical_size: (u32, u32),
     surface_support: &SurfaceSupport,
@@ -47,7 +47,7 @@ pub fn create_swapchain(
         },
     );
 
-    let mut swapchain_create_info = vk::SwapchainCreateInfoKHR::builder()
+    let mut swapchain_create_info = vk::SwapchainCreateInfoKHR::default()
         .surface(surface)
         .min_image_count(image_count)
         .image_format(swap_surface_format.format)
@@ -80,7 +80,7 @@ pub fn create_swapchain(
     let swapchain_images_view = swapchain_images
         .iter()
         .map(|&e| {
-            let image_view_info = vk::ImageViewCreateInfo::builder()
+            let image_view_info = vk::ImageViewCreateInfo::default()
                 .image(e)
                 .view_type(vk::ImageViewType::TYPE_2D)
                 .format(swap_surface_format.format)
@@ -91,11 +91,10 @@ pub fn create_swapchain(
                     a: vk::ComponentSwizzle::IDENTITY,
                 })
                 .subresource_range(
-                    vk::ImageSubresourceRange::builder()
+                    vk::ImageSubresourceRange::default()
                         .aspect_mask(vk::ImageAspectFlags::COLOR)
                         .level_count(1)
-                        .layer_count(1)
-                        .build(),
+                        .layer_count(1),
                 );
             unsafe { device.create_image_view(&image_view_info, None).unwrap() }
         })
