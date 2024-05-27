@@ -120,7 +120,7 @@ struct App {
     device: ash::Device,
 
     //vmem
-    allocator: vk_mem::Allocator,
+    allocator: Option<vk_mem::Allocator>,
 
     mesh: mesh::Mesh,
 
@@ -220,7 +220,7 @@ impl App {
             instance,
             device,
 
-            allocator,
+            allocator: Some(allocator),
             mesh,
 
             swapchain_loader,
@@ -400,9 +400,10 @@ impl App {
 
         self.device.destroy_render_pass(self.render_pass, None);
 
-        self.mesh.unload(&self.allocator);
-
-        //self.allocator.destroy?
+        if let Some(allocator) = &self.allocator {
+            self.mesh.unload(allocator);
+            self.allocator = None; //free vkmem::Allocator
+        }
 
         self.swapchain
             .clean_swapchain(&self.device, &self.swapchain_loader);
@@ -438,6 +439,7 @@ impl App {
         .unwrap();
 
         //clean
+        self.device.destroy_pipeline(self.mesh_pipeline, None);
         self.device
             .destroy_pipeline(self.tri_colored_pipeline, None);
         self.device.destroy_pipeline(self.tri_pipeline, None);
@@ -862,6 +864,9 @@ fn create_graphics_pipeline(
             .vertex_binding_descriptions(&bindings)
             .vertex_attribute_descriptions(&attributes),
     );
+    template_pipeline_builder.input_assembly_state = template_pipeline_builder
+        .input_assembly_state
+        .topology(vk::PrimitiveTopology::TRIANGLE_LIST);
     template_pipeline_builder.viewport_state = template_pipeline_builder
         .viewport_state
         .viewports(&viewports)

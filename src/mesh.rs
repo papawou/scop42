@@ -24,8 +24,9 @@ impl Mesh {
         }
 
         //create buffer
+        let buffer_size = self.vertices.len() * std::mem::size_of::<vertex::Vertex>();
         let buffer_info = vk::BufferCreateInfo::default()
-            .size(std::mem::size_of_val(&self.vertices) as vk::DeviceSize)
+            .size(buffer_size as vk::DeviceSize)
             .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
             .sharing_mode(vk::SharingMode::EXCLUSIVE);
         let allocation_info = vk_mem::AllocationCreateInfo {
@@ -41,7 +42,11 @@ impl Mesh {
         //copy data to buffer
         let data_ptr = unsafe { allocator.map_memory(&mut allocation).unwrap() };
         unsafe {
-            std::ptr::copy_nonoverlapping(self.vertices.as_ptr() as *mut u8, data_ptr as *mut u8, 1)
+            std::ptr::copy_nonoverlapping(
+                self.vertices.as_ptr() as *const u8,
+                data_ptr as *mut u8,
+                buffer_size,
+            );
         }
         unsafe { allocator.unmap_memory(&mut allocation) };
 
