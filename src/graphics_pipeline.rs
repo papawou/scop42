@@ -113,6 +113,23 @@ impl<'a> GraphicsPipelineBuilder<'a> {
         self
     }
 
+    pub fn set_defaults(
+        mut self,
+        viewports: &'a [vk::Viewport],
+        scissors: &'a [vk::Rect2D],
+    ) -> Self {
+        self.input_assembly_state = self
+            .input_assembly_state
+            .topology(vk::PrimitiveTopology::TRIANGLE_LIST);
+        self.rasterization_state = self.rasterization_state.polygon_mode(vk::PolygonMode::FILL);
+        self.viewport_state = self
+            .viewport_state
+            .viewports(&viewports)
+            .scissors(&scissors);
+
+        self
+    }
+
     pub fn build(self) -> GraphicsPipeline<'a> {
         GraphicsPipeline {
             vertex_input_state: self.vertex_input_state,

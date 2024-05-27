@@ -4,13 +4,13 @@ use ash::vk;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct Vertex {
-    pub position: glam::Vec2,
+    pub position: glam::Vec3,
     pub normal: glam::Vec3,
     pub color: glam::Vec3,
 }
 
 impl Vertex {
-    pub const fn new(position: glam::Vec2, color: glam::Vec3, normal: glam::Vec3) -> Self {
+    pub const fn new(position: glam::Vec3, color: glam::Vec3, normal: glam::Vec3) -> Self {
         Self {
             position,
             color,
@@ -31,19 +31,19 @@ impl Vertex {
             vk::VertexInputAttributeDescription::default()
                 .binding(0)
                 .location(0)
-                .format(vk::Format::R32G32_SFLOAT)
+                .format(vk::Format::R32G32B32_SFLOAT)
                 .offset(0),
             vk::VertexInputAttributeDescription::default()
                 .binding(0)
                 .location(1)
                 .format(vk::Format::R32G32B32_SFLOAT)
-                .offset(std::mem::size_of::<glam::Vec2>() as u32),
+                .offset(std::mem::size_of::<glam::Vec3>() as u32),
             vk::VertexInputAttributeDescription::default()
                 .binding(0)
                 .location(2)
                 .format(vk::Format::R32G32B32_SFLOAT)
                 .offset(
-                    (std::mem::size_of::<glam::Vec2>() + std::mem::size_of::<glam::Vec3>()) as u32,
+                    (std::mem::size_of::<glam::Vec3>() + std::mem::size_of::<glam::Vec3>()) as u32,
                 ),
         ]
     }

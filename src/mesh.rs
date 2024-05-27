@@ -44,7 +44,7 @@ impl Mesh {
         unsafe {
             std::ptr::copy_nonoverlapping(
                 self.vertices.as_ptr() as *const u8,
-                data_ptr as *mut u8,
+                data_ptr,
                 buffer_size,
             );
         }

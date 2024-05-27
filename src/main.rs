@@ -15,29 +15,23 @@ use winit::{platform::windows::WindowExtWindows, raw_window_handle::HasWindowHan
 
 const ONE_SEC: u64 = u64::MAX;
 
-const VERTICES: [Vertex; 4] = [
+const VERTICES: [Vertex; 3] = [
     Vertex::new(
-        glam::vec2(-0.5, -0.5),
+        glam::vec3(1.0, 1.0, 0.0),
         glam::vec3(1.0, 0.0, 0.0),
         glam::Vec3::ZERO,
     ),
     Vertex::new(
-        glam::vec2(0.5, -0.5),
+        glam::vec3(-1.0, 1.0, 0.0),
         glam::vec3(0.0, 1.0, 0.0),
         glam::Vec3::ZERO,
     ),
     Vertex::new(
-        glam::vec2(0.5, 0.5),
+        glam::vec3(0.0, -1.0, 0.0),
         glam::vec3(0.0, 0.0, 1.0),
         glam::Vec3::ZERO,
     ),
-    Vertex::new(
-        glam::vec2(-0.5, 0.5),
-        glam::vec3(1.0, 1.0, 1.0),
-        glam::Vec3::ZERO,
-    ),
 ];
-const INDEX_VERTICES: [u16; 6] = [0, 1, 2, 2, 3, 0];
 
 enum GraphicsPipelineType {
     Tri,
@@ -64,7 +58,7 @@ fn main() -> anyhow::Result<()> {
     let mut current_frame = 0;
     let mut framebuffer_resized = false;
 
-    let mut selected_pipeline = GraphicsPipelineType::Tri;
+    let mut selected_pipeline = GraphicsPipelineType::Mesh;
 
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
     event_loop
@@ -813,20 +807,11 @@ fn create_graphics_pipeline(
 
     //TRI_COLORED PIPELINE
     let stages = [colored_tri_vert_stage, colored_tri_frag_stage];
-    let mut template_pipeline_builder = GraphicsPipeline::builder();
-    template_pipeline_builder.input_assembly_state = template_pipeline_builder
-        .input_assembly_state
-        .topology(vk::PrimitiveTopology::TRIANGLE_LIST);
-    template_pipeline_builder.rasterization_state = template_pipeline_builder
-        .rasterization_state
-        .polygon_mode(vk::PolygonMode::FILL);
-    template_pipeline_builder.viewport_state = template_pipeline_builder
-        .viewport_state
-        .viewports(&viewports)
-        .scissors(&scissors);
 
-    let template_pipeline_builded = template_pipeline_builder.build();
-    let tri_colored_pipeline_info = template_pipeline_builded
+    let pipeline_build = GraphicsPipeline::builder()
+        .set_defaults(&viewports, &scissors)
+        .build();
+    let tri_colored_pipeline_info = pipeline_build
         .create_pipeline_builder()
         .stages(&stages)
         .layout(layout)
@@ -835,20 +820,11 @@ fn create_graphics_pipeline(
 
     //TRI PIPELINE
     let stages = [tri_vert_stage, tri_frag_stage];
-    let mut template_pipeline_builder = GraphicsPipeline::builder();
-    template_pipeline_builder.input_assembly_state = template_pipeline_builder
-        .input_assembly_state
-        .topology(vk::PrimitiveTopology::TRIANGLE_LIST);
-    template_pipeline_builder.viewport_state = template_pipeline_builder
-        .viewport_state
-        .viewports(&viewports)
-        .scissors(&scissors);
-    template_pipeline_builder.rasterization_state = template_pipeline_builder
-        .rasterization_state
-        .polygon_mode(vk::PolygonMode::FILL);
 
-    let template_pipeline_builded = template_pipeline_builder.build();
-    let tri_pipeline_info = template_pipeline_builded
+    let pipeline_build = GraphicsPipeline::builder()
+        .set_defaults(&viewports, &scissors)
+        .build();
+    let tri_pipeline_info = pipeline_build
         .create_pipeline_builder()
         .stages(&stages)
         .layout(layout)
@@ -856,24 +832,20 @@ fn create_graphics_pipeline(
         .color_blend_state(&color_blend_state);
 
     //MESH PIPELINE
-    let stages = [mesh_vert_stage, tri_frag_stage];
+    let stages = [mesh_vert_stage, colored_tri_frag_stage];
     let bindings = Vertex::bindings();
     let attributes = Vertex::attributes();
-    let mut template_pipeline_builder = GraphicsPipeline::builder().vertex_input_state(
-        vk::PipelineVertexInputStateCreateInfo::default()
-            .vertex_binding_descriptions(&bindings)
-            .vertex_attribute_descriptions(&attributes),
-    );
-    template_pipeline_builder.input_assembly_state = template_pipeline_builder
-        .input_assembly_state
-        .topology(vk::PrimitiveTopology::TRIANGLE_LIST);
-    template_pipeline_builder.viewport_state = template_pipeline_builder
-        .viewport_state
-        .viewports(&viewports)
-        .scissors(&scissors);
 
-    let template_pipeline_builded = template_pipeline_builder.build();
-    let mesh_pipeline_info = template_pipeline_builded
+    let pipeline_build = GraphicsPipeline::builder()
+        .set_defaults(&viewports, &scissors)
+        .vertex_input_state(
+            vk::PipelineVertexInputStateCreateInfo::default()
+                .vertex_binding_descriptions(&bindings)
+                .vertex_attribute_descriptions(&attributes),
+        )
+        .build();
+
+    let mesh_pipeline_info = pipeline_build
         .create_pipeline_builder()
         .stages(&stages)
         .layout(layout)
@@ -885,8 +857,8 @@ fn create_graphics_pipeline(
             .create_graphics_pipelines(
                 vk::PipelineCache::null(),
                 &[
-                    tri_colored_pipeline_info,
                     tri_pipeline_info,
+                    tri_colored_pipeline_info,
                     mesh_pipeline_info,
                 ],
                 None,
@@ -900,7 +872,7 @@ fn create_graphics_pipeline(
     unsafe { device.destroy_shader_module(colored_tri_frag_module, None) };
     unsafe { device.destroy_shader_module(colored_tri_vert_module, None) };
 
-    (pipelines[1], pipelines[0], pipelines[2])
+    (pipelines[0], pipelines[1], pipelines[2])
 }
 
 fn create_default_render_pass(device: &ash::Device, swapchain: &SwapchainScop) -> vk::RenderPass {
