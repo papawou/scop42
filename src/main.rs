@@ -33,10 +33,15 @@ const VERTICES: [Vertex; 3] = [
     ),
 ];
 
-enum GraphicsPipelineType {
-    Tri,
-    TriColored,
-    Mesh,
+enum PipelineLayout {
+    Tri(vk::PipelineLayout),
+    Mesh(vk::PipelineLayout),
+}
+
+enum GraphicsPipelineType<'a> {
+    Tri(&'a PipelineLayout),
+    TriColored(&'a PipelineLayout),
+    Mesh(&'a PipelineLayout)
 }
 
 fn main() -> anyhow::Result<()> {
@@ -58,7 +63,7 @@ fn main() -> anyhow::Result<()> {
     let mut current_frame = 0;
     let mut framebuffer_resized = false;
 
-    let mut selected_pipeline = GraphicsPipelineType::Mesh;
+    let mut selected_pipeline = PipelineLayout::Mesh(&app.mesh_pipeline_layout);
 
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
     event_loop
@@ -94,9 +99,9 @@ fn main() -> anyhow::Result<()> {
                     ..
                 } => {
                     selected_pipeline = match selected_pipeline {
-                        GraphicsPipelineType::Tri => GraphicsPipelineType::TriColored,
-                        GraphicsPipelineType::TriColored => GraphicsPipelineType::Mesh,
-                        GraphicsPipelineType::Mesh => GraphicsPipelineType::Tri,
+                        PipelineLayout::Tri(_) => PipelineLayout::TriColored(&app.pipeline_layout),
+                        PipelineLayout::TriColored(_) => PipelineLayout::Mesh(&app.pipeline_layout),
+                        PipelineLayout::Mesh(_) => PipelineLayout::Tri(&app.mesh_pipeline_layout),
                     }
                 }
                 _ => {}
@@ -143,6 +148,8 @@ struct App {
     pipeline_layout: vk::PipelineLayout,
     tri_pipeline: vk::Pipeline,
     tri_colored_pipeline: vk::Pipeline,
+
+    mesh_pipeline_layout: vk::PipelineLayout,
     mesh_pipeline: vk::Pipeline,
 }
 
@@ -203,7 +210,27 @@ impl App {
         mesh.load(&allocator);
 
         let render_pass = create_default_render_pass(&device, &swapchain);
-        let pipeline_layout = create_pipeline_layout(&device);
+        let pipeline_layout = unsafe {
+            device
+                .create_pipeline_layout(&vk::PipelineLayoutCreateInfo::default(), None)
+                .unwrap()
+        };
+
+        let push_constant_ranges = [vk::PushConstantRange {
+            stage_flags: vk::ShaderStageFlags::VERTEX,
+            size: std::mem::size_of::<MeshPushConstants>() as u32,
+            offset: 0,
+        }];
+        let mesh_pipeline_layout = unsafe {
+            device
+                .create_pipeline_layout(
+                    &vk::PipelineLayoutCreateInfo::default()
+                        .push_constant_ranges(&push_constant_ranges),
+                    None,
+                )
+                .unwrap()
+        };
+
         let framebuffers = create_framebuffers(&device, &swapchain, render_pass);
 
         let (tri_pipeline, tri_colored_pipeline, mesh_pipeline) =
@@ -238,7 +265,9 @@ impl App {
             pipeline_layout,
             tri_pipeline,
             tri_colored_pipeline,
+
             mesh_pipeline,
+            mesh_pipeline_layout,
         })
     }
 
@@ -299,7 +328,7 @@ impl App {
             .cmd_begin_render_pass(cmd, &renderpass_info, vk::SubpassContents::INLINE);
 
         match pipeline {
-            GraphicsPipelineType::Tri => {
+            GraphicsPipelineType::Tri | GraphicsPipelineType::TriColored => {
                 self.device.cmd_bind_pipeline(
                     cmd,
                     vk::PipelineBindPoint::GRAPHICS,
@@ -307,25 +336,31 @@ impl App {
                 );
                 self.device.cmd_draw(cmd, 3, 1, 0, 0);
             }
-            GraphicsPipelineType::TriColored => {
-                self.device.cmd_bind_pipeline(
-                    cmd,
-                    vk::PipelineBindPoint::GRAPHICS,
-                    self.tri_colored_pipeline,
-                );
-                self.device.cmd_draw(cmd, 3, 1, 0, 0);
-            }
-            GraphicsPipelineType::Mesh => {
+            GraphicsPipelineType::Mesh(pipeline_layout) => {
                 self.device.cmd_bind_pipeline(
                     cmd,
                     vk::PipelineBindPoint::GRAPHICS,
                     self.mesh_pipeline,
                 );
 
-                let vertex_buffers = [self.mesh.vertex_buffer.as_ref().unwrap().buffer];
+                let vertex_buffers = self.mesh.vertex_buffer.as_ref().unwrap().buffer;
                 let offsets = [0];
                 self.device
                     .cmd_bind_vertex_buffers(cmd, 0, &vertex_buffers, &offsets);
+
+                let push_constants = [MeshPushConstants {
+                    data: glam::Vec4::new(0.0, 0.0, -2.0, 0.0),
+                    render_matrix: glam::Mat4::IDENTITY,
+                }];
+
+                self.device.cmd_push_constants(
+                    cmd,
+                    pipeline_layout.clone(),
+                    vk::ShaderStageFlags::VERTEX,
+                    std::mem::size_of::<MeshPushConstants>() as u32,
+                    &vertex_buffers,
+                    push_constants.as_slice(),
+                );
                 self.device
                     .cmd_draw(cmd, self.mesh.vertices.len() as u32, 1, 0, 0)
             }
@@ -377,6 +412,8 @@ impl App {
             .destroy_pipeline(self.tri_colored_pipeline, None);
         self.device.destroy_pipeline(self.tri_pipeline, None);
 
+        self.device
+            .destroy_pipeline_layout(self.mesh_pipeline_layout, None);
         self.device
             .destroy_pipeline_layout(self.pipeline_layout, None);
 
@@ -743,24 +780,25 @@ fn create_framebuffers(
     framebuffers
 }
 
-//GRAPHICS
-fn create_pipeline_layout(device: &ash::Device) -> vk::PipelineLayout {
-    let info = vk::PipelineLayoutCreateInfo::default();
-
-    unsafe { device.create_pipeline_layout(&info, None).unwrap() }
-}
-
 fn create_graphics_pipeline(
     device: &ash::Device,
     render_pass: vk::RenderPass,
-    layout: vk::PipelineLayout,
+    pipeline_type: GraphicsPipelineType,
     swapchain: &SwapchainScop,
 ) -> (vk::Pipeline, vk::Pipeline, vk::Pipeline) {
     //SHADERS
     let main_entry = std::ffi::CString::new("main").unwrap();
 
-    let tri_vert_module = create_shader_module(device, "./shaders/tri.vert.spv").unwrap();
-    let tri_vert_stage = vk::PipelineShaderStageCreateInfo::default()
+    match pipeline_type {
+        GraphicsPipelineType::Tri(_) | GraphicsPipelineType::TriColored(_) => {
+
+        },
+        GraphicsPipelineType::Mesh(_) => {},
+    };
+
+    let vert_module = match pipeline_type {
+        GraphicsPipelineType(_) => create_shader_module(device, "./shaders/tri.vert.spv").unwrap() };
+    let vert_stage = vk::PipelineShaderStageCreateInfo::default()
         .stage(vk::ShaderStageFlags::VERTEX)
         .module(tri_vert_module)
         .name(main_entry.as_c_str());
@@ -814,7 +852,7 @@ fn create_graphics_pipeline(
     let tri_colored_pipeline_info = pipeline_build
         .create_pipeline_builder()
         .stages(&stages)
-        .layout(layout)
+        .layout(layout.)
         .render_pass(render_pass)
         .color_blend_state(&color_blend_state);
 
@@ -848,7 +886,7 @@ fn create_graphics_pipeline(
     let mesh_pipeline_info = pipeline_build
         .create_pipeline_builder()
         .stages(&stages)
-        .layout(layout)
+        .layout(mesh_layout)
         .render_pass(render_pass)
         .color_blend_state(&color_blend_state);
 
@@ -907,6 +945,12 @@ fn create_shader_module(
 
     let createinfo = ash::vk::ShaderModuleCreateInfo::default().code(&shader_code);
     Ok(unsafe { device.create_shader_module(&createinfo, None)? })
+}
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct MeshPushConstants {
+    data: glam::Vec4,
+    render_matrix: glam::Mat4,
 }
 
 //vkMem
