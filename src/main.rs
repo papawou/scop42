@@ -4,6 +4,7 @@ mod mesh;
 mod swapchain_scop;
 mod utils;
 mod vertex;
+mod vk_ext;
 
 use anyhow::Ok;
 use ash::vk::{self};
