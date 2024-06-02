@@ -4,12 +4,11 @@ mod mesh;
 mod swapchain_scop;
 mod utils;
 mod vertex;
-mod vk_ext;
 
 use anyhow::Ok;
 use ash::vk::{self};
 use conf::MAX_FRAMES_IN_FLIGHT;
-use graphics_pipeline::{GraphicsPipeline, GraphicsPipelineBuilder};
+use graphics_pipeline::{create_mesh_pipeline, create_tri_pipeline, GraphicsPipeline};
 use swapchain_scop::SwapchainScop;
 use vertex::Vertex;
 use winit::{platform::windows::WindowExtWindows, raw_window_handle::HasWindowHandle};
@@ -34,15 +33,10 @@ const VERTICES: [Vertex; 3] = [
     ),
 ];
 
-enum PipelineLayout {
-    Tri(vk::PipelineLayout),
-    Mesh(vk::PipelineLayout),
-}
-
 enum GraphicsPipelineType<'a> {
-    Tri(&'a PipelineLayout),
-    TriColored(&'a PipelineLayout),
-    Mesh(&'a PipelineLayout)
+    Tri(&'a GraphicsPipeline<'a>),
+    Mesh(&'a GraphicsPipeline<'a>),
+    None,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -64,8 +58,6 @@ fn main() -> anyhow::Result<()> {
     let mut current_frame = 0;
     let mut framebuffer_resized = false;
 
-    let mut selected_pipeline = PipelineLayout::Mesh(&app.mesh_pipeline_layout);
-
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
     event_loop
         .run(move |event, elwt| match event {
@@ -81,8 +73,7 @@ fn main() -> anyhow::Result<()> {
                     if framebuffer_resized && unsafe { app.handle_resize(&window) } {
                         return;
                     }
-                    framebuffer_resized =
-                        unsafe { app.draw_frame(current_frame, &selected_pipeline) };
+                    framebuffer_resized = unsafe { app.draw_frame(current_frame) };
                     current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
                 }
                 winit::event::WindowEvent::Resized(_) => framebuffer_resized = true,
@@ -99,10 +90,14 @@ fn main() -> anyhow::Result<()> {
                         },
                     ..
                 } => {
-                    selected_pipeline = match selected_pipeline {
-                        PipelineLayout::Tri(_) => PipelineLayout::TriColored(&app.pipeline_layout),
-                        PipelineLayout::TriColored(_) => PipelineLayout::Mesh(&app.pipeline_layout),
-                        PipelineLayout::Mesh(_) => PipelineLayout::Tri(&app.mesh_pipeline_layout),
+                    app.selected_pipeline = match &app.selected_pipeline {
+                        GraphicsPipelineType::Tri(_) => {
+                            GraphicsPipelineType::Mesh(&app.mesh_pipeline)
+                        }
+                        GraphicsPipelineType::Mesh(_) => {
+                            GraphicsPipelineType::Tri(&app.tri_pipeline)
+                        }
+                        GraphicsPipelineType::None => GraphicsPipelineType::Tri(&app.tri_pipeline),
                     }
                 }
                 _ => {}
@@ -114,7 +109,7 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-struct App {
+struct App<'a> {
     entry: ash::Entry,
     instance: ash::Instance,
     device: ash::Device,
@@ -146,12 +141,13 @@ struct App {
     framebuffers: Vec<vk::Framebuffer>,
 
     frames: [FrameData; MAX_FRAMES_IN_FLIGHT],
-    pipeline_layout: vk::PipelineLayout,
-    tri_pipeline: vk::Pipeline,
-    tri_colored_pipeline: vk::Pipeline,
+    tri_layout: vk::PipelineLayout,
+    mesh_layout: vk::PipelineLayout,
 
-    mesh_pipeline_layout: vk::PipelineLayout,
-    mesh_pipeline: vk::Pipeline,
+    mesh_pipeline: GraphicsPipeline<'a>,
+    tri_pipeline: GraphicsPipeline<'a>,
+
+    selected_pipeline: GraphicsPipelineType<'a>,
 }
 
 impl App {
@@ -211,7 +207,10 @@ impl App {
         mesh.load(&allocator);
 
         let render_pass = create_default_render_pass(&device, &swapchain);
-        let pipeline_layout = unsafe {
+
+        let framebuffers = create_framebuffers(&device, &swapchain, render_pass);
+
+        let tri_layout = unsafe {
             device
                 .create_pipeline_layout(&vk::PipelineLayoutCreateInfo::default(), None)
                 .unwrap()
@@ -222,7 +221,7 @@ impl App {
             size: std::mem::size_of::<MeshPushConstants>() as u32,
             offset: 0,
         }];
-        let mesh_pipeline_layout = unsafe {
+        let mesh_layout = unsafe {
             device
                 .create_pipeline_layout(
                     &vk::PipelineLayoutCreateInfo::default()
@@ -231,11 +230,9 @@ impl App {
                 )
                 .unwrap()
         };
+        let mesh_pipeline = create_mesh_pipeline(&device, render_pass, &swapchain, &mesh_layout);
 
-        let framebuffers = create_framebuffers(&device, &swapchain, render_pass);
-
-        let (tri_pipeline, tri_colored_pipeline, mesh_pipeline) =
-            create_graphics_pipeline(&device, render_pass, pipeline_layout, &swapchain);
+        let tri_pipeline = create_tri_pipeline(&device, render_pass, &swapchain, &tri_layout);
 
         Ok(Self {
             entry,
@@ -263,16 +260,17 @@ impl App {
             framebuffers,
 
             frames,
-            pipeline_layout,
-            tri_pipeline,
-            tri_colored_pipeline,
+            tri_layout,
+            mesh_layout,
 
+            tri_pipeline,
             mesh_pipeline,
-            mesh_pipeline_layout,
+
+            selected_pipeline: GraphicsPipelineType::Mesh(&mesh_pipeline),
         })
     }
 
-    unsafe fn draw_frame(&mut self, current_frame: usize, pipeline: &GraphicsPipelineType) -> bool {
+    unsafe fn draw_frame(&mut self, current_frame: usize) -> bool {
         let FrameData {
             command_buffer: cmd,
             fence,
@@ -328,23 +326,23 @@ impl App {
         self.device
             .cmd_begin_render_pass(cmd, &renderpass_info, vk::SubpassContents::INLINE);
 
-        match pipeline {
-            GraphicsPipelineType::Tri | GraphicsPipelineType::TriColored => {
+        match self.selected_pipeline {
+            GraphicsPipelineType::Tri(pipeline) => {
                 self.device.cmd_bind_pipeline(
                     cmd,
                     vk::PipelineBindPoint::GRAPHICS,
-                    self.tri_pipeline,
+                    pipeline.pipeline,
                 );
                 self.device.cmd_draw(cmd, 3, 1, 0, 0);
             }
-            GraphicsPipelineType::Mesh(pipeline_layout) => {
+            GraphicsPipelineType::Mesh(pipeline) => {
                 self.device.cmd_bind_pipeline(
                     cmd,
                     vk::PipelineBindPoint::GRAPHICS,
-                    self.mesh_pipeline,
+                    pipeline.pipeline,
                 );
 
-                let vertex_buffers = self.mesh.vertex_buffer.as_ref().unwrap().buffer;
+                let vertex_buffers = [self.mesh.vertex_buffer.as_ref().unwrap().buffer];
                 let offsets = [0];
                 self.device
                     .cmd_bind_vertex_buffers(cmd, 0, &vertex_buffers, &offsets);
@@ -356,15 +354,16 @@ impl App {
 
                 self.device.cmd_push_constants(
                     cmd,
-                    pipeline_layout.clone(),
+                    pipeline.layout.clone(),
                     vk::ShaderStageFlags::VERTEX,
                     std::mem::size_of::<MeshPushConstants>() as u32,
                     &vertex_buffers,
-                    push_constants.as_slice(),
+                    //push_constants.as_slice(),
                 );
                 self.device
                     .cmd_draw(cmd, self.mesh.vertices.len() as u32, 1, 0, 0)
             }
+            _ => {}
         }
 
         self.device.cmd_end_render_pass(cmd);
@@ -408,15 +407,13 @@ impl App {
     }
 
     unsafe fn destroy(&mut self) {
-        self.device.destroy_pipeline(self.mesh_pipeline, None);
         self.device
-            .destroy_pipeline(self.tri_colored_pipeline, None);
-        self.device.destroy_pipeline(self.tri_pipeline, None);
+            .destroy_pipeline(self.mesh_pipeline.pipeline, None);
+        self.device
+            .destroy_pipeline(self.tri_pipeline.pipeline, None);
 
-        self.device
-            .destroy_pipeline_layout(self.mesh_pipeline_layout, None);
-        self.device
-            .destroy_pipeline_layout(self.pipeline_layout, None);
+        self.device.destroy_pipeline_layout(self.mesh_layout, None);
+        self.device.destroy_pipeline_layout(self.tri_layout, None);
 
         for frame in &self.frames {
             self.device.destroy_semaphore(frame.present_semaphore, None);
@@ -471,10 +468,10 @@ impl App {
         .unwrap();
 
         //clean
-        self.device.destroy_pipeline(self.mesh_pipeline, None);
         self.device
-            .destroy_pipeline(self.tri_colored_pipeline, None);
-        self.device.destroy_pipeline(self.tri_pipeline, None);
+            .destroy_pipeline(self.mesh_pipeline.pipeline, None);
+        self.device
+            .destroy_pipeline(self.tri_pipeline.pipeline, None);
 
         for &framebuffer in &self.framebuffers {
             self.device.destroy_framebuffer(framebuffer, None)
@@ -490,16 +487,18 @@ impl App {
 
         self.render_pass = create_default_render_pass(&self.device, &self.swapchain);
         self.framebuffers = create_framebuffers(&self.device, &self.swapchain, self.render_pass);
-        let (tri_pipeline, tri_colored_pipeline, mesh_pipeline) = create_graphics_pipeline(
+        self.mesh_pipeline = graphics_pipeline::create_mesh_pipeline(
             &self.device,
             self.render_pass,
-            self.pipeline_layout,
             &self.swapchain,
+            &self.tri_layout,
         );
-
-        self.tri_pipeline = tri_pipeline;
-        self.tri_colored_pipeline = tri_colored_pipeline;
-        self.mesh_pipeline = mesh_pipeline;
+        self.tri_pipeline = graphics_pipeline::create_tri_pipeline(
+            &self.device,
+            self.render_pass,
+            &self.swapchain,
+            &self.tri_layout,
+        );
 
         return false;
     }
@@ -779,139 +778,6 @@ fn create_framebuffers(
     }
 
     framebuffers
-}
-
-fn create_graphics_pipeline(
-    device: &ash::Device,
-    render_pass: vk::RenderPass,
-    pipeline_type: GraphicsPipelineType,
-    swapchain: &SwapchainScop,
-) -> (vk::Pipeline, vk::Pipeline, vk::Pipeline) {
-    //SHADERS
-    let main_entry = std::ffi::CString::new("main").unwrap();
-
-    match pipeline_type {
-        GraphicsPipelineType::Tri(_) | GraphicsPipelineType::TriColored(_) => {
-
-        },
-        GraphicsPipelineType::Mesh(_) => {},
-    };
-
-    let vert_module = match pipeline_type {
-        GraphicsPipelineType(_) => create_shader_module(device, "./shaders/tri.vert.spv").unwrap() };
-    let vert_stage = vk::PipelineShaderStageCreateInfo::default()
-        .stage(vk::ShaderStageFlags::VERTEX)
-        .module(tri_vert_module)
-        .name(main_entry.as_c_str());
-    let tri_frag_module = create_shader_module(device, "./shaders/tri.frag.spv").unwrap();
-    let tri_frag_stage = vk::PipelineShaderStageCreateInfo::default()
-        .stage(vk::ShaderStageFlags::FRAGMENT)
-        .module(tri_frag_module)
-        .name(main_entry.as_c_str());
-
-    let colored_tri_vert_module =
-        create_shader_module(device, "./shaders/colored_tri.vert.spv").unwrap();
-    let colored_tri_vert_stage = vk::PipelineShaderStageCreateInfo::default()
-        .stage(vk::ShaderStageFlags::VERTEX)
-        .module(colored_tri_vert_module)
-        .name(main_entry.as_c_str());
-    let colored_tri_frag_module =
-        create_shader_module(device, "./shaders/colored_tri.frag.spv").unwrap();
-    let colored_tri_frag_stage = vk::PipelineShaderStageCreateInfo::default()
-        .stage(vk::ShaderStageFlags::FRAGMENT)
-        .module(colored_tri_frag_module)
-        .name(main_entry.as_c_str());
-
-    let mesh_vert_module = create_shader_module(device, "./shaders/mesh.vert.spv").unwrap();
-    let mesh_vert_stage = vk::PipelineShaderStageCreateInfo::default()
-        .stage(vk::ShaderStageFlags::VERTEX)
-        .module(mesh_vert_module)
-        .name(main_entry.as_c_str());
-
-    //PIPELINE DEFAULTS
-    let viewport = vk::Viewport::default()
-        .width(swapchain.extent.width as f32)
-        .height(swapchain.extent.height as f32)
-        .max_depth(1.0);
-    let viewports = [viewport];
-    let scissor = vk::Rect2D::default().extent(swapchain.extent);
-    let scissors = [scissor];
-
-    let color_blend_attachments_state = [vk::PipelineColorBlendAttachmentState::default()
-        .color_write_mask(vk::ColorComponentFlags::RGBA)
-        .blend_enable(false)];
-    let color_blend_state = vk::PipelineColorBlendStateCreateInfo::default()
-        .logic_op(vk::LogicOp::COPY)
-        .attachments(&color_blend_attachments_state);
-
-    //TRI_COLORED PIPELINE
-    let stages = [colored_tri_vert_stage, colored_tri_frag_stage];
-
-    let pipeline_build = GraphicsPipeline::builder()
-        .set_defaults(&viewports, &scissors)
-        .build();
-    let tri_colored_pipeline_info = pipeline_build
-        .create_pipeline_builder()
-        .stages(&stages)
-        .layout(layout.)
-        .render_pass(render_pass)
-        .color_blend_state(&color_blend_state);
-
-    //TRI PIPELINE
-    let stages = [tri_vert_stage, tri_frag_stage];
-
-    let pipeline_build = GraphicsPipeline::builder()
-        .set_defaults(&viewports, &scissors)
-        .build();
-    let tri_pipeline_info = pipeline_build
-        .create_pipeline_builder()
-        .stages(&stages)
-        .layout(layout)
-        .render_pass(render_pass)
-        .color_blend_state(&color_blend_state);
-
-    //MESH PIPELINE
-    let stages = [mesh_vert_stage, colored_tri_frag_stage];
-    let bindings = Vertex::bindings();
-    let attributes = Vertex::attributes();
-
-    let pipeline_build = GraphicsPipeline::builder()
-        .set_defaults(&viewports, &scissors)
-        .vertex_input_state(
-            vk::PipelineVertexInputStateCreateInfo::default()
-                .vertex_binding_descriptions(&bindings)
-                .vertex_attribute_descriptions(&attributes),
-        )
-        .build();
-
-    let mesh_pipeline_info = pipeline_build
-        .create_pipeline_builder()
-        .stages(&stages)
-        .layout(mesh_layout)
-        .render_pass(render_pass)
-        .color_blend_state(&color_blend_state);
-
-    let pipelines = unsafe {
-        device
-            .create_graphics_pipelines(
-                vk::PipelineCache::null(),
-                &[
-                    tri_pipeline_info,
-                    tri_colored_pipeline_info,
-                    mesh_pipeline_info,
-                ],
-                None,
-            )
-            .unwrap()
-    };
-
-    unsafe { device.destroy_shader_module(mesh_vert_module, None) }
-    unsafe { device.destroy_shader_module(tri_frag_module, None) };
-    unsafe { device.destroy_shader_module(tri_vert_module, None) };
-    unsafe { device.destroy_shader_module(colored_tri_frag_module, None) };
-    unsafe { device.destroy_shader_module(colored_tri_vert_module, None) };
-
-    (pipelines[0], pipelines[1], pipelines[2])
 }
 
 fn create_default_render_pass(device: &ash::Device, swapchain: &SwapchainScop) -> vk::RenderPass {
