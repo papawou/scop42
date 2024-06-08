@@ -1,8 +1,4 @@
-use std::default;
-
 use ash::vk;
-
-use crate::create_shader_module;
 
 pub struct GraphicsPipelineInfoBuilder<'a> {
     input_assembly: vk::PipelineInputAssemblyStateCreateInfo<'a>,
@@ -65,23 +61,23 @@ pub struct GraphicsPipeline<'a> {
 pub fn create_mesh_pipeline<'a>(
     device: &ash::Device,
     render_pass: vk::RenderPass,
-    swapchain: &crate::swapchain_scop::SwapchainScop,
+    extent: vk::Extent2D,
     layout: &'a vk::PipelineLayout,
 ) -> GraphicsPipeline<'a> {
     let main_entry = std::ffi::CString::new("main").unwrap();
-    let vert_module = crate::create_shader_module(device, "./shaders/mesh.vert.spv").unwrap();
+    let vert_module = create_shader_module(device, "./shaders/mesh.vert.spv");
     let vert_stage = vk::PipelineShaderStageCreateInfo::default()
         .stage(vk::ShaderStageFlags::VERTEX)
         .module(vert_module)
         .name(main_entry.as_c_str());
-    let frag_module = create_shader_module(device, "./shaders/colored_tri.frag.spv").unwrap();
+    let frag_module = create_shader_module(device, "./shaders/colored_tri.frag.spv");
     let frag_stage = vk::PipelineShaderStageCreateInfo::default()
         .stage(vk::ShaderStageFlags::FRAGMENT)
         .module(frag_module)
         .name(main_entry.as_c_str());
     let stages = [vert_stage, frag_stage];
 
-    let (viewports, scissors) = default_viewports_and_scissors(swapchain.extent);
+    let (viewports, scissors) = default_viewports_and_scissors(extent);
     let viewport_state = vk::PipelineViewportStateCreateInfo::default()
         .viewports(&viewports)
         .scissors(&scissors);
@@ -120,23 +116,23 @@ pub fn create_mesh_pipeline<'a>(
 pub fn create_tri_pipeline<'a>(
     device: &ash::Device,
     render_pass: vk::RenderPass,
-    swapchain: &crate::swapchain_scop::SwapchainScop,
+    extent: vk::Extent2D,
     layout: &'a vk::PipelineLayout,
 ) -> GraphicsPipeline<'a> {
     let main_entry = std::ffi::CString::new("main").unwrap();
-    let vert_module = create_shader_module(device, "./shaders/colored_tri.vert.spv").unwrap();
+    let vert_module = create_shader_module(device, "./shaders/colored_tri.vert.spv");
     let vert_stage = vk::PipelineShaderStageCreateInfo::default()
         .stage(vk::ShaderStageFlags::VERTEX)
         .module(vert_module)
         .name(main_entry.as_c_str());
-    let frag_module = create_shader_module(device, "./shaders/colored_tri.frag.spv").unwrap();
+    let frag_module = create_shader_module(device, "./shaders/colored_tri.frag.spv");
     let frag_stage = vk::PipelineShaderStageCreateInfo::default()
         .stage(vk::ShaderStageFlags::FRAGMENT)
         .module(frag_module)
         .name(main_entry.as_c_str());
     let stages = [vert_stage, frag_stage];
 
-    let (viewports, scissors) = default_viewports_and_scissors(swapchain.extent);
+    let (viewports, scissors) = default_viewports_and_scissors(extent);
     let viewport_state = vk::PipelineViewportStateCreateInfo::default()
         .viewports(&viewports)
         .scissors(&scissors);
@@ -177,4 +173,12 @@ pub fn default_viewports_and_scissors(
     let viewports = vec![viewport];
     let scissors = vec![scissor];
     return (viewports, scissors);
+}
+
+fn create_shader_module(device: &ash::Device, filename: &str) -> vk::ShaderModule {
+    let mut shader_file = std::fs::File::open(filename).unwrap();
+    let shader_code = ash::util::read_spv(&mut shader_file).unwrap();
+
+    let createinfo = ash::vk::ShaderModuleCreateInfo::default().code(&shader_code);
+    unsafe { device.create_shader_module(&createinfo, None).unwrap() }
 }
