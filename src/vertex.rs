@@ -1,6 +1,5 @@
 use ash::vk;
 
-//VERTEX
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct Vertex {
@@ -17,8 +16,15 @@ impl Vertex {
             normal,
         }
     }
+}
 
-    pub fn bindings() -> [vk::VertexInputBindingDescription; 1] {
+pub trait VertexHelpers {
+    fn bindings() -> [vk::VertexInputBindingDescription; 1];
+    fn attributes() -> [vk::VertexInputAttributeDescription; 3];
+}
+
+impl VertexHelpers for Vertex {
+    fn bindings() -> [vk::VertexInputBindingDescription; 1] {
         let binding_desc = vk::VertexInputBindingDescription::default()
             .binding(0)
             .stride(std::mem::size_of::<Self>() as u32)
@@ -26,7 +32,7 @@ impl Vertex {
         [binding_desc]
     }
 
-    pub fn attributes() -> [vk::VertexInputAttributeDescription; 3] {
+    fn attributes() -> [vk::VertexInputAttributeDescription; 3] {
         [
             vk::VertexInputAttributeDescription::default()
                 .binding(0)

@@ -8,7 +8,7 @@ use frame_data::FrameData;
 use queue_famillies::QueueFamilies;
 use surface_support::SurfaceSupport;
 
-use crate::{conf, MeshPushConstants};
+use crate::conf;
 use winit::{platform::windows::WindowExtWindows, raw_window_handle::HasWindowHandle};
 
 pub struct Engine {
@@ -18,8 +18,6 @@ pub struct Engine {
 
     //vmem
     pub allocator: Option<vk_mem::Allocator>,
-
-    pub mesh: crate::mesh::Mesh,
 
     //swapchain
     pub swapchain_loader: ash::khr::swapchain::Device,
@@ -43,8 +41,6 @@ pub struct Engine {
     pub framebuffers: Vec<vk::Framebuffer>,
 
     pub frames: [FrameData; conf::MAX_FRAMES_IN_FLIGHT],
-    pub tri_layout: vk::PipelineLayout,
-    pub mesh_layout: vk::PipelineLayout,
 }
 
 impl Engine {
@@ -100,37 +96,9 @@ impl Engine {
         //vmem allocator
         let allocator = create_allocator(&instance, &device, physical_device);
 
-        //graphics
-        let mut mesh = mesh::Mesh::new(VERTICES.to_vec(), None);
-        mesh.load(&allocator);
-
-        let render_pass = create_default_render_pass(&device, &swapchain);
+        let render_pass = create_default_render_pass(&device, swapchain.surface_format.format);
 
         let framebuffers = create_framebuffers(&device, &swapchain, render_pass);
-
-        let tri_layout = unsafe {
-            device
-                .create_pipeline_layout(&vk::PipelineLayoutCreateInfo::default(), None)
-                .unwrap()
-        };
-
-        let push_constant_ranges = [vk::PushConstantRange {
-            stage_flags: vk::ShaderStageFlags::VERTEX,
-            size: std::mem::size_of::<MeshPushConstants>() as u32,
-            offset: 0,
-        }];
-        let mesh_layout = unsafe {
-            device
-                .create_pipeline_layout(
-                    &vk::PipelineLayoutCreateInfo::default()
-                        .push_constant_ranges(&push_constant_ranges),
-                    None,
-                )
-                .unwrap()
-        };
-        let mesh_pipeline = create_mesh_pipeline(&device, render_pass, &swapchain, &mesh_layout);
-
-        let tri_pipeline = create_tri_pipeline(&device, render_pass, &swapchain, &tri_layout);
 
         Self {
             entry,
@@ -138,7 +106,6 @@ impl Engine {
             device,
 
             allocator: Some(allocator),
-            mesh,
 
             swapchain_loader,
             swapchain,
@@ -158,12 +125,6 @@ impl Engine {
             framebuffers,
 
             frames,
-            tri_layout,
-            mesh_layout,
-
-            tri_pipeline,
-            mesh_pipeline,
-            selected_pipeline: GraphicsPipelineType::None,
         }
     }
 
@@ -177,7 +138,7 @@ impl Engine {
         } = self.frames[current_frame];
 
         self.device
-            .wait_for_fences(&[fence], true, ONE_SEC)
+            .wait_for_fences(&[fence], true, u64::MAX)
             .unwrap();
 
         let swapchain_image_idx = match self.swapchain_loader.acquire_next_image(
@@ -206,6 +167,8 @@ impl Engine {
             .begin_command_buffer(cmd, &cmd_begin_info)
             .unwrap();
 
+        ///
+        //GraphicsPipeline.begin_render
         let clear_values = [vk::ClearValue {
             color: vk::ClearColorValue {
                 float32: [0.0f32, 0.0f32, 0.0f32, 1.0f32],
@@ -222,51 +185,79 @@ impl Engine {
             .clear_values(&clear_values);
         self.device
             .cmd_begin_render_pass(cmd, &renderpass_info, vk::SubpassContents::INLINE);
+        ///
+        ///
+        // match self.selected_pipeline {
+        //     GraphicsPipelineType::Tri(pipeline) => {
+        //         self.device.cmd_bind_pipeline(
+        //             cmd,
+        //             vk::PipelineBindPoint::GRAPHICS,
+        //             pipeline.pipeline,
+        //         );
+        //         self.device.cmd_draw(cmd, 3, 1, 0, 0);
+        //     }
+        //     GraphicsPipelineType::Mesh(pipeline) => {
+        //         self.device.cmd_bind_pipeline(
+        //             cmd,
+        //             vk::PipelineBindPoint::GRAPHICS,
+        //             pipeline.pipeline,
+        //         );
 
-        match self.selected_pipeline {
-            GraphicsPipelineType::Tri(pipeline) => {
-                self.device.cmd_bind_pipeline(
-                    cmd,
-                    vk::PipelineBindPoint::GRAPHICS,
-                    pipeline.pipeline,
-                );
-                self.device.cmd_draw(cmd, 3, 1, 0, 0);
-            }
-            GraphicsPipelineType::Mesh(pipeline) => {
-                self.device.cmd_bind_pipeline(
-                    cmd,
-                    vk::PipelineBindPoint::GRAPHICS,
-                    pipeline.pipeline,
-                );
+        //         let vertex_buffers = [self.mesh.vertex_buffer.as_ref().unwrap().buffer];
+        //         let offsets = [0];
+        //         self.device
+        //             .cmd_bind_vertex_buffers(cmd, 0, &vertex_buffers, &offsets);
 
-                let vertex_buffers = [self.mesh.vertex_buffer.as_ref().unwrap().buffer];
-                let offsets = [0];
-                self.device
-                    .cmd_bind_vertex_buffers(cmd, 0, &vertex_buffers, &offsets);
+        //         let push_constants = [MeshPushConstants {
+        //             data: glam::Vec4::new(0.0, 0.0, -2.0, 0.0),
+        //             render_matrix: glam::Mat4::IDENTITY,
+        //         }];
 
-                let push_constants = [MeshPushConstants {
-                    data: glam::Vec4::new(0.0, 0.0, -2.0, 0.0),
-                    render_matrix: glam::Mat4::IDENTITY,
-                }];
+        //         self.device.cmd_push_constants(
+        //             cmd,
+        //             pipeline.layout.clone(),
+        //             vk::ShaderStageFlags::VERTEX,
+        //             std::mem::size_of::<MeshPushConstants>() as u32,
+        //             &vertex_buffers,
+        //             //push_constants.as_slice(),
+        //         );
+        //         self.device
+        //             .cmd_draw(cmd, self.mesh.vertices.len() as u32, 1, 0, 0)
+        //     }
+        //     _ => {}
+        // }
 
-                self.device.cmd_push_constants(
-                    cmd,
-                    pipeline.layout.clone(),
-                    vk::ShaderStageFlags::VERTEX,
-                    std::mem::size_of::<MeshPushConstants>() as u32,
-                    &vertex_buffers,
-                    //push_constants.as_slice(),
-                );
-                self.device
-                    .cmd_draw(cmd, self.mesh.vertices.len() as u32, 1, 0, 0)
-            }
-            _ => {}
-        }
+        //MeshRenderer.begin_render
+        let vertex_buffers = [self.mesh.vertex_buffer.as_ref().unwrap().buffer];
+        let offsets = [0];
+        self.device
+            .cmd_bind_vertex_buffers(cmd, 0, &vertex_buffers, &offsets);
 
+        let push_constants = [MeshPushConstants {
+            data: glam::Vec4::new(0.0, 0.0, -2.0, 0.0),
+            render_matrix: glam::Mat4::IDENTITY,
+        }];
+
+        self.device.cmd_push_constants(
+            cmd,
+            pipeline.layout.clone(),
+            vk::ShaderStageFlags::VERTEX,
+            std::mem::size_of::<MeshPushConstants>() as u32,
+            &vertex_buffers,
+            //push_constants.as_slice(),
+        );
+        self.device
+            .cmd_draw(cmd, self.mesh.vertices.len() as u32, 1, 0, 0);
+        ///
+        ///
+        ///GraphicsPipeline.end_render
+        self.device
+            .cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, pipeline.pipeline);
         self.device.cmd_end_render_pass(cmd);
 
         self.device.end_command_buffer(cmd).unwrap();
-
+        ///
+        ///
         //SUBMIT
         self.device.reset_fences(&[fence]).unwrap();
 
@@ -305,8 +296,6 @@ impl Engine {
 
     pub unsafe fn destroy(&mut self) {
         self.device
-            .destroy_pipeline(self.mesh_pipeline.pipeline, None);
-        self.device
             .destroy_pipeline(self.tri_pipeline.pipeline, None);
 
         self.device.destroy_pipeline_layout(self.mesh_layout, None);
@@ -326,10 +315,7 @@ impl Engine {
 
         self.device.destroy_render_pass(self.render_pass, None);
 
-        if let Some(allocator) = &self.allocator {
-            self.mesh.unload(allocator);
-            self.allocator = None; //free vkmem::Allocator
-        }
+        self.allocator = None; //free vkmem::Allocator
 
         self.swapchain.clean(&self.device, &self.swapchain_loader);
 

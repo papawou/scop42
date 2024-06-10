@@ -1,17 +1,15 @@
-use core::alloc;
-
 use ash::vk::{self};
 use vk_mem::Alloc;
 
-use crate::{vertex, AllocatedBuffer};
+use crate::{vertex::Vertex, AllocatedBuffer};
 
-pub struct Mesh {
-    pub vertices: Vec<vertex::Vertex>,
+pub struct Mesh<T> {
+    pub vertices: Vec<T>,
     pub vertex_buffer: Option<AllocatedBuffer>,
 }
 
-impl Mesh {
-    pub fn new(vertices: Vec<vertex::Vertex>, vertex_buffer: Option<AllocatedBuffer>) -> Self {
+impl<T> Mesh<T> {
+    pub fn new(vertices: Vec<T>, vertex_buffer: Option<AllocatedBuffer>) -> Self {
         Self {
             vertices,
             vertex_buffer,
@@ -24,7 +22,7 @@ impl Mesh {
         }
 
         //create buffer
-        let buffer_size = self.vertices.len() * std::mem::size_of::<vertex::Vertex>();
+        let buffer_size = self.vertices.len() * std::mem::size_of::<Vertex>();
         let buffer_info = vk::BufferCreateInfo::default()
             .size(buffer_size as vk::DeviceSize)
             .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
@@ -62,4 +60,30 @@ impl Mesh {
             _ => {}
         }
     }
+}
+
+//DEFAULT
+const VERTICES: [Vertex; 3] = [
+    Vertex::new(
+        glam::vec3(1.0, 1.0, 0.0),
+        glam::vec3(1.0, 0.0, 0.0),
+        glam::Vec3::ZERO,
+    ),
+    Vertex::new(
+        glam::vec3(-1.0, 1.0, 0.0),
+        glam::vec3(0.0, 1.0, 0.0),
+        glam::Vec3::ZERO,
+    ),
+    Vertex::new(
+        glam::vec3(0.0, -1.0, 0.0),
+        glam::vec3(0.0, 0.0, 1.0),
+        glam::Vec3::ZERO,
+    ),
+];
+
+pub fn load_default_mesh(allocator: &vk_mem::Allocator) -> Mesh<Vertex> {
+    let mut mesh = Mesh::new(VERTICES.to_vec(), None);
+    mesh.load(&allocator);
+
+    mesh
 }

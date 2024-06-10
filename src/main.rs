@@ -2,35 +2,19 @@ mod conf;
 mod engine;
 mod graphics_pipeline;
 mod mesh;
+mod pipeline_layout;
 mod utils;
 mod vertex;
+mod mesh_renderer;
 
 use anyhow::Ok;
 use ash::vk::{self};
 use conf::MAX_FRAMES_IN_FLIGHT;
-use graphics_pipeline::GraphicsPipeline;
+use graphics_pipeline::{create_mesh_pipeline, GraphicsPipeline};
+use mesh::Mesh;
+use pipeline_layout::create_mesh_layout;
 use vertex::Vertex;
 use winit::{platform::windows::WindowExtWindows, raw_window_handle::HasWindowHandle};
-
-const ONE_SEC: u64 = u64::MAX;
-
-const VERTICES: [Vertex; 3] = [
-    Vertex::new(
-        glam::vec3(1.0, 1.0, 0.0),
-        glam::vec3(1.0, 0.0, 0.0),
-        glam::Vec3::ZERO,
-    ),
-    Vertex::new(
-        glam::vec3(-1.0, 1.0, 0.0),
-        glam::vec3(0.0, 1.0, 0.0),
-        glam::Vec3::ZERO,
-    ),
-    Vertex::new(
-        glam::vec3(0.0, -1.0, 0.0),
-        glam::vec3(0.0, 0.0, 1.0),
-        glam::Vec3::ZERO,
-    ),
-];
 
 fn main() -> anyhow::Result<()> {
     //std::env::set_var("RUST_BACKTRACE", "1");
@@ -48,9 +32,18 @@ fn main() -> anyhow::Result<()> {
 
     let mut engine = engine::Engine::new(entry, &window);
 
+    //INIT RENDERER
+    let mesh = mesh::load_default_mesh(engine.allocator.as_ref().expect("No allocator"));
+    let mesh_layout = create_mesh_layout(&engine.device);
+    let graphics_pipeline = create_mesh_pipeline::<Vertex>(
+        &engine.device,
+        engine.render_pass,
+        engine.swapchain.extent,
+        &mesh_layout,
+    );
+
     let mut current_frame = 0;
     let mut framebuffer_resized = false;
-
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
     event_loop
         .run(move |event, elwt| match event {
@@ -82,19 +75,7 @@ fn main() -> anyhow::Result<()> {
                             ..
                         },
                     ..
-                } => {
-                    engine.selected_pipeline = match &engine.selected_pipeline {
-                        GraphicsPipelineType::Tri(_) => {
-                            GraphicsPipelineType::Mesh(&engine.mesh_pipeline)
-                        }
-                        GraphicsPipelineType::Mesh(_) => {
-                            GraphicsPipelineType::Tri(&engine.tri_pipeline)
-                        }
-                        GraphicsPipelineType::None => {
-                            GraphicsPipelineType::Tri(&engine.tri_pipeline)
-                        }
-                    }
-                }
+                } => {}
                 _ => {}
             },
             _ => {}
@@ -104,20 +85,6 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-struct MeshPushConstants {
-    data: glam::Vec4,
-    render_matrix: glam::Mat4,
-}
-
-//vkMem
-struct AllocatedBuffer {
-    buffer: vk::Buffer,
-    allocation: vk_mem::Allocation,
-}
-
-//INITIALIZERS
 enum GraphicsPipelineType<'a> {
     Tri(&'a GraphicsPipeline<'a>),
     Mesh(&'a GraphicsPipeline<'a>),
@@ -126,4 +93,9 @@ enum GraphicsPipelineType<'a> {
 struct GraphicsPipelineAtlas<'a> {
     tri_pipeline: GraphicsPipelineType<'a>,
     mesh_pipeline: GraphicsPipelineType<'a>,
+}
+
+struct AllocatedBuffer {
+    buffer: vk::Buffer,
+    allocation: vk_mem::Allocation,
 }

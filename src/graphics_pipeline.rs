@@ -1,5 +1,48 @@
 use ash::vk;
 
+use crate::vertex::VertexHelpers;
+
+pub struct GraphicsPipeline<'a> {
+    pub layout: &'a vk::PipelineLayout,
+    //pub render_pass: vk::RenderPass,
+    pub pipeline: vk::Pipeline,
+}
+
+impl<'a> GraphicsPipeline<'a> {
+    pub fn begin_render() {
+        let clear_values = [vk::ClearValue {
+            color: vk::ClearColorValue {
+                float32: [0.0f32, 0.0f32, 0.0f32, 1.0f32],
+            },
+        }];
+
+        let renderpass_info = vk::RenderPassBeginInfo::default()
+            .render_pass(self.render_pass)
+            .render_area(vk::Rect2D {
+                offset: vk::Offset2D { x: 0, y: 0 },
+                extent: self.swapchain.extent,
+            })
+            .framebuffer(framebuffer)
+            .clear_values(&clear_values);
+        self.device
+            .cmd_begin_render_pass(cmd, &renderpass_info, vk::SubpassContents::INLINE);
+    }
+
+    pub fn end_render() {
+        self.device
+            .cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, pipeline.pipeline);
+        self.device.cmd_end_render_pass(cmd);
+
+        self.device.end_command_buffer(cmd).unwrap();
+    }
+
+    //after this call object should be dropped
+    pub unsafe fn destroy(self, device: &ash::Device) -> Self {
+        device.destroy_pipeline(self.pipeline, None);
+        self
+    }
+}
+
 pub struct GraphicsPipelineInfoBuilder<'a> {
     input_assembly: vk::PipelineInputAssemblyStateCreateInfo<'a>,
     rasterization: vk::PipelineRasterizationStateCreateInfo<'a>,
@@ -52,67 +95,7 @@ impl<'a> GraphicsPipelineInfoBuilder<'a> {
     }
 }
 
-pub struct GraphicsPipeline<'a> {
-    pub layout: &'a vk::PipelineLayout,
-    //pub render_pass: vk::RenderPass,
-    pub pipeline: vk::Pipeline,
-}
-
-pub fn create_mesh_pipeline<'a>(
-    device: &ash::Device,
-    render_pass: vk::RenderPass,
-    extent: vk::Extent2D,
-    layout: &'a vk::PipelineLayout,
-) -> GraphicsPipeline<'a> {
-    let main_entry = std::ffi::CString::new("main").unwrap();
-    let vert_module = create_shader_module(device, "./shaders/mesh.vert.spv");
-    let vert_stage = vk::PipelineShaderStageCreateInfo::default()
-        .stage(vk::ShaderStageFlags::VERTEX)
-        .module(vert_module)
-        .name(main_entry.as_c_str());
-    let frag_module = create_shader_module(device, "./shaders/colored_tri.frag.spv");
-    let frag_stage = vk::PipelineShaderStageCreateInfo::default()
-        .stage(vk::ShaderStageFlags::FRAGMENT)
-        .module(frag_module)
-        .name(main_entry.as_c_str());
-    let stages = [vert_stage, frag_stage];
-
-    let (viewports, scissors) = default_viewports_and_scissors(extent);
-    let viewport_state = vk::PipelineViewportStateCreateInfo::default()
-        .viewports(&viewports)
-        .scissors(&scissors);
-
-    let bindings = crate::vertex::Vertex::bindings();
-    let attributes = crate::vertex::Vertex::attributes();
-    let vertex_input_state = vk::PipelineVertexInputStateCreateInfo::default()
-        .vertex_binding_descriptions(&bindings)
-        .vertex_attribute_descriptions(&attributes);
-
-    let default_pipeline_info = GraphicsPipelineInfoBuilder::new();
-    let pipeline_info = default_pipeline_info
-        .build()
-        .stages(&stages)
-        .viewport_state(&viewport_state)
-        .vertex_input_state(&vertex_input_state)
-        .layout(layout.clone())
-        .render_pass(render_pass);
-
-    //GRAPHICS_PIPELINE
-    let pipelines = unsafe {
-        device
-            .create_graphics_pipelines(vk::PipelineCache::null(), &[pipeline_info], None)
-            .unwrap()
-    };
-
-    unsafe { device.destroy_shader_module(frag_module, None) };
-    unsafe { device.destroy_shader_module(vert_module, None) }
-
-    GraphicsPipeline {
-        pipeline: pipelines[0],
-        layout,
-    }
-}
-
+//DEFAULT
 pub fn create_tri_pipeline<'a>(
     device: &ash::Device,
     render_pass: vk::RenderPass,
@@ -161,9 +144,62 @@ pub fn create_tri_pipeline<'a>(
     }
 }
 
-pub fn default_viewports_and_scissors(
+pub fn create_mesh_pipeline<'a, T: VertexHelpers>(
+    device: &ash::Device,
+    render_pass: vk::RenderPass,
     extent: vk::Extent2D,
-) -> (Vec<vk::Viewport>, Vec<vk::Rect2D>) {
+    layout: &'a vk::PipelineLayout,
+) -> GraphicsPipeline<'a> {
+    let main_entry = std::ffi::CString::new("main").unwrap();
+    let vert_module = create_shader_module(device, "./shaders/mesh.vert.spv");
+    let vert_stage = vk::PipelineShaderStageCreateInfo::default()
+        .stage(vk::ShaderStageFlags::VERTEX)
+        .module(vert_module)
+        .name(main_entry.as_c_str());
+    let frag_module = create_shader_module(device, "./shaders/colored_tri.frag.spv");
+    let frag_stage = vk::PipelineShaderStageCreateInfo::default()
+        .stage(vk::ShaderStageFlags::FRAGMENT)
+        .module(frag_module)
+        .name(main_entry.as_c_str());
+    let stages = [vert_stage, frag_stage];
+
+    let (viewports, scissors) = default_viewports_and_scissors(extent);
+    let viewport_state = vk::PipelineViewportStateCreateInfo::default()
+        .viewports(&viewports)
+        .scissors(&scissors);
+
+    let bindings = T::bindings();
+    let attributes = T::attributes();
+    let vertex_input_state = vk::PipelineVertexInputStateCreateInfo::default()
+        .vertex_binding_descriptions(&bindings)
+        .vertex_attribute_descriptions(&attributes);
+
+    let default_pipeline_info = GraphicsPipelineInfoBuilder::new();
+    let pipeline_info = default_pipeline_info
+        .build()
+        .stages(&stages)
+        .viewport_state(&viewport_state)
+        .vertex_input_state(&vertex_input_state)
+        .layout(layout.clone())
+        .render_pass(render_pass);
+
+    //GRAPHICS_PIPELINE
+    let pipelines = unsafe {
+        device
+            .create_graphics_pipelines(vk::PipelineCache::null(), &[pipeline_info], None)
+            .unwrap()
+    };
+
+    unsafe { device.destroy_shader_module(frag_module, None) };
+    unsafe { device.destroy_shader_module(vert_module, None) }
+
+    GraphicsPipeline {
+        pipeline: pipelines[0],
+        layout,
+    }
+}
+
+fn default_viewports_and_scissors(extent: vk::Extent2D) -> (Vec<vk::Viewport>, Vec<vk::Rect2D>) {
     let viewport = vk::Viewport::default()
         .width(extent.width as f32)
         .height(extent.height as f32)
