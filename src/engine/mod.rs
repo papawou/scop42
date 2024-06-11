@@ -167,26 +167,10 @@ impl Engine {
             .begin_command_buffer(cmd, &cmd_begin_info)
             .unwrap();
 
-        ///
         //GraphicsPipeline.begin_render
-        let clear_values = [vk::ClearValue {
-            color: vk::ClearColorValue {
-                float32: [0.0f32, 0.0f32, 0.0f32, 1.0f32],
-            },
-        }];
+        //MeshRenderer.begin_render
+        //GraphicsPipeline.end_render
 
-        let renderpass_info = vk::RenderPassBeginInfo::default()
-            .render_pass(self.render_pass)
-            .render_area(vk::Rect2D {
-                offset: vk::Offset2D { x: 0, y: 0 },
-                extent: self.swapchain.extent,
-            })
-            .framebuffer(framebuffer)
-            .clear_values(&clear_values);
-        self.device
-            .cmd_begin_render_pass(cmd, &renderpass_info, vk::SubpassContents::INLINE);
-        ///
-        ///
         // match self.selected_pipeline {
         //     GraphicsPipelineType::Tri(pipeline) => {
         //         self.device.cmd_bind_pipeline(
@@ -227,37 +211,6 @@ impl Engine {
         //     _ => {}
         // }
 
-        //MeshRenderer.begin_render
-        let vertex_buffers = [self.mesh.vertex_buffer.as_ref().unwrap().buffer];
-        let offsets = [0];
-        self.device
-            .cmd_bind_vertex_buffers(cmd, 0, &vertex_buffers, &offsets);
-
-        let push_constants = [MeshPushConstants {
-            data: glam::Vec4::new(0.0, 0.0, -2.0, 0.0),
-            render_matrix: glam::Mat4::IDENTITY,
-        }];
-
-        self.device.cmd_push_constants(
-            cmd,
-            pipeline.layout.clone(),
-            vk::ShaderStageFlags::VERTEX,
-            std::mem::size_of::<MeshPushConstants>() as u32,
-            &vertex_buffers,
-            //push_constants.as_slice(),
-        );
-        self.device
-            .cmd_draw(cmd, self.mesh.vertices.len() as u32, 1, 0, 0);
-        ///
-        ///
-        ///GraphicsPipeline.end_render
-        self.device
-            .cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, pipeline.pipeline);
-        self.device.cmd_end_render_pass(cmd);
-
-        self.device.end_command_buffer(cmd).unwrap();
-        ///
-        ///
         //SUBMIT
         self.device.reset_fences(&[fence]).unwrap();
 
