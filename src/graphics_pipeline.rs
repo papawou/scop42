@@ -57,8 +57,8 @@ impl<'a> GraphicsPipelineInfoBuilder<'a> {
         }
     }
 
-    pub fn build(&self) -> vk::GraphicsPipelineCreateInfo {
-        self.color_blend.attachments(&self.color_blend_attachments);
+    pub fn build(mut self) -> vk::GraphicsPipelineCreateInfo {
+        self.color_blend = self.color_blend.attachments(&self.color_blend_attachments);
 
         vk::GraphicsPipelineCreateInfo::default()
             .input_assembly_state(&self.input_assembly)
