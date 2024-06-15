@@ -10,15 +10,17 @@ mod vertex;
 use anyhow::Ok;
 use ash::vk::{self};
 use conf::MAX_FRAMES_IN_FLIGHT;
+use engine::Engine;
 use graphics_pipeline::{create_mesh_pipeline, GraphicsPipeline};
-use mesh::Mesh;
 use mesh_renderer::MeshRenderer;
-use pipeline_layout::{create_mesh_layout, MeshPushConstants};
+use pipeline_layout::{create_default_layout, create_mesh_layout, MeshPushConstants};
 use vertex::Vertex;
-use winit::{platform::windows::WindowExtWindows, raw_window_handle::HasWindowHandle};
+use winit::{
+    event_loop::EventLoop, platform::windows::WindowExtWindows, raw_window_handle::HasWindowHandle,
+};
 
 fn main() -> anyhow::Result<()> {
-    //std::env::set_var("RUST_BACKTRACE", "1");
+    std::env::set_var("RUST_BACKTRACE", "1");
     let entry = unsafe { ash::Entry::load()? };
 
     //window
@@ -34,8 +36,8 @@ fn main() -> anyhow::Result<()> {
     let mut engine = engine::Engine::new(entry, &window);
 
     //INIT RENDERER
-    let mesh = mesh::load_default_mesh(engine.allocator.as_ref().expect("No allocator"));
-    let mesh_layout = create_mesh_layout::<MeshPushConstants>(&engine.device);
+    let mesh = mesh::load_default_mesh(engine.allocator.as_ref().unwrap());
+    let mesh_layout = create_default_layout(&engine.device);
     let graphics_pipeline = create_mesh_pipeline::<Vertex>(
         &engine.device,
         engine.render_pass,
@@ -43,7 +45,7 @@ fn main() -> anyhow::Result<()> {
         &mesh_layout,
     );
 
-    let renderer = MeshRenderer {
+    let mut renderer = MeshRenderer {
         graphics_pipeline,
         mesh,
         push_constants: Some(MeshPushConstants {
@@ -53,26 +55,64 @@ fn main() -> anyhow::Result<()> {
     };
 
     let mut current_frame = 0;
-    let mut framebuffer_resized = false;
+    let mut require_resize = false;
+
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
     event_loop
         .run(move |event, elwt| match event {
             winit::event::Event::AboutToWait => window.request_redraw(),
             winit::event::Event::LoopExiting => {
                 unsafe { engine.device.device_wait_idle() }.unwrap();
+
+                unsafe {
+                    engine
+                        .device
+                        .destroy_pipeline(renderer.graphics_pipeline.pipeline, None)
+                };
+
                 unsafe { engine.destroy() };
             }
             //WINDOW EVENTS
             winit::event::Event::WindowEvent { event, .. } => match event {
                 //WINDOW MANAGENMENT
                 winit::event::WindowEvent::RedrawRequested => {
-                    if framebuffer_resized && unsafe { engine.handle_resize(&window) } {
-                        return;
+                    match window.is_minimized() {
+                        Some(false) => (),
+                        _ => return,
                     }
-                    framebuffer_resized = unsafe { engine.draw_frame(current_frame, &renderer) };
+
+                    if require_resize {
+                        let new_size = window.inner_size();
+
+                        unsafe {
+                            engine
+                                .device
+                                .destroy_pipeline(renderer.graphics_pipeline.pipeline, None)
+                        };
+
+                        unsafe { engine.handle_resize((new_size.width, new_size.height)) };
+
+                        graphics_pipeline = create_mesh_pipeline::<Vertex>(
+                            &engine.device,
+                            engine.render_pass,
+                            engine.swapchain.extent,
+                            &mesh_layout,
+                        );
+
+                        renderer = MeshRenderer {
+                            graphics_pipeline,
+                            mesh,
+                            push_constants: Some(MeshPushConstants {
+                                data: glam::Vec4::new(0.0, 0.0, -2.0, 0.0),
+                                render_matrix: glam::Mat4::IDENTITY,
+                            }),
+                        };
+                    }
+
+                    require_resize = unsafe { engine.draw_frame(current_frame, &renderer) };
                     current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
                 }
-                winit::event::WindowEvent::Resized(_) => framebuffer_resized = true,
+                winit::event::WindowEvent::Resized(_) => require_resize = true,
                 winit::event::WindowEvent::CloseRequested => elwt.exit(),
                 //CONTROLS
                 winit::event::WindowEvent::KeyboardInput {

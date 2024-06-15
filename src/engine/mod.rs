@@ -282,12 +282,8 @@ impl Engine {
         self.instance.destroy_instance(None);
     }
 
-    pub unsafe fn handle_resize(&mut self, window: &winit::window::Window) -> bool {
-        self.device.device_wait_idle().unwrap();
-        let physical_size = window.inner_size();
-        if physical_size.width == 0 || physical_size.height == 0 {
-            return true;
-        }
+    pub unsafe fn handle_resize(&mut self, physical_size: (u32, u32)) -> bool {
+        self.device.device_wait_idle().unwrap(); //FLOW CONTROL wait for device no more work
 
         //swapchain
         let surface_support =
@@ -295,18 +291,12 @@ impl Engine {
         let new_swapchain = swapchain::Swapchain::new(
             &self.swapchain_loader,
             &self.device,
-            (physical_size.width, physical_size.height),
+            (physical_size.0, physical_size.1),
             &surface_support,
             self.surface,
             &self.queue_families,
             Some(self.swapchain.chain),
         );
-
-        //clean
-        // self.device
-        //     .destroy_pipeline(self.mesh_pipeline.pipeline, None);
-        // self.device
-        //     .destroy_pipeline(self.tri_pipeline.pipeline, None);
 
         for &framebuffer in &self.framebuffers {
             self.device.destroy_framebuffer(framebuffer, None)
@@ -324,12 +314,6 @@ impl Engine {
         self.framebuffers = create_framebuffers(&self.device, &self.swapchain, self.render_pass);
 
         // self.mesh_pipeline = crate::graphics_pipeline::create_mesh_pipeline(
-        //     &self.device,
-        //     self.render_pass,
-        //     &self.swapchain,
-        //     &self.tri_layout,
-        // );
-        // self.tri_pipeline = graphics_pipeline::create_tri_pipeline(
         //     &self.device,
         //     self.render_pass,
         //     &self.swapchain,

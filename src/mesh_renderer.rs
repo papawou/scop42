@@ -43,19 +43,19 @@ impl<'a, T: Copy> Renderer for MeshRenderer<'a, T> {
             .device
             .cmd_bind_vertex_buffers(cmd, 0, &vertex_buffers, &offsets);
 
-        let push_constants = match self.push_constants {
-            Some(push_constants) => vec![push_constants],
-            _ => vec![],
-        };
+        // let push_constants = match self.push_constants {
+        //     Some(push_constants) => vec![push_constants],
+        //     _ => vec![],
+        // };
 
-        let push_constants: Vec<u8> = unsafe { std::mem::transmute(push_constants) };
-        engine.device.cmd_push_constants(
-            cmd,
-            self.graphics_pipeline.layout.clone(),
-            vk::ShaderStageFlags::VERTEX,
-            std::mem::size_of::<T>() as u32,
-            &push_constants,
-        );
+        // let push_constants: Vec<u8> = unsafe { std::mem::transmute(push_constants) };
+        // // engine.device.cmd_push_constants(
+        //     cmd,
+        //     self.graphics_pipeline.layout.clone(),
+        //     vk::ShaderStageFlags::VERTEX,
+        //     std::mem::size_of::<T>() as u32,
+        //     &push_constants,
+        // );
         //end renderer end
 
         engine

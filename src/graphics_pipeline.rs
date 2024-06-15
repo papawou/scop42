@@ -8,14 +8,6 @@ pub struct GraphicsPipeline<'a> {
     pub pipeline: vk::Pipeline,
 }
 
-impl<'a> GraphicsPipeline<'a> {
-    //after this call object should be dropped
-    pub unsafe fn destroy(self, device: &ash::Device) -> Self {
-        device.destroy_pipeline(self.pipeline, None);
-        self
-    }
-}
-
 pub struct GraphicsPipelineInfoBuilder<'a> {
     input_assembly: vk::PipelineInputAssemblyStateCreateInfo<'a>,
     rasterization: vk::PipelineRasterizationStateCreateInfo<'a>,
@@ -57,7 +49,7 @@ impl<'a> GraphicsPipelineInfoBuilder<'a> {
         }
     }
 
-    pub fn build(mut self) -> vk::GraphicsPipelineCreateInfo {
+    pub fn build(&'a mut self) -> vk::GraphicsPipelineCreateInfo<'a> {
         self.color_blend = self.color_blend.attachments(&self.color_blend_attachments);
 
         vk::GraphicsPipelineCreateInfo::default()
@@ -93,7 +85,7 @@ pub fn create_tri_pipeline<'a>(
         .viewports(&viewports)
         .scissors(&scissors);
 
-    let default_pipeline_info = GraphicsPipelineInfoBuilder::new();
+    let mut default_pipeline_info = GraphicsPipelineInfoBuilder::new();
     let pipeline_info = default_pipeline_info
         .build()
         .stages(&stages)
@@ -147,7 +139,7 @@ pub fn create_mesh_pipeline<'a, T: VertexHelpers>(
         .vertex_binding_descriptions(&bindings)
         .vertex_attribute_descriptions(&attributes);
 
-    let default_pipeline_info = GraphicsPipelineInfoBuilder::new();
+    let mut default_pipeline_info = GraphicsPipelineInfoBuilder::new();
     let pipeline_info = default_pipeline_info
         .build()
         .stages(&stages)
