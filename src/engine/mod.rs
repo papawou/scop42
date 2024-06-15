@@ -11,6 +11,10 @@ use surface_support::SurfaceSupport;
 use crate::conf;
 use winit::{platform::windows::WindowExtWindows, raw_window_handle::HasWindowHandle};
 
+pub trait Renderer {
+    unsafe fn render(&self, engine: &Engine, framebuffer: vk::Framebuffer, cmd: vk::CommandBuffer);
+}
+
 pub struct Engine {
     pub entry: ash::Entry,
     pub instance: ash::Instance,
@@ -128,7 +132,7 @@ impl Engine {
         }
     }
 
-    pub unsafe fn draw_frame(&mut self, current_frame: usize) -> bool {
+    pub unsafe fn draw_frame(&mut self, current_frame: usize, renderer: &impl Renderer) -> bool {
         let FrameData {
             command_buffer: cmd,
             fence,
@@ -167,9 +171,7 @@ impl Engine {
             .begin_command_buffer(cmd, &cmd_begin_info)
             .unwrap();
 
-        //GraphicsPipeline.begin_render
-        //MeshRenderer.begin_render
-        //GraphicsPipeline.end_render
+        renderer.render(&self, framebuffer, cmd);
 
         // match self.selected_pipeline {
         //     GraphicsPipelineType::Tri(pipeline) => {
@@ -248,11 +250,10 @@ impl Engine {
     }
 
     pub unsafe fn destroy(&mut self) {
-        self.device
-            .destroy_pipeline(self.tri_pipeline.pipeline, None);
+        // self.device.destroy_pipeline(self.pipeline, None);
 
-        self.device.destroy_pipeline_layout(self.mesh_layout, None);
-        self.device.destroy_pipeline_layout(self.tri_layout, None);
+        // self.device.destroy_pipeline_layout(self.mesh_layout, None);
+        // self.device.destroy_pipeline_layout(self.tri_layout, None);
 
         for frame in &self.frames {
             self.device.destroy_semaphore(frame.present_semaphore, None);
@@ -302,10 +303,10 @@ impl Engine {
         );
 
         //clean
-        self.device
-            .destroy_pipeline(self.mesh_pipeline.pipeline, None);
-        self.device
-            .destroy_pipeline(self.tri_pipeline.pipeline, None);
+        // self.device
+        //     .destroy_pipeline(self.mesh_pipeline.pipeline, None);
+        // self.device
+        //     .destroy_pipeline(self.tri_pipeline.pipeline, None);
 
         for &framebuffer in &self.framebuffers {
             self.device.destroy_framebuffer(framebuffer, None)
@@ -322,18 +323,18 @@ impl Engine {
             create_default_render_pass(&self.device, self.swapchain.surface_format.format);
         self.framebuffers = create_framebuffers(&self.device, &self.swapchain, self.render_pass);
 
-        self.mesh_pipeline = crate::graphics_pipeline::create_mesh_pipeline(
-            &self.device,
-            self.render_pass,
-            &self.swapchain,
-            &self.tri_layout,
-        );
-        self.tri_pipeline = graphics_pipeline::create_tri_pipeline(
-            &self.device,
-            self.render_pass,
-            &self.swapchain,
-            &self.tri_layout,
-        );
+        // self.mesh_pipeline = crate::graphics_pipeline::create_mesh_pipeline(
+        //     &self.device,
+        //     self.render_pass,
+        //     &self.swapchain,
+        //     &self.tri_layout,
+        // );
+        // self.tri_pipeline = graphics_pipeline::create_tri_pipeline(
+        //     &self.device,
+        //     self.render_pass,
+        //     &self.swapchain,
+        //     &self.tri_layout,
+        // );
 
         return false;
     }

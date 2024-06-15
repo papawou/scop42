@@ -1,20 +1,42 @@
 use ash::vk;
 
-use crate::{engine::Engine, graphics_pipeline::GraphicsPipeline, mesh::Mesh, vertex::Vertex};
+use crate::{
+    engine::{Engine, Renderer},
+    graphics_pipeline::GraphicsPipeline,
+    mesh::Mesh,
+    vertex::Vertex,
+};
 
-struct MeshRenderer<'a, T> {
-    graphics_pipeline: GraphicsPipeline<'a>,
-    mesh: Mesh<Vertex>,
-    push_constants: Option<T>,
+pub struct MeshRenderer<'a, T>
+where
+    T: Copy,
+{
+    pub graphics_pipeline: GraphicsPipeline<'a>,
+    pub mesh: Mesh<Vertex>,
+    pub push_constants: Option<T>,
 }
 
-// MeshPushConstants {
-// data: glam::Vec4::new(0.0, 0.0, -2.0, 0.0),
-//     render_matrix: glam::Mat4::IDENTITY,
-// }
+impl<'a, T: Copy> Renderer for MeshRenderer<'a, T> {
+    unsafe fn render(&self, engine: &Engine, framebuffer: vk::Framebuffer, cmd: vk::CommandBuffer) {
+        let clear_values = [vk::ClearValue {
+            color: vk::ClearColorValue {
+                float32: [0.0f32, 0.0f32, 0.0f32, 1.0f32],
+            },
+        }];
 
-impl<'a, T> MeshRenderer<'a, T> {
-    pub unsafe fn begin_render(&self, engine: &Engine, cmd: vk::CommandBuffer) {
+        let renderpass_info = vk::RenderPassBeginInfo::default()
+            .render_pass(engine.render_pass)
+            .render_area(vk::Rect2D {
+                offset: vk::Offset2D { x: 0, y: 0 },
+                extent: engine.swapchain.extent,
+            })
+            .framebuffer(framebuffer)
+            .clear_values(&clear_values);
+        engine
+            .device
+            .cmd_begin_render_pass(cmd, &renderpass_info, vk::SubpassContents::INLINE);
+
+        //renderer
         let vertex_buffers = [self.mesh.vertex_buffer.as_ref().unwrap().buffer];
         let offsets = [0];
         engine
@@ -22,20 +44,31 @@ impl<'a, T> MeshRenderer<'a, T> {
             .cmd_bind_vertex_buffers(cmd, 0, &vertex_buffers, &offsets);
 
         let push_constants = match self.push_constants {
-            Some(push_constants) => [push_constants],
-            _ => [],
+            Some(push_constants) => vec![push_constants],
+            _ => vec![],
         };
 
+        let push_constants: Vec<u8> = unsafe { std::mem::transmute(push_constants) };
         engine.device.cmd_push_constants(
             cmd,
             self.graphics_pipeline.layout.clone(),
             vk::ShaderStageFlags::VERTEX,
-            std::mem::size_of::<MeshPushConstants>() as u32,
-            &vertex_buffers,
-            push_constants.as_slice(),
+            std::mem::size_of::<T>() as u32,
+            &push_constants,
         );
+        //end renderer end
+
         engine
             .device
             .cmd_draw(cmd, self.mesh.vertices.len() as u32, 1, 0, 0);
+
+        engine.device.cmd_bind_pipeline(
+            cmd,
+            vk::PipelineBindPoint::GRAPHICS,
+            self.graphics_pipeline.pipeline,
+        );
+        engine.device.cmd_end_render_pass(cmd);
+
+        engine.device.end_command_buffer(cmd).unwrap();
     }
 }

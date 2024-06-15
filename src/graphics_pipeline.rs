@@ -9,40 +9,6 @@ pub struct GraphicsPipeline<'a> {
 }
 
 impl<'a> GraphicsPipeline<'a> {
-    pub unsafe fn begin_render(
-        engine: &Engine,
-        framebuffer: vk::Framebuffer,
-        cmd: vk::CommandBuffer,
-    ) {
-        let clear_values = [vk::ClearValue {
-            color: vk::ClearColorValue {
-                float32: [0.0f32, 0.0f32, 0.0f32, 1.0f32],
-            },
-        }];
-
-        //render_pass_info should be already instancied ?
-        let renderpass_info = vk::RenderPassBeginInfo::default()
-            .render_pass(engine.render_pass)
-            .render_area(vk::Rect2D {
-                offset: vk::Offset2D { x: 0, y: 0 },
-                extent: engine.swapchain.extent,
-            })
-            .framebuffer(framebuffer)
-            .clear_values(&clear_values);
-        engine
-            .device
-            .cmd_begin_render_pass(cmd, &renderpass_info, vk::SubpassContents::INLINE);
-    }
-
-    pub unsafe fn end_render(&self, engine: &Engine, cmd: vk::CommandBuffer) {
-        engine
-            .device
-            .cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, self.pipeline);
-        engine.device.cmd_end_render_pass(cmd);
-
-        engine.device.end_command_buffer(cmd).unwrap();
-    }
-
     //after this call object should be dropped
     pub unsafe fn destroy(self, device: &ash::Device) -> Self {
         device.destroy_pipeline(self.pipeline, None);

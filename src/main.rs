@@ -2,17 +2,18 @@ mod conf;
 mod engine;
 mod graphics_pipeline;
 mod mesh;
+mod mesh_renderer;
 mod pipeline_layout;
 mod utils;
 mod vertex;
-mod mesh_renderer;
 
 use anyhow::Ok;
 use ash::vk::{self};
 use conf::MAX_FRAMES_IN_FLIGHT;
 use graphics_pipeline::{create_mesh_pipeline, GraphicsPipeline};
 use mesh::Mesh;
-use pipeline_layout::create_mesh_layout;
+use mesh_renderer::MeshRenderer;
+use pipeline_layout::{create_mesh_layout, MeshPushConstants};
 use vertex::Vertex;
 use winit::{platform::windows::WindowExtWindows, raw_window_handle::HasWindowHandle};
 
@@ -34,13 +35,22 @@ fn main() -> anyhow::Result<()> {
 
     //INIT RENDERER
     let mesh = mesh::load_default_mesh(engine.allocator.as_ref().expect("No allocator"));
-    let mesh_layout = create_mesh_layout(&engine.device);
+    let mesh_layout = create_mesh_layout::<MeshPushConstants>(&engine.device);
     let graphics_pipeline = create_mesh_pipeline::<Vertex>(
         &engine.device,
         engine.render_pass,
         engine.swapchain.extent,
         &mesh_layout,
     );
+
+    let renderer = MeshRenderer {
+        graphics_pipeline,
+        mesh,
+        push_constants: Some(MeshPushConstants {
+            data: glam::Vec4::new(0.0, 0.0, -2.0, 0.0),
+            render_matrix: glam::Mat4::IDENTITY,
+        }),
+    };
 
     let mut current_frame = 0;
     let mut framebuffer_resized = false;
@@ -59,7 +69,7 @@ fn main() -> anyhow::Result<()> {
                     if framebuffer_resized && unsafe { engine.handle_resize(&window) } {
                         return;
                     }
-                    framebuffer_resized = unsafe { engine.draw_frame(current_frame) };
+                    framebuffer_resized = unsafe { engine.draw_frame(current_frame, &renderer) };
                     current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
                 }
                 winit::event::WindowEvent::Resized(_) => framebuffer_resized = true,
