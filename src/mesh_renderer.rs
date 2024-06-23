@@ -12,7 +12,7 @@ where
     T: Copy,
 {
     pub graphics_pipeline: GraphicsPipeline<'a>,
-    pub mesh: Mesh<Vertex>,
+    pub mesh: &'a Mesh<Vertex>,
     pub push_constants: Option<T>,
 }
 
@@ -43,20 +43,20 @@ impl<'a, T: Copy> Renderer for MeshRenderer<'a, T> {
             .device
             .cmd_bind_vertex_buffers(cmd, 0, &vertex_buffers, &offsets);
 
-        // let push_constants = match self.push_constants {
-        //     Some(push_constants) => vec![push_constants],
-        //     _ => vec![],
-        // };
+        let push_constants = match self.push_constants {
+            Some(push_constants) => vec![push_constants],
+            _ => vec![],
+        };
 
-        // let push_constants: Vec<u8> = unsafe { std::mem::transmute(push_constants) };
-        // // engine.device.cmd_push_constants(
-        //     cmd,
-        //     self.graphics_pipeline.layout.clone(),
-        //     vk::ShaderStageFlags::VERTEX,
-        //     std::mem::size_of::<T>() as u32,
-        //     &push_constants,
-        // );
-        //end renderer end
+        let push_constants = struct_to_bytes(&push_constants);
+
+        engine.device.cmd_push_constants(
+            cmd,
+            self.graphics_pipeline.layout.clone(),
+            vk::ShaderStageFlags::VERTEX,
+            0,
+            push_constants,
+        );
 
         engine
             .device
@@ -68,7 +68,9 @@ impl<'a, T: Copy> Renderer for MeshRenderer<'a, T> {
             self.graphics_pipeline.pipeline,
         );
         engine.device.cmd_end_render_pass(cmd);
-
-        engine.device.end_command_buffer(cmd).unwrap();
     }
+}
+
+fn struct_to_bytes<T>(s: &T) -> &[u8] {
+    unsafe { std::slice::from_raw_parts((s as *const T) as *const u8, std::mem::size_of::<T>()) }
 }

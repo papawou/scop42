@@ -47,7 +47,10 @@ impl SurfaceSupport {
                 .enumerate_device_extension_properties(physical_device)
                 .unwrap()
                 .iter()
-                .map(|e| crate::utils::i8_to_str(&e.extension_name).unwrap())
+                .map(|ext| {
+                    let c_str = std::ffi::CStr::from_ptr(ext.extension_name.as_ptr());
+                    c_str.to_string_lossy().into_owned()
+                })
                 .collect()
         };
 

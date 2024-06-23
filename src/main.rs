@@ -4,7 +4,6 @@ mod graphics_pipeline;
 mod mesh;
 mod mesh_renderer;
 mod pipeline_layout;
-mod utils;
 mod vertex;
 
 use anyhow::Ok;
@@ -36,18 +35,17 @@ fn main() -> anyhow::Result<()> {
     let mut engine = engine::Engine::new(entry, &window);
 
     //INIT RENDERER
-    let mesh = mesh::load_default_mesh(engine.allocator.as_ref().unwrap());
-    let mesh_layout = create_default_layout(&engine.device);
-    let graphics_pipeline = create_mesh_pipeline::<Vertex>(
-        &engine.device,
-        engine.render_pass,
-        engine.swapchain.extent,
-        &mesh_layout,
-    );
+    let mut mesh = mesh::load_default_mesh(engine.allocator.as_ref().unwrap());
+    let mesh_layout = create_mesh_layout::<MeshPushConstants>(&engine.device);
 
     let mut renderer = MeshRenderer {
-        graphics_pipeline,
-        mesh,
+        graphics_pipeline: create_mesh_pipeline::<Vertex>(
+            &engine.device,
+            engine.render_pass,
+            engine.swapchain.extent,
+            &mesh_layout,
+        ),
+        mesh: &mesh,
         push_constants: Some(MeshPushConstants {
             data: glam::Vec4::new(0.0, 0.0, -2.0, 0.0),
             render_matrix: glam::Mat4::IDENTITY,
@@ -59,78 +57,77 @@ fn main() -> anyhow::Result<()> {
 
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
     event_loop
-        .run(move |event, elwt| match event {
-            winit::event::Event::AboutToWait => window.request_redraw(),
-            winit::event::Event::LoopExiting => {
-                unsafe { engine.device.device_wait_idle() }.unwrap();
-
-                unsafe {
-                    engine
-                        .device
-                        .destroy_pipeline(renderer.graphics_pipeline.pipeline, None)
-                };
-
-                unsafe { engine.destroy() };
-            }
-            //WINDOW EVENTS
-            winit::event::Event::WindowEvent { event, .. } => match event {
-                //WINDOW MANAGENMENT
-                winit::event::WindowEvent::RedrawRequested => {
-                    match window.is_minimized() {
-                        Some(false) => (),
-                        _ => return,
+        .run(
+            |event: winit::event::Event<_>, elwt: &winit::event_loop::EventLoopWindowTarget<_>| {
+                match event {
+                    winit::event::Event::AboutToWait => window.request_redraw(),
+                    winit::event::Event::LoopExiting => {
+                        unsafe { engine.device.device_wait_idle() }.unwrap();
                     }
+                    winit::event::Event::WindowEvent { event, .. } => match event {
+                        winit::event::WindowEvent::RedrawRequested => {
+                            match window.is_minimized() {
+                                Some(false) => (),
+                                _ => return,
+                            }
 
-                    if require_resize {
-                        let new_size = window.inner_size();
+                            if require_resize {
+                                let new_size = window.inner_size();
 
-                        unsafe {
-                            engine
-                                .device
-                                .destroy_pipeline(renderer.graphics_pipeline.pipeline, None)
-                        };
+                                unsafe { engine.device.device_wait_idle().unwrap() }; //FLOW CONTROL wait for device no more work
 
-                        unsafe { engine.handle_resize((new_size.width, new_size.height)) };
+                                unsafe {
+                                    engine
+                                        .device
+                                        .destroy_pipeline(renderer.graphics_pipeline.pipeline, None)
+                                };
 
-                        graphics_pipeline = create_mesh_pipeline::<Vertex>(
-                            &engine.device,
-                            engine.render_pass,
-                            engine.swapchain.extent,
-                            &mesh_layout,
-                        );
+                                unsafe { engine.handle_resize((new_size.width, new_size.height)) };
 
-                        renderer = MeshRenderer {
-                            graphics_pipeline,
-                            mesh,
-                            push_constants: Some(MeshPushConstants {
-                                data: glam::Vec4::new(0.0, 0.0, -2.0, 0.0),
-                                render_matrix: glam::Mat4::IDENTITY,
-                            }),
-                        };
-                    }
+                                renderer.graphics_pipeline = create_mesh_pipeline::<Vertex>(
+                                    &engine.device,
+                                    engine.render_pass,
+                                    engine.swapchain.extent,
+                                    &mesh_layout,
+                                );
+                            }
 
-                    require_resize = unsafe { engine.draw_frame(current_frame, &renderer) };
-                    current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
-                }
-                winit::event::WindowEvent::Resized(_) => require_resize = true,
-                winit::event::WindowEvent::CloseRequested => elwt.exit(),
-                //CONTROLS
-                winit::event::WindowEvent::KeyboardInput {
-                    event:
-                        winit::event::KeyEvent {
-                            physical_key:
-                                winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::KeyW),
-                            state: winit::event::ElementState::Pressed,
-                            repeat: false,
+                            require_resize = unsafe { engine.draw_frame(current_frame, &renderer) };
+                            current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+                        }
+                        winit::event::WindowEvent::Resized(_) => require_resize = true,
+                        winit::event::WindowEvent::CloseRequested => elwt.exit(),
+                        winit::event::WindowEvent::KeyboardInput {
+                            event:
+                                winit::event::KeyEvent {
+                                    physical_key:
+                                        winit::keyboard::PhysicalKey::Code(
+                                            winit::keyboard::KeyCode::KeyW,
+                                        ),
+                                    state: winit::event::ElementState::Pressed,
+                                    repeat: false,
+                                    ..
+                                },
                             ..
-                        },
-                    ..
-                } => {}
-                _ => {}
+                        } => {}
+                        _ => {}
+                    },
+                    _ => {}
+                }
             },
-            _ => {}
-        })
+        )
         .unwrap();
+
+    unsafe {
+        engine
+            .device
+            .destroy_pipeline(renderer.graphics_pipeline.pipeline, None)
+    };
+    if let Some(allocator) = &engine.allocator {
+        mesh.unload(&allocator);
+    }
+    unsafe { engine.device.destroy_pipeline_layout(mesh_layout, None) };
+    unsafe { engine.destroy() };
 
     Ok(())
 }

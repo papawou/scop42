@@ -9,13 +9,13 @@ pub struct MeshPushConstants {
 }
 
 pub fn create_default_layout(device: &ash::Device) -> vk::PipelineLayout {
-    let tri_layout = unsafe {
+    let layout = unsafe {
         device
             .create_pipeline_layout(&vk::PipelineLayoutCreateInfo::default(), None)
             .unwrap()
     };
 
-    tri_layout
+    layout
 }
 
 pub fn create_mesh_layout<T>(device: &ash::Device) -> vk::PipelineLayout {
@@ -24,7 +24,7 @@ pub fn create_mesh_layout<T>(device: &ash::Device) -> vk::PipelineLayout {
         size: std::mem::size_of::<T>() as u32,
         offset: 0,
     }];
-    let mesh_layout = unsafe {
+    let layout = unsafe {
         device
             .create_pipeline_layout(
                 &vk::PipelineLayoutCreateInfo::default()
@@ -34,5 +34,5 @@ pub fn create_mesh_layout<T>(device: &ash::Device) -> vk::PipelineLayout {
             .unwrap()
     };
 
-    mesh_layout
+    layout
 }

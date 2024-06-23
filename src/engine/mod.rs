@@ -173,45 +173,7 @@ impl Engine {
 
         renderer.render(&self, framebuffer, cmd);
 
-        // match self.selected_pipeline {
-        //     GraphicsPipelineType::Tri(pipeline) => {
-        //         self.device.cmd_bind_pipeline(
-        //             cmd,
-        //             vk::PipelineBindPoint::GRAPHICS,
-        //             pipeline.pipeline,
-        //         );
-        //         self.device.cmd_draw(cmd, 3, 1, 0, 0);
-        //     }
-        //     GraphicsPipelineType::Mesh(pipeline) => {
-        //         self.device.cmd_bind_pipeline(
-        //             cmd,
-        //             vk::PipelineBindPoint::GRAPHICS,
-        //             pipeline.pipeline,
-        //         );
-
-        //         let vertex_buffers = [self.mesh.vertex_buffer.as_ref().unwrap().buffer];
-        //         let offsets = [0];
-        //         self.device
-        //             .cmd_bind_vertex_buffers(cmd, 0, &vertex_buffers, &offsets);
-
-        //         let push_constants = [MeshPushConstants {
-        //             data: glam::Vec4::new(0.0, 0.0, -2.0, 0.0),
-        //             render_matrix: glam::Mat4::IDENTITY,
-        //         }];
-
-        //         self.device.cmd_push_constants(
-        //             cmd,
-        //             pipeline.layout.clone(),
-        //             vk::ShaderStageFlags::VERTEX,
-        //             std::mem::size_of::<MeshPushConstants>() as u32,
-        //             &vertex_buffers,
-        //             //push_constants.as_slice(),
-        //         );
-        //         self.device
-        //             .cmd_draw(cmd, self.mesh.vertices.len() as u32, 1, 0, 0)
-        //     }
-        //     _ => {}
-        // }
+        self.device.end_command_buffer(cmd).unwrap();
 
         //SUBMIT
         self.device.reset_fences(&[fence]).unwrap();
@@ -250,11 +212,6 @@ impl Engine {
     }
 
     pub unsafe fn destroy(&mut self) {
-        // self.device.destroy_pipeline(self.pipeline, None);
-
-        // self.device.destroy_pipeline_layout(self.mesh_layout, None);
-        // self.device.destroy_pipeline_layout(self.tri_layout, None);
-
         for frame in &self.frames {
             self.device.destroy_semaphore(frame.present_semaphore, None);
             self.device.destroy_semaphore(frame.render_semaphore, None);
@@ -283,8 +240,6 @@ impl Engine {
     }
 
     pub unsafe fn handle_resize(&mut self, physical_size: (u32, u32)) -> bool {
-        self.device.device_wait_idle().unwrap(); //FLOW CONTROL wait for device no more work
-
         //swapchain
         let surface_support =
             SurfaceSupport::new(self.physical_device, self.surface, &self.surface_loader);
@@ -312,13 +267,6 @@ impl Engine {
         self.render_pass =
             create_default_render_pass(&self.device, self.swapchain.surface_format.format);
         self.framebuffers = create_framebuffers(&self.device, &self.swapchain, self.render_pass);
-
-        // self.mesh_pipeline = crate::graphics_pipeline::create_mesh_pipeline(
-        //     &self.device,
-        //     self.render_pass,
-        //     &self.swapchain,
-        //     &self.tri_layout,
-        // );
 
         return false;
     }
