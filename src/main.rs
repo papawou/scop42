@@ -4,15 +4,17 @@ mod graphics_pipeline;
 mod mesh;
 mod mesh_renderer;
 mod pipeline_layout;
+mod tri_renderer;
 mod vertex;
 
 use anyhow::Ok;
 use ash::vk::{self};
 use conf::MAX_FRAMES_IN_FLIGHT;
 use engine::Engine;
-use graphics_pipeline::{create_mesh_pipeline, GraphicsPipeline};
+use graphics_pipeline::{create_mesh_pipeline, create_tri_pipeline, GraphicsPipeline};
 use mesh_renderer::MeshRenderer;
 use pipeline_layout::{create_default_layout, create_mesh_layout, MeshPushConstants};
+use tri_renderer::TriRenderer;
 use vertex::Vertex;
 use winit::{
     event_loop::EventLoop, platform::windows::WindowExtWindows, raw_window_handle::HasWindowHandle,
@@ -37,19 +39,28 @@ fn main() -> anyhow::Result<()> {
     //INIT RENDERER
     let mut mesh = mesh::load_default_mesh(engine.allocator.as_ref().unwrap());
     let mesh_layout = create_mesh_layout::<MeshPushConstants>(&engine.device);
+    // let mut renderer = MeshRenderer {
+    //     graphics_pipeline: create_mesh_pipeline::<Vertex>(
+    //         &engine.device,
+    //         engine.render_pass,
+    //         engine.swapchain.extent,
+    //         &mesh_layout,
+    //     ),
+    //     mesh: &mesh,
+    //     push_constants: Some(MeshPushConstants {
+    //         data: glam::Vec4::new(0.0, 0.0, -2.0, 0.0),
+    //         render_matrix: glam::Mat4::IDENTITY,
+    //     }),
+    // };
 
-    let mut renderer = MeshRenderer {
-        graphics_pipeline: create_mesh_pipeline::<Vertex>(
+    let tri_layout = create_default_layout(&engine.device);
+    let mut renderer = TriRenderer {
+        graphics_pipeline: create_tri_pipeline(
             &engine.device,
             engine.render_pass,
             engine.swapchain.extent,
-            &mesh_layout,
+            &tri_layout,
         ),
-        mesh: &mesh,
-        push_constants: Some(MeshPushConstants {
-            data: glam::Vec4::new(0.0, 0.0, -2.0, 0.0),
-            render_matrix: glam::Mat4::IDENTITY,
-        }),
     };
 
     let mut current_frame = 0;
@@ -84,11 +95,11 @@ fn main() -> anyhow::Result<()> {
 
                                 unsafe { engine.handle_resize((new_size.width, new_size.height)) };
 
-                                renderer.graphics_pipeline = create_mesh_pipeline::<Vertex>(
+                                renderer.graphics_pipeline = graphics_pipeline::create_tri_pipeline(
                                     &engine.device,
                                     engine.render_pass,
                                     engine.swapchain.extent,
-                                    &mesh_layout,
+                                    &tri_layout,
                                 );
                             }
 
@@ -127,6 +138,7 @@ fn main() -> anyhow::Result<()> {
         mesh.unload(&allocator);
     }
     unsafe { engine.device.destroy_pipeline_layout(mesh_layout, None) };
+    unsafe { engine.device.destroy_pipeline_layout(tri_layout, None) };
     unsafe { engine.destroy() };
 
     Ok(())

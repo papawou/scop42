@@ -85,10 +85,13 @@ pub fn create_tri_pipeline<'a>(
         .viewports(&viewports)
         .scissors(&scissors);
 
+    let vertex_input_state = &vk::PipelineVertexInputStateCreateInfo::default();
+
     let mut default_pipeline_info = GraphicsPipelineInfoBuilder::new();
     let pipeline_info = default_pipeline_info
         .build()
         .stages(&stages)
+        .vertex_input_state(&vertex_input_state)
         .viewport_state(&viewport_state)
         .layout(layout.clone())
         .render_pass(render_pass);
