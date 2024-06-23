@@ -63,7 +63,6 @@ fn main() -> anyhow::Result<()> {
     //     ),
     // };
 
-    let mut current_frame = 0;
     let mut require_resize = false;
 
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
@@ -104,8 +103,7 @@ fn main() -> anyhow::Result<()> {
                                     );
                             }
 
-                            require_resize = unsafe { engine.draw_frame(current_frame, &renderer) };
-                            current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+                            require_resize = unsafe { engine.draw_frame(&renderer) };
                         }
                         winit::event::WindowEvent::Resized(_) => require_resize = true,
                         winit::event::WindowEvent::CloseRequested => elwt.exit(),

@@ -45,6 +45,8 @@ pub struct Engine {
     pub framebuffers: Vec<vk::Framebuffer>,
 
     pub frames: [FrameData; conf::MAX_FRAMES_IN_FLIGHT],
+
+    pub frame_count: usize,
 }
 
 impl Engine {
@@ -129,17 +131,19 @@ impl Engine {
             framebuffers,
 
             frames,
+            frame_count: 0,
         }
     }
 
-    pub unsafe fn draw_frame(&mut self, current_frame: usize, renderer: &impl Renderer) -> bool {
+    pub unsafe fn draw_frame(&mut self, renderer: &impl Renderer) -> bool {
+        self.frame_count += 1;
         let FrameData {
             command_buffer: cmd,
             fence,
             present_semaphore,
             render_semaphore,
             ..
-        } = self.frames[current_frame];
+        } = self.frames[self.frame_count % conf::MAX_FRAMES_IN_FLIGHT];
 
         self.device
             .wait_for_fences(&[fence], true, u64::MAX)
@@ -226,7 +230,7 @@ impl Engine {
 
         self.device.destroy_render_pass(self.render_pass, None);
 
-        self.allocator = None; //free vkmem::Allocator
+        self.allocator = None; //vmaDestroyAllocator(_allocator);
 
         self.swapchain.clean(&self.device, &self.swapchain_loader);
 

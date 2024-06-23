@@ -4,6 +4,7 @@ use crate::{
     engine::{Engine, Renderer},
     graphics_pipeline::GraphicsPipeline,
     mesh::Mesh,
+    pipeline_layout::MeshPushConstants,
     vertex::Vertex,
 };
 
@@ -36,20 +37,47 @@ impl<'a, T: Copy> Renderer for MeshRenderer<'a, T> {
             .device
             .cmd_begin_render_pass(cmd, &renderpass_info, vk::SubpassContents::INLINE);
 
-        //renderer
+        //vertex_buffer
         let vertex_buffers = [self.mesh.vertex_buffer.as_ref().unwrap().buffer];
         let offsets = [0];
         engine
             .device
             .cmd_bind_vertex_buffers(cmd, 0, &vertex_buffers, &offsets);
 
-        let push_constants = match self.push_constants {
-            Some(push_constants) => vec![push_constants],
-            _ => vec![],
+        //push_constants
+        // let push_constants = match self.push_constants {
+        //     Some(push_constants) => vec![push_constants],
+        //     _ => vec![],
+        // };
+
+        // Camera position
+        let mesh_matrix = {
+            let cam_pos = glam::Vec3::new(0.0, 0.0, -2.0);
+            let view = glam::Mat4::from_translation(cam_pos);
+            let projection =
+                glam::Mat4::perspective_rh_gl(70.0_f32.to_radians(), 1700.0 / 900.0, 0.1, 200.0);
+            let model =
+                glam::Mat4::from_rotation_y((engine.frame_count as f32) * 0.4_f32.to_radians());
+            projection * view * model
         };
 
-        let push_constants = struct_to_bytes(&push_constants);
+        let constants = MeshPushConstants {
+            render_matrix: mesh_matrix,
+            data: glam::Vec4::new(0.0, 0.0, -2.0, 0.0),
+        };
 
+        let push_constants = struct_to_bytes(&constants);
+        unsafe {
+            engine.device.cmd_push_constants(
+                cmd,
+                self.graphics_pipeline.layout.clone(),
+                vk::ShaderStageFlags::VERTEX,
+                0,
+                push_constants,
+            );
+        }
+
+        let push_constants = struct_to_bytes(&push_constants);
         engine.device.cmd_push_constants(
             cmd,
             self.graphics_pipeline.layout.clone(),
@@ -66,7 +94,6 @@ impl<'a, T: Copy> Renderer for MeshRenderer<'a, T> {
         engine
             .device
             .cmd_draw(cmd, self.mesh.vertices.len() as u32, 1, 0, 0);
-
         engine.device.cmd_end_render_pass(cmd);
     }
 }
