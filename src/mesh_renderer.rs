@@ -58,15 +58,15 @@ impl<'a, T: Copy> Renderer for MeshRenderer<'a, T> {
             push_constants,
         );
 
-        engine
-            .device
-            .cmd_draw(cmd, self.mesh.vertices.len() as u32, 1, 0, 0);
-
         engine.device.cmd_bind_pipeline(
             cmd,
             vk::PipelineBindPoint::GRAPHICS,
             self.graphics_pipeline.pipeline,
         );
+        engine
+            .device
+            .cmd_draw(cmd, self.mesh.vertices.len() as u32, 1, 0, 0);
+
         engine.device.cmd_end_render_pass(cmd);
     }
 }

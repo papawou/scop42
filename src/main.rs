@@ -38,30 +38,30 @@ fn main() -> anyhow::Result<()> {
 
     //INIT RENDERER
     let mut mesh = mesh::load_default_mesh(engine.allocator.as_ref().unwrap());
-    let mesh_layout = create_mesh_layout::<MeshPushConstants>(&engine.device);
-    // let mut renderer = MeshRenderer {
-    //     graphics_pipeline: create_mesh_pipeline::<Vertex>(
-    //         &engine.device,
-    //         engine.render_pass,
-    //         engine.swapchain.extent,
-    //         &mesh_layout,
-    //     ),
-    //     mesh: &mesh,
-    //     push_constants: Some(MeshPushConstants {
-    //         data: glam::Vec4::new(0.0, 0.0, -2.0, 0.0),
-    //         render_matrix: glam::Mat4::IDENTITY,
-    //     }),
-    // };
-
-    let tri_layout = create_default_layout(&engine.device);
-    let mut renderer = TriRenderer {
-        graphics_pipeline: create_tri_pipeline(
+    let layout = create_mesh_layout::<MeshPushConstants>(&engine.device);
+    let mut renderer = MeshRenderer {
+        graphics_pipeline: create_mesh_pipeline::<Vertex>(
             &engine.device,
             engine.render_pass,
             engine.swapchain.extent,
-            &tri_layout,
+            &layout,
         ),
+        mesh: &mesh,
+        push_constants: Some(MeshPushConstants {
+            data: glam::Vec4::new(0.0, 0.0, -2.0, 0.0),
+            render_matrix: glam::Mat4::IDENTITY,
+        }),
     };
+
+    // let layout = create_default_layout(&engine.device);
+    // let mut renderer = TriRenderer {
+    //     graphics_pipeline: create_tri_pipeline(
+    //         &engine.device,
+    //         engine.render_pass,
+    //         engine.swapchain.extent,
+    //         &layout,
+    //     ),
+    // };
 
     let mut current_frame = 0;
     let mut require_resize = false;
@@ -95,12 +95,13 @@ fn main() -> anyhow::Result<()> {
 
                                 unsafe { engine.handle_resize((new_size.width, new_size.height)) };
 
-                                renderer.graphics_pipeline = graphics_pipeline::create_tri_pipeline(
-                                    &engine.device,
-                                    engine.render_pass,
-                                    engine.swapchain.extent,
-                                    &tri_layout,
-                                );
+                                renderer.graphics_pipeline =
+                                    graphics_pipeline::create_mesh_pipeline::<Vertex>(
+                                        &engine.device,
+                                        engine.render_pass,
+                                        engine.swapchain.extent,
+                                        &layout,
+                                    );
                             }
 
                             require_resize = unsafe { engine.draw_frame(current_frame, &renderer) };
@@ -137,8 +138,7 @@ fn main() -> anyhow::Result<()> {
     if let Some(allocator) = &engine.allocator {
         mesh.unload(&allocator);
     }
-    unsafe { engine.device.destroy_pipeline_layout(mesh_layout, None) };
-    unsafe { engine.device.destroy_pipeline_layout(tri_layout, None) };
+    unsafe { engine.device.destroy_pipeline_layout(layout, None) };
     unsafe { engine.destroy() };
 
     Ok(())
