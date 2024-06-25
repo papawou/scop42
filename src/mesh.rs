@@ -63,7 +63,7 @@ impl<T> Mesh<T> {
 }
 
 //DEFAULT
-const VERTICES: [Vertex; 4] = [
+const VERTICES: [Vertex; 6] = [
     Vertex::new(
         glam::vec3(1.0, 1.0, 0.0),
         glam::vec3(1.0, 0.0, 0.0),
@@ -80,8 +80,18 @@ const VERTICES: [Vertex; 4] = [
         glam::Vec3::ZERO,
     ),
     Vertex::new(
-        glam::vec3(3.0, -1.5, 2.5),
-        glam::vec3(0.5, 0.5, 0.5),
+        glam::vec3(1.0, 1.0, 0.0),
+        glam::vec3(1.0, 0.0, 0.0),
+        glam::Vec3::ZERO,
+    ),
+    Vertex::new(
+        glam::vec3(-1.0, 1.0, 0.0),
+        glam::vec3(0.0, 1.0, 0.0),
+        glam::Vec3::ZERO,
+    ),
+    Vertex::new(
+        glam::vec3(0.0, 3.0, 0.0),
+        glam::vec3(0.0, 0.0, 1.0),
         glam::Vec3::ZERO,
     ),
 ];
