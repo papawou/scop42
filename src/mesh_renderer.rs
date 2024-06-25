@@ -44,20 +44,14 @@ impl<'a, T: Copy> Renderer for MeshRenderer<'a, T> {
             .device
             .cmd_bind_vertex_buffers(cmd, 0, &vertex_buffers, &offsets);
 
-        //push_constants
-        // let push_constants = match self.push_constants {
-        //     Some(push_constants) => vec![push_constants],
-        //     _ => vec![],
-        // };
-
+        let elapsed = engine.start_instant.elapsed().as_secs_f32();
         // Camera position
         let mesh_matrix = {
             let cam_pos = glam::Vec3::new(0.0, 0.0, -2.0);
             let view = glam::Mat4::from_translation(cam_pos);
             let projection =
                 glam::Mat4::perspective_rh_gl(70.0_f32.to_radians(), 1700.0 / 900.0, 0.1, 200.0);
-            let model =
-                glam::Mat4::from_rotation_y((engine.frame_count as f32) * 0.4_f32.to_radians());
+            let model = glam::Mat4::from_rotation_y(elapsed * 20.0f32.to_radians());
             projection * view * model
         };
 

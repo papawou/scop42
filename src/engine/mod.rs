@@ -6,6 +6,7 @@ mod swapchain;
 use ash::vk::{self};
 use frame_data::FrameData;
 use queue_famillies::QueueFamilies;
+use std::time::Instant;
 use surface_support::SurfaceSupport;
 
 use crate::conf;
@@ -47,6 +48,7 @@ pub struct Engine {
     pub frames: [FrameData; conf::MAX_FRAMES_IN_FLIGHT],
 
     pub frame_count: usize,
+    pub start_instant: Instant,
 }
 
 impl Engine {
@@ -132,6 +134,8 @@ impl Engine {
 
             frames,
             frame_count: 0,
+
+            start_instant: Instant::now(),
         }
     }
 

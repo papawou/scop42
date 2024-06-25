@@ -124,7 +124,7 @@ pub fn create_mesh_pipeline<'a, T: VertexHelpers>(
         .stage(vk::ShaderStageFlags::VERTEX)
         .module(vert_module)
         .name(main_entry.as_c_str());
-    let frag_module = create_shader_module(device, "./shaders/colored_tri.frag.spv");
+    let frag_module = create_shader_module(device, "./shaders/mesh.frag.spv");
     let frag_stage = vk::PipelineShaderStageCreateInfo::default()
         .stage(vk::ShaderStageFlags::FRAGMENT)
         .module(frag_module)
