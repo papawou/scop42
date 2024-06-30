@@ -7,13 +7,15 @@ mod pipeline_layout;
 mod tri_renderer;
 mod vertex;
 
+use std::borrow::Borrow;
+
 use anyhow::Ok;
 use ash::vk::{self};
 use conf::MAX_FRAMES_IN_FLIGHT;
 use engine::Engine;
 use graphics_pipeline::{create_mesh_pipeline, create_tri_pipeline, GraphicsPipeline};
 use mesh_renderer::MeshRenderer;
-use pipeline_layout::{create_default_layout, create_mesh_layout, MeshPushConstants};
+use pipeline_layout::{create_default_layout, create_mesh_layout, MeshConstants};
 use tri_renderer::TriRenderer;
 use vertex::Vertex;
 use winit::{
@@ -37,20 +39,31 @@ fn main() -> anyhow::Result<()> {
     let mut engine = engine::Engine::new(entry, &window);
 
     //INIT RENDERER
-    let mut mesh = mesh::load_default_mesh(engine.allocator.as_ref().unwrap());
-    let layout = create_mesh_layout::<MeshPushConstants>(&engine.device);
-    let mut renderer = MeshRenderer {
-        graphics_pipeline: create_mesh_pipeline::<Vertex>(
-            &engine.device,
-            engine.render_pass,
-            engine.swapchain.extent,
-            &layout,
-        ),
-        mesh: &mesh,
-        push_constants: Some(MeshPushConstants {
-            data: glam::Vec4::new(0.0, 0.0, -2.0, 0.0),
-            render_matrix: glam::Mat4::IDENTITY,
-        }),
+    let mut mesh = mesh::load_default_mesh(&engine.device, engine.allocator.as_ref().unwrap());
+    let layout = create_mesh_layout::<MeshConstants>(&engine.device);
+
+    let mut renderer = {
+        let device_address = mesh
+            .vertex_buffer
+            .as_ref()
+            .unwrap()
+            .device_address
+            .as_ref()
+            .unwrap();
+
+        MeshRenderer {
+            graphics_pipeline: create_mesh_pipeline::<Vertex>(
+                &engine.device,
+                engine.render_pass,
+                engine.swapchain.extent,
+                &layout,
+            ),
+            mesh: &mesh,
+            push_constants: Some(MeshConstants {
+                render_matrix: glam::Mat4::IDENTITY,
+                vertex_buffer: device_address,
+            }),
+        }
     };
 
     // let layout = create_default_layout(&engine.device);
@@ -101,6 +114,12 @@ fn main() -> anyhow::Result<()> {
                                         engine.swapchain.extent,
                                         &layout,
                                     );
+                            }
+
+                            // engine loop
+                            if let Some(constants) = renderer.push_constants {
+                                let updated_constants = update_mesh_constants(&engine, constants);
+                                renderer.push_constants = Some(updated_constants);
                             }
 
                             require_resize = unsafe { engine.draw_frame(&renderer) };
@@ -154,5 +173,25 @@ struct GraphicsPipelineAtlas<'a> {
 
 struct AllocatedBuffer {
     buffer: vk::Buffer,
+    device_address: Option<vk::DeviceAddress>,
+    buffer_size: usize,
     allocation: vk_mem::Allocation,
+}
+
+fn update_mesh_constants<'a>(engine: &Engine, constants: MeshConstants<'a>) -> MeshConstants<'a> {
+    let elapsed = engine.start_instant.elapsed().as_secs_f32();
+
+    let mesh_matrix = {
+        let cam_pos = glam::Vec3::new(0.0, 0.0, -2.0);
+        let view = glam::Mat4::from_translation(cam_pos);
+        let projection =
+            glam::Mat4::perspective_rh_gl(70.0_f32.to_radians(), 1700.0 / 900.0, 0.1, 200.0);
+        let model = glam::Mat4::from_rotation_y(elapsed * 20.0f32.to_radians());
+        projection * view * model
+    };
+
+    MeshConstants {
+        render_matrix: mesh_matrix,
+        ..constants.clone()
+    }
 }

@@ -4,18 +4,10 @@ use ash::vk;
 #[derive(Debug, Default, Copy, Clone)]
 pub struct Vertex {
     pub position: glam::Vec3,
+    pub uv_x: f32,
     pub normal: glam::Vec3,
+    pub uv_y: f32,
     pub color: glam::Vec3,
-}
-
-impl Vertex {
-    pub const fn new(position: glam::Vec3, color: glam::Vec3, normal: glam::Vec3) -> Self {
-        Self {
-            position,
-            color,
-            normal,
-        }
-    }
 }
 
 pub trait VertexHelpers {

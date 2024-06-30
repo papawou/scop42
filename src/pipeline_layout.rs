@@ -3,9 +3,9 @@ use ash::vk;
 //MESH should be another file ?
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
-pub struct MeshPushConstants {
-    pub data: glam::Vec4,
+pub struct MeshConstants<'a> {
     pub render_matrix: glam::Mat4,
+    pub vertex_buffer: &'a vk::DeviceAddress,
 }
 
 pub fn create_default_layout(device: &ash::Device) -> vk::PipelineLayout {
