@@ -7,16 +7,12 @@ mod pipeline_layout;
 mod tri_renderer;
 mod vertex;
 
-use std::borrow::Borrow;
-
 use anyhow::Ok;
 use ash::vk::{self};
-use conf::MAX_FRAMES_IN_FLIGHT;
 use engine::Engine;
-use graphics_pipeline::{create_mesh_pipeline, create_tri_pipeline, GraphicsPipeline};
+use graphics_pipeline::{create_mesh_pipeline, GraphicsPipeline};
 use mesh_renderer::MeshRenderer;
-use pipeline_layout::{create_default_layout, create_mesh_layout, MeshConstants};
-use tri_renderer::TriRenderer;
+use pipeline_layout::{create_mesh_layout, MeshConstants};
 use vertex::Vertex;
 use winit::{
     event_loop::EventLoop, platform::windows::WindowExtWindows, raw_window_handle::HasWindowHandle,
@@ -39,7 +35,11 @@ fn main() -> anyhow::Result<()> {
     let mut engine = engine::Engine::new(entry, &window);
 
     //INIT RENDERER
-    let mut mesh = mesh::load_default_mesh(&engine.device, engine.allocator.as_ref().unwrap());
+    let mut mesh = mesh::load_default_mesh(
+        &engine.device,
+        engine.allocator.as_ref().unwrap(),
+        engine.frames[0].command_buffer,
+    );
     let layout = create_mesh_layout::<MeshConstants>(&engine.device);
 
     let mut renderer = {
@@ -153,7 +153,7 @@ fn main() -> anyhow::Result<()> {
             .destroy_pipeline(renderer.graphics_pipeline.pipeline, None)
     };
     if let Some(allocator) = &engine.allocator {
-        mesh.unload(&allocator);
+        mesh.destroy_buffers(&allocator);
     }
     unsafe { engine.device.destroy_pipeline_layout(layout, None) };
     unsafe { engine.destroy() };
