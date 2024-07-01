@@ -2,6 +2,7 @@ use ash::vk::{self};
 use vk_mem::Alloc;
 
 use crate::{
+    engine::Engine,
     vertex::{self, Vertex},
     AllocatedBuffer,
 };
@@ -161,7 +162,7 @@ impl<T> Mesh<T> {
     }
 }
 
-const DEFAULT_VERTICES: [Vertex; 3] = [
+const DEFAULT_VERTICES: [Vertex; 4] = [
     Vertex {
         position: glam::Vec3::new(0.0, 0.0, 0.0),
         uv_x: 0.0,
@@ -183,11 +184,19 @@ const DEFAULT_VERTICES: [Vertex; 3] = [
         uv_y: 1.0,
         color: glam::Vec3::new(0.0, 0.0, 1.0),
     },
+    Vertex {
+        position: glam::Vec3::new(1.0, 1.0, 0.0),
+        uv_x: 1.0,
+        normal: glam::Vec3::new(0.0, 0.0, 1.0),
+        uv_y: 1.0,
+        color: glam::Vec3::new(1.0, 1.0, 0.0),
+    },
 ];
 
 const DEFAULT_INDICES: [u32; 6] = [0, 1, 2, 2, 1, 3];
 
 pub fn load_default_mesh(
+    engine: &Engine,
     device: &ash::Device,
     allocator: &vk_mem::Allocator,
     cmd: vk::CommandBuffer,
@@ -201,20 +210,37 @@ pub fn load_default_mesh(
 
     mesh.create_vertex_buffer(device, allocator);
     mesh.create_index_buffer(allocator);
+    let vertex_buffer = mesh.vertex_buffer.as_ref().unwrap();
+    let index_buffer = mesh.vertex_buffer.as_ref().unwrap();
 
     let staging_buffer = mesh.create_staging_buffer(allocator);
 
-    let vertex_buffer = mesh.vertex_buffer.as_ref().unwrap();
-    let regions = [vk::BufferCopy::default().size(vertex_buffer.buffer_size as u64)];
-    unsafe { device.cmd_copy_buffer(cmd, staging_buffer.buffer, vertex_buffer.buffer, &regions) };
+    unsafe {
+        device
+            .reset_command_buffer(cmd, vk::CommandBufferResetFlags::empty())
+            .unwrap();
 
-    let index_buffer = mesh.vertex_buffer.as_ref().unwrap();
-    let regions = [vk::BufferCopy::default()
-        .size(index_buffer.buffer_size as u64)
-        .src_offset(vertex_buffer.buffer_size as u64)];
-    unsafe { device.cmd_copy_buffer(cmd, staging_buffer.buffer, index_buffer.buffer, &regions) };
+        let cmd_begin_info = vk::CommandBufferBeginInfo::default()
+            .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+        device.begin_command_buffer(cmd, &cmd_begin_info).unwrap();
+        let regions = [vk::BufferCopy::default()
+            .size(index_buffer.buffer_size as u64)
+            .src_offset(vertex_buffer.buffer_size as u64)];
+        device.cmd_copy_buffer(cmd, staging_buffer.buffer, vertex_buffer.buffer, &regions);
+        let regions = [vk::BufferCopy::default().size(vertex_buffer.buffer_size as u64)];
+        device.cmd_copy_buffer(cmd, staging_buffer.buffer, index_buffer.buffer, &regions);
+        device.end_command_buffer(cmd).unwrap();
+        let submit_info = vk::SubmitInfo::default();
+        device
+            .queue_submit(engine.graphics_queue, &[submit_info], vk::Fence::null())
+            .unwrap();
 
-    unsafe { device.destroy_buffer(staging_buffer.buffer, None) };
+        device
+            .reset_command_buffer(cmd, vk::CommandBufferResetFlags::empty())
+            .unwrap();
+
+        device.destroy_buffer(staging_buffer.buffer, None);
+    }
 
     mesh
 }

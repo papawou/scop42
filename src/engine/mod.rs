@@ -346,7 +346,9 @@ fn create_device(
         );
     }
 
-    let features = vk::PhysicalDeviceFeatures::default();
+    let mut buffer_device_address_features_enabled =
+        vk::PhysicalDeviceBufferDeviceAddressFeatures::default().buffer_device_address(true);
+    let device_features = vk::PhysicalDeviceFeatures::default();
 
     let device_extensions = conf::DEVICE_EXTENSION_NAMES
         .iter()
@@ -356,7 +358,8 @@ fn create_device(
     let device_create_info = vk::DeviceCreateInfo::default()
         .queue_create_infos(&queue_infos)
         .enabled_extension_names(device_extensions.as_slice())
-        .enabled_features(&features);
+        .push_next(&mut buffer_device_address_features_enabled)
+        .enabled_features(&device_features);
 
     let device = unsafe { instance.create_device(physical_device, &device_create_info, None)? };
 
@@ -442,7 +445,8 @@ fn create_allocator(
     device: &ash::Device,
     physical_device: vk::PhysicalDevice,
 ) -> vk_mem::Allocator {
-    let create_info = vk_mem::AllocatorCreateInfo::new(instance, device, physical_device);
+    let mut create_info = vk_mem::AllocatorCreateInfo::new(instance, device, physical_device);
+    create_info.flags = vk_mem::AllocatorCreateFlags::BUFFER_DEVICE_ADDRESS;
     unsafe { vk_mem::Allocator::new(create_info).unwrap() }
 }
 

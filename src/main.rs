@@ -36,6 +36,7 @@ fn main() -> anyhow::Result<()> {
 
     //INIT RENDERER
     let mut mesh = mesh::load_default_mesh(
+        &engine,
         &engine.device,
         engine.allocator.as_ref().unwrap(),
         engine.frames[0].command_buffer,
