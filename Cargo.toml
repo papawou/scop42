@@ -13,6 +13,9 @@ vk-mem = "0.4.0"
 winapi = { version = "0.3.9", features = ["winuser", "libloaderapi"] }
 winit = "0.29.15"
 
+[build-dependencies]
+bindgen = "0.69.4"
+
 [profile.dev]
 opt-level = 0  # Level of optimizations, `0` is default for dev profile, which means no optimizations.
 debug = true
