@@ -114,12 +114,6 @@ impl<T> Mesh<T> {
                 .unwrap()
         };
 
-        //  !warn
-        //  The following code incorrectly maps and copies both vertex and index data to the same memory location,
-        //  causing data corruption. The second copy operation overwrites the data copied by the first operation.
-        //  This needs to be fixed by correctly managing the memory offsets for vertex and index data. (vk specs alignment)
-        //  let alignment = device_properties.limits.non_coherent_atom_size as usize;
-        //  let aligned_buffer_size = (vertex_buffer.buffer_size + alignment - 1) & !(alignment - 1);
         unsafe {
             let data_ptr = allocator.map_memory(&mut allocation).unwrap();
             std::ptr::copy_nonoverlapping(
@@ -211,7 +205,7 @@ pub fn load_default_mesh(
     mesh.create_vertex_buffer(device, allocator);
     mesh.create_index_buffer(allocator);
     let vertex_buffer = mesh.vertex_buffer.as_ref().unwrap();
-    let index_buffer = mesh.vertex_buffer.as_ref().unwrap();
+    let index_buffer = mesh.index_buffer.as_ref().unwrap();
 
     let staging_buffer = mesh.create_staging_buffer(allocator);
 
@@ -223,12 +217,15 @@ pub fn load_default_mesh(
         let cmd_begin_info = vk::CommandBufferBeginInfo::default()
             .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
         device.begin_command_buffer(cmd, &cmd_begin_info).unwrap();
+
+        let regions = [vk::BufferCopy::default().size(vertex_buffer.buffer_size as u64)];
+        device.cmd_copy_buffer(cmd, staging_buffer.buffer, vertex_buffer.buffer, &regions);
+
         let regions = [vk::BufferCopy::default()
             .size(index_buffer.buffer_size as u64)
             .src_offset(vertex_buffer.buffer_size as u64)];
-        device.cmd_copy_buffer(cmd, staging_buffer.buffer, vertex_buffer.buffer, &regions);
-        let regions = [vk::BufferCopy::default().size(vertex_buffer.buffer_size as u64)];
         device.cmd_copy_buffer(cmd, staging_buffer.buffer, index_buffer.buffer, &regions);
+
         device.end_command_buffer(cmd).unwrap();
         let submit_info = vk::SubmitInfo::default();
         device
