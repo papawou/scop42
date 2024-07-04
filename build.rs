@@ -11,6 +11,10 @@ fn main() {
     // Generate bindings
     let bindings = bindgen::Builder::default()
         .header(format!("{}/include/GFSDK_Aftermath.h", SRC_FOLDER))
+        .generate_comments(false)
+        .default_enum_style(bindgen::EnumVariation::Rust {
+            non_exhaustive: false,
+        })
         .generate()
         .expect("Unable to generate bindings");
 
