@@ -7,6 +7,7 @@ mod pipeline_layout;
 mod tri_renderer;
 mod vertex;
 
+use aftermath_rs as aftermath;
 use anyhow::Ok;
 use ash::vk::{self};
 use engine::Engine;
@@ -20,6 +21,30 @@ use winit::{
 
 fn main() -> anyhow::Result<()> {
     std::env::set_var("RUST_BACKTRACE", "1");
+
+    struct Delegate;
+    impl aftermath::AftermathDelegate for Delegate {
+        fn dumped(&mut self, dump_data: &[u8]) {
+            //     std::fs::write("dump_data.txt", dump_data).expect("Unable to write file");
+        }
+        fn shader_debug_info(&mut self, data: &[u8]) {}
+
+        fn description(&mut self, describe: &mut aftermath::DescriptionBuilder) {}
+    }
+
+    let _guard = aftermath::Aftermath::new(Delegate);
+
+    fn handle_error(error: vk::Result) -> vk::Result {
+        let status = aftermath::Status::wait_for_status(Some(std::time::Duration::from_secs(5)));
+        if status != aftermath::Status::Finished {
+            panic!("Unexpected crash dump status: {:?}", status);
+        }
+        panic!("error");
+    }
+
+    // Make Vulkan API Calls
+    //device.queue_submit(..).map_err(handle_error).unwrap();
+
     let entry = unsafe { ash::Entry::load()? };
 
     //window

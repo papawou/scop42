@@ -10,6 +10,7 @@
             "name": "Debug executable 'scop42'",
             "cargo": {
                 "args": [
+                    "+nightly",
                     "build",
                     "--bin=scop42",
                     "--package=scop42"
@@ -17,10 +18,19 @@
                 "filter": {
                     "name": "scop42",
                     "kind": "bin"
-                }
+                },
+                "environment": [
+                    {
+                        "name": "PATH",
+                        "value": "${env:PATH};${workspaceFolder}\\lib\\nsight-aftermath\\lib\\x64"
+                    }
+                ],
+            },
+            "env": {
+                "PATH": "${env:PATH};${workspaceFolder}\\lib\\nsight-aftermath\\lib\\x64"
             },
             "args": [],
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}",
         },
         {
             "type": "lldb",
