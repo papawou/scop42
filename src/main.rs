@@ -25,7 +25,7 @@ fn main() -> anyhow::Result<()> {
     struct Delegate;
     impl aftermath::AftermathDelegate for Delegate {
         fn dumped(&mut self, dump_data: &[u8]) {
-            //     std::fs::write("dump_data.txt", dump_data).expect("Unable to write file");
+            std::fs::write("dump_data.txt", dump_data).expect("Unable to write file");
         }
         fn shader_debug_info(&mut self, data: &[u8]) {}
 
