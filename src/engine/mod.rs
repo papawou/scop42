@@ -9,7 +9,7 @@ use queue_famillies::QueueFamilies;
 use std::time::Instant;
 use surface_support::SurfaceSupport;
 
-use crate::conf;
+use crate::{conf, handle_error};
 use winit::{platform::windows::WindowExtWindows, raw_window_handle::HasWindowHandle};
 
 pub trait Renderer {

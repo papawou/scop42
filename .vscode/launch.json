@@ -31,25 +31,6 @@
             },
             "args": [],
             "cwd": "${workspaceFolder}",
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug unit tests in executable 'scop42'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--bin=scop42",
-                    "--package=scop42"
-                ],
-                "filter": {
-                    "name": "scop42",
-                    "kind": "bin"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
         }
     ]
 }

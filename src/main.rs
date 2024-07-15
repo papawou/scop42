@@ -22,28 +22,17 @@ use winit::{
 fn main() -> anyhow::Result<()> {
     std::env::set_var("RUST_BACKTRACE", "1");
 
-    struct Delegate;
-    impl aftermath::AftermathDelegate for Delegate {
-        fn dumped(&mut self, dump_data: &[u8]) {
-            std::fs::write("dump_data.txt", dump_data).expect("Unable to write file");
-        }
-        fn shader_debug_info(&mut self, data: &[u8]) {}
+    // struct Delegate;
+    // impl aftermath::AftermathDelegate for Delegate {
+    //     fn dumped(&mut self, dump_data: &[u8]) {
+    //         std::fs::write("dump_data.nv-gpudmp", dump_data).expect("Unable to write file");
+    //     }
+    //     fn shader_debug_info(&mut self, data: &[u8]) {}
 
-        fn description(&mut self, describe: &mut aftermath::DescriptionBuilder) {}
-    }
+    //     fn description(&mut self, describe: &mut aftermath::DescriptionBuilder) {}
+    // }
 
-    let _guard = aftermath::Aftermath::new(Delegate);
-
-    fn handle_error(error: vk::Result) -> vk::Result {
-        let status = aftermath::Status::wait_for_status(Some(std::time::Duration::from_secs(5)));
-        if status != aftermath::Status::Finished {
-            panic!("Unexpected crash dump status: {:?}", status);
-        }
-        panic!("error");
-    }
-
-    // Make Vulkan API Calls
-    //device.queue_submit(..).map_err(handle_error).unwrap();
+    // let _guard = aftermath::Aftermath::new(Delegate);
 
     let entry = unsafe { ash::Entry::load()? };
 
@@ -220,4 +209,12 @@ fn update_mesh_constants<'a>(engine: &Engine, constants: MeshConstants<'a>) -> M
         render_matrix: mesh_matrix,
         ..constants.clone()
     }
+}
+
+fn handle_error(error: vk::Result) -> vk::Result {
+    let status = aftermath::Status::wait_for_status(Some(std::time::Duration::from_secs(5)));
+    if status != aftermath::Status::Finished {
+        panic!("Unexpected crash dump status: {:?}", status);
+    }
+    panic!("error");
 }
