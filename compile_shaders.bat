@@ -1,10 +1,10 @@
-glslc .\shaders\tri.frag -o .\shaders\tri.frag.spv
-glslc .\shaders\tri.vert -o .\shaders\tri.vert.spv
+glslc -g -o .\shaders\tri.frag.spv .\shaders\tri.frag
+glslc -g -o .\shaders\tri.vert.spv .\shaders\tri.vert
 
-glslc .\shaders\colored_tri.frag -o .\shaders\colored_tri.frag.spv
-glslc .\shaders\colored_tri.vert -o .\shaders\colored_tri.vert.spv
+glslc -g -o .\shaders\colored_tri.frag.spv .\shaders\colored_tri.frag
+glslc -g -o .\shaders\colored_tri.vert.spv .\shaders\colored_tri.vert
 
-glslc .\shaders\mesh.vert -o .\shaders\mesh.vert.spv
-glslc .\shaders\mesh.frag -o .\shaders\mesh.frag.spv
+glslc -g -o .\shaders\mesh.vert.spv .\shaders\mesh.vert
+glslc -g -o .\shaders\mesh.frag.spv .\shaders\mesh.frag
 
-glslc .\shaders\mesh.vert -o .\shaders\mesh_dba.vert.spv
+glslc -g -o .\shaders\mesh_dba.vert.spv .\shaders\mesh.vert

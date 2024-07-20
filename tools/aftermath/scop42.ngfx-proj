@@ -183,8 +183,14 @@
         "platform/win32/arguments": "",
         "platform/win32/autoconnect": true,
         "platform/win32/environment": "",
-        "platform/win32/executable": "",
-        "platform/win32/workingdir": "",
+        "platform/win32/executable": "C:/Users/papaw/Documents/main/dev/scop42/target/debug/scop42.exe",
+        "platform/win32/executable/history": [
+            "C:/Users/papaw/Documents/main/dev/scop42/target/debug/scop42.exe"
+        ],
+        "platform/win32/workingdir": "C:/Users/papaw/Documents/main/dev/scop42",
+        "platform/win32/workingdir/history": [
+            "C:/Users/papaw/Documents/main/dev/scop42"
+        ],
         "platform/windows/device": "localhost"
     },
     "uuid": "{0635c4a3-6cd3-4b20-a3c2-88dce30cbf8f}",

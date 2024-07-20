@@ -19,17 +19,7 @@
                     "name": "scop42",
                     "kind": "bin"
                 },
-                "environment": [
-                    {
-                        "name": "PATH",
-                        "value": "${env:PATH};${workspaceFolder}\\lib\\nsight-aftermath\\lib\\x64"
-                    }
-                ],
             },
-            "env": {
-                "PATH": "${env:PATH};${workspaceFolder}\\lib\\nsight-aftermath\\lib\\x64"
-            },
-            "args": [],
             "cwd": "${workspaceFolder}",
         }
     ]
