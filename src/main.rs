@@ -1,6 +1,7 @@
 mod conf;
 mod engine;
 mod graphics_pipeline;
+mod helpers;
 mod mesh;
 mod mesh_renderer;
 mod pipeline_layout;
@@ -47,9 +48,9 @@ fn main() -> anyhow::Result<()> {
 
     //MESH RENDERER
     let mut mesh = mesh::load_default_mesh(
-        &engine,
         &engine.device,
-        engine.allocator.as_ref().unwrap(),
+        engine.allocator.as_mut().unwrap(),
+        engine.graphics_queue,
         engine.frames[0].command_buffer,
     );
 

@@ -191,9 +191,9 @@ const DEFAULT_VERTICES: [Vertex; 4] = [
 const DEFAULT_INDICES: [u32; 6] = [0, 1, 2, 2, 1, 3];
 
 pub fn load_default_mesh(
-    engine: &Engine,
     device: &ash::Device,
-    allocator: &vk_mem::Allocator,
+    allocator: &mut vk_mem::Allocator,
+    graphics_queue: vk::Queue,
     cmd: vk::CommandBuffer,
 ) -> Mesh<Vertex> {
     let mut mesh = Mesh {
@@ -202,13 +202,13 @@ pub fn load_default_mesh(
         index_buffer: None,
         vertex_buffer: None,
     };
-    let id_range = nvtx::range_start!("MESH LOAD");
+
     mesh.create_vertex_buffer(device, allocator);
     mesh.create_index_buffer(allocator);
     let vertex_buffer = mesh.vertex_buffer.as_ref().unwrap();
     let index_buffer = mesh.index_buffer.as_ref().unwrap();
 
-    let staging_buffer = mesh.create_staging_buffer(allocator);
+    let mut staging_buffer = mesh.create_staging_buffer(allocator);
 
     unsafe {
         device
@@ -231,15 +231,15 @@ pub fn load_default_mesh(
         device.end_command_buffer(cmd).unwrap();
         let submit_info = vk::SubmitInfo::default();
         device
-            .queue_submit(engine.graphics_queue, &[submit_info], vk::Fence::null())
+            .queue_submit(graphics_queue, &[submit_info], vk::Fence::null())
             .unwrap();
 
         device
             .reset_command_buffer(cmd, vk::CommandBufferResetFlags::empty())
             .unwrap();
 
-        device.destroy_buffer(staging_buffer.buffer, None);
+        allocator.destroy_buffer(staging_buffer.buffer, &mut staging_buffer.allocation);
     }
-    nvtx::range_end!(id_range);
+
     mesh
 }
