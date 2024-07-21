@@ -3,6 +3,7 @@ use vk_mem::Alloc;
 
 use crate::{
     engine::Engine,
+    nvtx,
     vertex::{self, Vertex},
     AllocatedBuffer,
 };
@@ -201,7 +202,7 @@ pub fn load_default_mesh(
         index_buffer: None,
         vertex_buffer: None,
     };
-
+    let id_range = nvtx::range_start!("MESH LOAD");
     mesh.create_vertex_buffer(device, allocator);
     mesh.create_index_buffer(allocator);
     let vertex_buffer = mesh.vertex_buffer.as_ref().unwrap();
@@ -216,6 +217,7 @@ pub fn load_default_mesh(
 
         let cmd_begin_info = vk::CommandBufferBeginInfo::default()
             .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+
         device.begin_command_buffer(cmd, &cmd_begin_info).unwrap();
 
         let regions = [vk::BufferCopy::default().size(vertex_buffer.buffer_size as u64)];
@@ -238,6 +240,6 @@ pub fn load_default_mesh(
 
         device.destroy_buffer(staging_buffer.buffer, None);
     }
-
+    nvtx::range_end!(id_range);
     mesh
 }

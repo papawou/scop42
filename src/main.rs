@@ -7,6 +7,8 @@ mod pipeline_layout;
 mod tri_renderer;
 mod vertex;
 
+use nvtx;
+
 use std::path;
 
 use aftermath_rs as aftermath;
@@ -25,21 +27,6 @@ use winit::{
 fn main() -> anyhow::Result<()> {
     std::env::set_var("RUST_BACKTRACE", "full");
 
-    // struct Delegate;
-    // impl aftermath::AftermathDelegate for Delegate {
-    //     fn dumped(&mut self, dump_data: &[u8]) {
-    //         std::fs::write(
-    //             path::Path::new("./tools/aftermath/dump.nv-gpudmp"),
-    //             dump_data,
-    //         )
-    //         .expect("Unable to write file");
-    //     }
-    //     fn shader_debug_info(&mut self, data: &[u8]) {}
-
-    //     fn description(&mut self, describe: &mut aftermath::DescriptionBuilder) {}
-    // }
-    // let _guard = aftermath::Aftermath::new(Delegate);
-
     let entry = unsafe { ash::Entry::load()? };
 
     //window
@@ -54,47 +41,41 @@ fn main() -> anyhow::Result<()> {
 
     let mut engine = engine::Engine::new(entry, &window);
 
-    //INIT RENDERER
-    // let mut mesh = mesh::load_default_mesh(
-    //     &engine,
-    //     &engine.device,
-    //     engine.allocator.as_ref().unwrap(),
-    //     engine.frames[0].command_buffer,
-    // );
+    nvtx::range_push!("Hello World!");
+    std::thread::sleep(std::time::Duration::from_secs(2));
+    nvtx::range_pop!();
 
-    // let layout = create_mesh_layout::<MeshConstants>(&engine.device);
-    // let mut renderer = {
-    //     let device_address = mesh
-    //         .vertex_buffer
-    //         .as_ref()
-    //         .unwrap()
-    //         .device_address
-    //         .as_ref()
-    //         .unwrap();
+    //MESH RENDERER
+    let mut mesh = mesh::load_default_mesh(
+        &engine,
+        &engine.device,
+        engine.allocator.as_ref().unwrap(),
+        engine.frames[0].command_buffer,
+    );
 
-    //     MeshRenderer {
-    //         graphics_pipeline: create_mesh_pipeline::<Vertex>(
-    //             &engine.device,
-    //             engine.render_pass,
-    //             engine.swapchain.extent,
-    //             &layout,
-    //         ),
-    //         mesh: &mesh,
-    //         push_constants: Some(MeshConstants {
-    //             render_matrix: glam::Mat4::IDENTITY,
-    //             vertex_buffer: device_address,
-    //         }),
-    //     }
-    // };
+    let layout = create_mesh_layout::<MeshConstants>(&engine.device);
+    let mut renderer = {
+        let device_address = mesh
+            .vertex_buffer
+            .as_ref()
+            .unwrap()
+            .device_address
+            .as_ref()
+            .unwrap();
 
-    let layout = create_default_layout(&engine.device);
-    let mut renderer = TriRenderer {
-        graphics_pipeline: create_tri_pipeline(
-            &engine.device,
-            engine.render_pass,
-            engine.swapchain.extent,
-            &layout,
-        ),
+        MeshRenderer {
+            graphics_pipeline: create_mesh_pipeline::<Vertex>(
+                &engine.device,
+                engine.render_pass,
+                engine.swapchain.extent,
+                &layout,
+            ),
+            mesh: &mesh,
+            push_constants: Some(MeshConstants {
+                render_matrix: glam::Mat4::IDENTITY,
+                vertex_buffer: device_address,
+            }),
+        }
     };
 
     let mut require_resize = false;
@@ -128,23 +109,24 @@ fn main() -> anyhow::Result<()> {
 
                                 unsafe { engine.handle_resize((new_size.width, new_size.height)) };
 
-                                renderer.graphics_pipeline = graphics_pipeline::create_tri_pipeline(
-                                    &engine.device,
-                                    engine.render_pass,
-                                    engine.swapchain.extent,
-                                    &layout,
-                                );
+                                renderer.graphics_pipeline =
+                                    graphics_pipeline::create_mesh_pipeline::<Vertex>(
+                                        &engine.device,
+                                        engine.render_pass,
+                                        engine.swapchain.extent,
+                                        &layout,
+                                    );
                             }
 
                             // engine loop
-                            // if let Some(constants) = renderer.push_constants {
-                            //     let updated_constants = update_mesh_constants(&engine, constants);
-                            //     renderer.push_constants = Some(updated_constants);
-                            // }
+                            if let Some(constants) = renderer.push_constants {
+                                let updated_constants = update_mesh_constants(&engine, constants);
+                                renderer.push_constants = Some(updated_constants);
+                            }
 
-                            require_resize = unsafe { engine.draw_frame(&renderer) };
+                            // require_resize = unsafe { engine.draw_frame(&renderer) };
                         }
-                        winit::event::WindowEvent::Resized(_) => require_resize = true,
+                        winit::event::WindowEvent::Resized(_) => require_resize = false,
                         winit::event::WindowEvent::CloseRequested => elwt.exit(),
                         winit::event::WindowEvent::KeyboardInput {
                             event:
@@ -173,7 +155,7 @@ fn main() -> anyhow::Result<()> {
             .destroy_pipeline(renderer.graphics_pipeline.pipeline, None)
     };
     if let Some(allocator) = &engine.allocator {
-        // mesh.destroy_buffers(&allocator);
+        mesh.destroy_buffers(&allocator);
     }
     unsafe { engine.device.destroy_pipeline_layout(layout, None) };
     unsafe { engine.destroy() };

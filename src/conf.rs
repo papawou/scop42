@@ -9,7 +9,7 @@ pub const ENGINE_NAME: &str = "No Engine";
 pub const ENGINE_VERSION: u32 = vk::make_api_version(0, 1, 0, 0);
 pub const API_VERSION: u32 = vk::API_VERSION_1_3;
 
-pub const LAYER_NAMES: [&str; 1] = ["VK_LAYER_KHRONOS_validation"];
+pub const LAYER_NAMES: [&str; 2] = ["VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_monitor"];
 
 pub const WINDOW_WIDTH: u32 = 800;
 pub const WINDOW_HEIGHT: u32 = 600;

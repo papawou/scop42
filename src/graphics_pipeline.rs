@@ -136,12 +136,6 @@ pub fn create_mesh_pipeline<'a, T: VertexHelpers>(
         .viewports(&viewports)
         .scissors(&scissors);
 
-    // let bindings = T::bindings();
-    // let attributes = T::attributes();
-    // let vertex_input_state = vk::PipelineVertexInputStateCreateInfo::default()
-    //     .vertex_binding_descriptions(&bindings)
-    //     .vertex_attribute_descriptions(&attributes);
-
     let vertex_input_state = vk::PipelineVertexInputStateCreateInfo::default();
     let mut default_pipeline_info = GraphicsPipelineInfoBuilder::new();
     let pipeline_info = default_pipeline_info

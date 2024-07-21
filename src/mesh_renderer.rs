@@ -36,13 +36,6 @@ impl<'a, T: Copy> Renderer for MeshRenderer<'a, T> {
             .device
             .cmd_begin_render_pass(cmd, &renderpass_info, vk::SubpassContents::INLINE);
 
-        // //vertex_buffer
-        // let vertex_buffers = [self.mesh.index_buffer.as_ref().unwrap().buffer];
-        // let offsets = [0];
-        // engine
-        //     .device
-        //     .cmd_bind_vertex_buffers(cmd, 0, &vertex_buffers, &offsets);
-
         if let Some(constants) = self.push_constants.as_ref() {
             let push_constants = struct_to_bytes(constants);
             engine.device.cmd_push_constants(
