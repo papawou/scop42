@@ -1,3 +1,5 @@
+#![allow(warnings)]
+
 mod conf;
 mod engine;
 mod graphics_pipeline;
@@ -42,9 +44,9 @@ fn main() -> anyhow::Result<()> {
 
     let mut engine = engine::Engine::new(entry, &window);
 
-    nvtx::range_push!("Hello World!");
-    std::thread::sleep(std::time::Duration::from_secs(2));
-    nvtx::range_pop!();
+    // nvtx::range_push!("Hello World!");
+    // std::thread::sleep(std::time::Duration::from_secs(2));
+    // nvtx::range_pop!();
 
     //MESH RENDERER
     let mut mesh = mesh::load_default_mesh(
@@ -52,6 +54,7 @@ fn main() -> anyhow::Result<()> {
         engine.allocator.as_mut().unwrap(),
         engine.graphics_queue,
         engine.frames[0].command_buffer,
+        engine.frames[0].command_pool,
     );
 
     let layout = create_mesh_layout::<MeshConstants>(&engine.device);
@@ -125,7 +128,7 @@ fn main() -> anyhow::Result<()> {
                                 renderer.push_constants = Some(updated_constants);
                             }
 
-                            // require_resize = unsafe { engine.draw_frame(&renderer) };
+                            require_resize = unsafe { engine.draw_frame(&renderer) };
                         }
                         winit::event::WindowEvent::Resized(_) => require_resize = false,
                         winit::event::WindowEvent::CloseRequested => elwt.exit(),

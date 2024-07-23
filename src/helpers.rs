@@ -1,4 +1,7 @@
 use ash::vk;
+use vk_mem::Alloc;
+
+use crate::AllocatedBuffer;
 
 pub fn copy_buffer(
     device: &ash::Device,
@@ -32,4 +35,48 @@ pub fn copy_buffer(
     unsafe { device.queue_wait_idle(queue) }.unwrap();
 
     unsafe { device.free_command_buffers(command_pool, &[command_buffer]) }
+}
+
+pub fn create_staging_buffer(
+    data: &[u8],
+    buffer_size: vk::DeviceSize,
+    allocator: &vk_mem::Allocator,
+) -> AllocatedBuffer {
+    let buffer_info = vk::BufferCreateInfo::default()
+        .size(buffer_size)
+        .usage(vk::BufferUsageFlags::TRANSFER_SRC);
+    let allocation_info = vk_mem::AllocationCreateInfo {
+        flags: vk_mem::AllocationCreateFlags::MAPPED,
+        usage: vk_mem::MemoryUsage::CpuOnly,
+        ..vk_mem::AllocationCreateInfo::default()
+    };
+
+    let (staging_buffer, mut allocation) = unsafe {
+        allocator
+            .create_buffer(&buffer_info, &allocation_info)
+            .unwrap()
+    };
+
+    unsafe {
+        let data_ptr = allocator.map_memory(&mut allocation).unwrap();
+        std::ptr::copy_nonoverlapping(data.as_ptr() as *const u8, data_ptr, buffer_size as usize);
+        allocator.unmap_memory(&mut allocation);
+    }
+
+    AllocatedBuffer {
+        allocation,
+        buffer: staging_buffer,
+        buffer_size: buffer_size as usize,
+        device_address: None,
+    }
+}
+
+pub fn vec_to_bytes<T>(v: &Vec<T>) -> &[u8] {
+    let size = std::mem::size_of::<T>() * v.len();
+    unsafe { std::slice::from_raw_parts(v.as_ptr() as *const u8, size) }
+}
+
+pub fn struct_to_bytes<T>(s: &T) -> &[u8] {
+    let size = std::mem::size_of::<T>();
+    unsafe { std::slice::from_raw_parts((s as *const T) as *const u8, size) }
 }

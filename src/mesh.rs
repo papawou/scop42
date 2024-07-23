@@ -1,8 +1,10 @@
 use ash::vk::{self};
 use vk_mem::Alloc;
 
+use crate::helpers::vec_to_bytes;
 use crate::{
     engine::Engine,
+    helpers::{copy_buffer, struct_to_bytes},
     nvtx,
     vertex::{self, Vertex},
     AllocatedBuffer,
@@ -95,51 +97,6 @@ impl<T> Mesh<T> {
         self.index_buffer = Some(allocated_buffer);
     }
 
-    pub fn create_staging_buffer(&self, allocator: &vk_mem::Allocator) -> AllocatedBuffer {
-        let vertex_buffer = &self.vertex_buffer.as_ref().unwrap();
-        let index_buffer = &self.index_buffer.as_ref().unwrap();
-
-        let buffer_size = vertex_buffer.buffer_size + index_buffer.buffer_size;
-        let buffer_info = vk::BufferCreateInfo::default()
-            .size(buffer_size as vk::DeviceSize)
-            .usage(vk::BufferUsageFlags::TRANSFER_SRC);
-        let allocation_info = vk_mem::AllocationCreateInfo {
-            flags: vk_mem::AllocationCreateFlags::MAPPED,
-            usage: vk_mem::MemoryUsage::CpuOnly,
-            ..vk_mem::AllocationCreateInfo::default()
-        };
-
-        let (staging_buffer, mut allocation) = unsafe {
-            allocator
-                .create_buffer(&buffer_info, &allocation_info)
-                .unwrap()
-        };
-
-        unsafe {
-            let data_ptr = allocator.map_memory(&mut allocation).unwrap();
-            std::ptr::copy_nonoverlapping(
-                self.vertices.as_ptr() as *const u8,
-                data_ptr,
-                vertex_buffer.buffer_size as usize,
-            );
-
-            std::ptr::copy_nonoverlapping(
-                self.indices.as_ptr() as *const u8,
-                data_ptr.add(vertex_buffer.buffer_size),
-                index_buffer.buffer_size as usize,
-            );
-
-            allocator.unmap_memory(&mut allocation);
-        }
-
-        AllocatedBuffer {
-            allocation,
-            buffer: staging_buffer,
-            buffer_size,
-            device_address: None,
-        }
-    }
-
     pub fn destroy_buffers(&mut self, allocator: &vk_mem::Allocator) {
         match &mut self.vertex_buffer.take() {
             Some(allocated_buffer) => unsafe {
@@ -195,6 +152,7 @@ pub fn load_default_mesh(
     allocator: &mut vk_mem::Allocator,
     graphics_queue: vk::Queue,
     cmd: vk::CommandBuffer,
+    command_pool: vk::CommandPool,
 ) -> Mesh<Vertex> {
     let mut mesh = Mesh {
         vertices: DEFAULT_VERTICES.to_vec(),
@@ -203,42 +161,54 @@ pub fn load_default_mesh(
         vertex_buffer: None,
     };
 
-    mesh.create_vertex_buffer(device, allocator);
-    mesh.create_index_buffer(allocator);
-    let vertex_buffer = mesh.vertex_buffer.as_ref().unwrap();
-    let index_buffer = mesh.index_buffer.as_ref().unwrap();
+    {
+        mesh.create_vertex_buffer(device, allocator);
+        let vertex_buffer = mesh.vertex_buffer.as_ref().unwrap();
+        let data = vec_to_bytes(&mesh.vertices);
 
-    let mut staging_buffer = mesh.create_staging_buffer(allocator);
+        let mut staging_buffer = crate::helpers::create_staging_buffer(
+            data,
+            vertex_buffer.buffer_size as vk::DeviceSize,
+            allocator,
+        );
 
-    unsafe {
-        device
-            .reset_command_buffer(cmd, vk::CommandBufferResetFlags::empty())
-            .unwrap();
+        copy_buffer(
+            device,
+            staging_buffer.buffer,
+            vertex_buffer.buffer,
+            vertex_buffer.buffer_size as vk::DeviceSize,
+            command_pool,
+            graphics_queue,
+        );
 
-        let cmd_begin_info = vk::CommandBufferBeginInfo::default()
-            .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+        unsafe {
+            allocator.destroy_buffer(staging_buffer.buffer, &mut staging_buffer.allocation);
+        }
+    }
 
-        device.begin_command_buffer(cmd, &cmd_begin_info).unwrap();
+    {
+        mesh.create_index_buffer(allocator);
+        let index_buffer = mesh.index_buffer.as_ref().unwrap();
+        let data = vec_to_bytes(&mesh.indices);
 
-        let regions = [vk::BufferCopy::default().size(vertex_buffer.buffer_size as u64)];
-        device.cmd_copy_buffer(cmd, staging_buffer.buffer, vertex_buffer.buffer, &regions);
+        let mut staging_buffer = crate::helpers::create_staging_buffer(
+            data,
+            index_buffer.buffer_size as vk::DeviceSize,
+            allocator,
+        );
 
-        let regions = [vk::BufferCopy::default()
-            .size(index_buffer.buffer_size as u64)
-            .src_offset(vertex_buffer.buffer_size as u64)];
-        device.cmd_copy_buffer(cmd, staging_buffer.buffer, index_buffer.buffer, &regions);
+        copy_buffer(
+            device,
+            staging_buffer.buffer,
+            index_buffer.buffer,
+            index_buffer.buffer_size as vk::DeviceSize,
+            command_pool,
+            graphics_queue,
+        );
 
-        device.end_command_buffer(cmd).unwrap();
-        let submit_info = vk::SubmitInfo::default();
-        device
-            .queue_submit(graphics_queue, &[submit_info], vk::Fence::null())
-            .unwrap();
-
-        device
-            .reset_command_buffer(cmd, vk::CommandBufferResetFlags::empty())
-            .unwrap();
-
-        allocator.destroy_buffer(staging_buffer.buffer, &mut staging_buffer.allocation);
+        unsafe {
+            allocator.destroy_buffer(staging_buffer.buffer, &mut staging_buffer.allocation);
+        }
     }
 
     mesh

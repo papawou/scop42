@@ -146,7 +146,6 @@ pub fn create_mesh_pipeline<'a, T: VertexHelpers>(
         .layout(layout.clone())
         .render_pass(render_pass);
 
-    //GRAPHICS_PIPELINE
     let pipelines = unsafe {
         device
             .create_graphics_pipelines(vk::PipelineCache::null(), &[pipeline_info], None)

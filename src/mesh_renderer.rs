@@ -37,7 +37,7 @@ impl<'a, T: Copy> Renderer for MeshRenderer<'a, T> {
             .cmd_begin_render_pass(cmd, &renderpass_info, vk::SubpassContents::INLINE);
 
         if let Some(constants) = self.push_constants.as_ref() {
-            let push_constants = struct_to_bytes(constants);
+            let push_constants = crate::helpers::struct_to_bytes(constants);
             engine.device.cmd_push_constants(
                 cmd,
                 self.graphics_pipeline.layout.clone(),
@@ -64,8 +64,4 @@ impl<'a, T: Copy> Renderer for MeshRenderer<'a, T> {
             .cmd_draw_indexed(cmd, self.mesh.indices.len() as u32, 1, 0, 0, 0);
         engine.device.cmd_end_render_pass(cmd);
     }
-}
-
-fn struct_to_bytes<T>(s: &T) -> &[u8] {
-    unsafe { std::slice::from_raw_parts((s as *const T) as *const u8, std::mem::size_of::<T>()) }
 }
