@@ -34,10 +34,9 @@ pub const EXTENSION_NAMES: [*const i8; 3] = [
     ash::khr::win32_surface::NAME.as_ptr(),
 ];
 
-pub const DEVICE_EXTENSION_NAMES: [&std::ffi::CStr; 3] = [
+pub const DEVICE_EXTENSION_NAMES: [&std::ffi::CStr; 2] = [
     ash::khr::swapchain::NAME,
-    ash::nv::device_diagnostic_checkpoints::NAME,
-    ash::nv::device_diagnostics_config::NAME,
+    ash::khr::buffer_device_address::NAME,
 ];
 
 pub const MAX_FRAMES_IN_FLIGHT: usize = 2;

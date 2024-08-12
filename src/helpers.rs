@@ -42,25 +42,38 @@ pub fn create_staging_buffer(
     buffer_size: vk::DeviceSize,
     allocator: &vk_mem::Allocator,
 ) -> AllocatedBuffer {
-    let buffer_info = vk::BufferCreateInfo::default()
+    let buffer_create_info = vk::BufferCreateInfo::default()
         .size(buffer_size)
         .usage(vk::BufferUsageFlags::TRANSFER_SRC);
-    let allocation_info = vk_mem::AllocationCreateInfo {
-        flags: vk_mem::AllocationCreateFlags::MAPPED,
-        usage: vk_mem::MemoryUsage::CpuOnly,
+
+    let allocation_create_info = vk_mem::AllocationCreateInfo {
+        flags: vk_mem::AllocationCreateFlags::HOST_ACCESS_SEQUENTIAL_WRITE
+            | vk_mem::AllocationCreateFlags::MAPPED,
+        usage: vk_mem::MemoryUsage::Auto,
         ..vk_mem::AllocationCreateInfo::default()
     };
 
     let (staging_buffer, mut allocation) = unsafe {
         allocator
-            .create_buffer(&buffer_info, &allocation_info)
+            .create_buffer(&buffer_create_info, &allocation_create_info)
             .unwrap()
     };
 
     unsafe {
-        let data_ptr = allocator.map_memory(&mut allocation).unwrap();
-        std::ptr::copy_nonoverlapping(data.as_ptr() as *const u8, data_ptr, buffer_size as usize);
-        allocator.unmap_memory(&mut allocation);
+        let allocation_info = allocator.get_allocation_info(&allocation);
+        let data_ptr = allocation_info.mapped_data;
+
+        // Explicitly check for null
+        if data_ptr.is_null() {
+            panic!("Mapped data pointer is null");
+        } else {
+            println!(
+                "Mapped data pointer is valid: {:?} {:?}",
+                data_ptr, buffer_size
+            );
+        }
+
+        std::ptr::copy_nonoverlapping(data.as_ptr(), data_ptr as *mut u8, buffer_size as usize);
     }
 
     AllocatedBuffer {

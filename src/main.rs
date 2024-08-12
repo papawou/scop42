@@ -10,11 +10,8 @@ mod pipeline_layout;
 mod tri_renderer;
 mod vertex;
 
-use nvtx;
-
 use std::path;
 
-use aftermath_rs as aftermath;
 use anyhow::Ok;
 use ash::vk::{self};
 use engine::Engine;
@@ -43,10 +40,6 @@ fn main() -> anyhow::Result<()> {
         .build(&event_loop)?;
 
     let mut engine = engine::Engine::new(entry, &window);
-
-    // nvtx::range_push!("Hello World!");
-    // std::thread::sleep(std::time::Duration::from_secs(2));
-    // nvtx::range_pop!();
 
     //MESH RENDERER
     let mut mesh = mesh::load_default_mesh(
@@ -200,12 +193,4 @@ fn update_mesh_constants<'a>(engine: &Engine, constants: MeshConstants<'a>) -> M
         render_matrix: mesh_matrix,
         ..constants.clone()
     }
-}
-
-fn handle_error(error: vk::Result) -> vk::Result {
-    let status = aftermath::Status::wait_for_status(Some(std::time::Duration::from_secs(5)));
-    if status != aftermath::Status::Finished {
-        panic!("Unexpected crash dump status: {:?}", status);
-    }
-    panic!("error");
 }

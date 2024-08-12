@@ -5,7 +5,6 @@ use crate::helpers::vec_to_bytes;
 use crate::{
     engine::Engine,
     helpers::{copy_buffer, struct_to_bytes},
-    nvtx,
     vertex::{self, Vertex},
     AllocatedBuffer,
 };
@@ -33,8 +32,9 @@ impl<T> Mesh<T> {
                         | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS,
                 );
             let allocation_info = vk_mem::AllocationCreateInfo {
-                flags: vk_mem::AllocationCreateFlags::MAPPED,
-                usage: vk_mem::MemoryUsage::GpuOnly,
+                flags: vk_mem::AllocationCreateFlags::HOST_ACCESS_RANDOM
+                    | vk_mem::AllocationCreateFlags::MAPPED,
+                usage: vk_mem::MemoryUsage::AutoPreferDevice,
                 ..vk_mem::AllocationCreateInfo::default()
             };
 
@@ -73,8 +73,9 @@ impl<T> Mesh<T> {
                 .size(buffer_size as vk::DeviceSize)
                 .usage(vk::BufferUsageFlags::INDEX_BUFFER | vk::BufferUsageFlags::TRANSFER_DST);
             let allocation_info = vk_mem::AllocationCreateInfo {
-                flags: vk_mem::AllocationCreateFlags::MAPPED,
-                usage: vk_mem::MemoryUsage::GpuOnly,
+                flags: vk_mem::AllocationCreateFlags::HOST_ACCESS_RANDOM
+                    | vk_mem::AllocationCreateFlags::MAPPED,
+                usage: vk_mem::MemoryUsage::AutoPreferDevice,
                 ..vk_mem::AllocationCreateInfo::default()
             };
 
@@ -162,15 +163,13 @@ pub fn load_default_mesh(
     };
 
     {
-        mesh.create_vertex_buffer(device, allocator);
-        let vertex_buffer = mesh.vertex_buffer.as_ref().unwrap();
         let data = vec_to_bytes(&mesh.vertices);
 
-        let mut staging_buffer = crate::helpers::create_staging_buffer(
-            data,
-            vertex_buffer.buffer_size as vk::DeviceSize,
-            allocator,
-        );
+        let mut staging_buffer =
+            crate::helpers::create_staging_buffer(data, data.len() as vk::DeviceSize, allocator);
+
+        mesh.create_vertex_buffer(device, allocator);
+        let vertex_buffer = mesh.vertex_buffer.as_ref().unwrap();
 
         copy_buffer(
             device,
@@ -187,15 +186,13 @@ pub fn load_default_mesh(
     }
 
     {
-        mesh.create_index_buffer(allocator);
-        let index_buffer = mesh.index_buffer.as_ref().unwrap();
         let data = vec_to_bytes(&mesh.indices);
 
-        let mut staging_buffer = crate::helpers::create_staging_buffer(
-            data,
-            index_buffer.buffer_size as vk::DeviceSize,
-            allocator,
-        );
+        let mut staging_buffer =
+            crate::helpers::create_staging_buffer(data, data.len() as vk::DeviceSize, allocator);
+
+        mesh.create_index_buffer(allocator);
+        let index_buffer = mesh.index_buffer.as_ref().unwrap();
 
         copy_buffer(
             device,

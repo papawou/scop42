@@ -9,7 +9,7 @@ use queue_famillies::QueueFamilies;
 use std::time::Instant;
 use surface_support::SurfaceSupport;
 
-use crate::{conf, handle_error};
+use crate::conf;
 use winit::{platform::windows::WindowExtWindows, raw_window_handle::HasWindowHandle};
 
 pub trait Renderer {
@@ -346,19 +346,8 @@ fn create_device(
         );
     }
 
-    //device features
-    let mut aftermath_feature = vk::DeviceDiagnosticsConfigCreateInfoNV::default().flags(
-        vk::DeviceDiagnosticsConfigFlagsNV::ENABLE_AUTOMATIC_CHECKPOINTS
-            | vk::DeviceDiagnosticsConfigFlagsNV::ENABLE_RESOURCE_TRACKING
-            | vk::DeviceDiagnosticsConfigFlagsNV::ENABLE_SHADER_DEBUG_INFO
-            | vk::DeviceDiagnosticsConfigFlagsNV::ENABLE_SHADER_ERROR_REPORTING,
-    );
-
     let mut buffer_device_address_feature =
         vk::PhysicalDeviceBufferDeviceAddressFeatures::default().buffer_device_address(true);
-
-    buffer_device_address_feature.p_next =
-        &mut aftermath_feature as *mut _ as *mut std::ffi::c_void;
 
     let device_features = vk::PhysicalDeviceFeatures::default();
 
@@ -370,8 +359,8 @@ fn create_device(
     let device_create_info = vk::DeviceCreateInfo::default()
         .queue_create_infos(&queue_infos)
         .enabled_extension_names(device_extensions.as_slice())
-        .push_next(&mut buffer_device_address_feature)
-        .enabled_features(&device_features);
+        .enabled_features(&device_features)
+        .push_next(&mut buffer_device_address_feature);
 
     let device = unsafe { instance.create_device(physical_device, &device_create_info, None)? };
 
