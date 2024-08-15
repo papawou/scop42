@@ -93,3 +93,13 @@ pub fn struct_to_bytes<T>(s: &T) -> &[u8] {
     let size = std::mem::size_of::<T>();
     unsafe { std::slice::from_raw_parts((s as *const T) as *const u8, size) }
 }
+
+pub fn print_bytes_in_hex(bytes: &[u8]) {
+    for (i, byte) in bytes.iter().enumerate() {
+        if i % 16 == 0 {
+            print!("\n{:04x}: ", i); // Print the offset in the array
+        }
+        print!("{:02x} ", byte);
+    }
+    println!(); // Final newline
+}

@@ -118,31 +118,15 @@ impl<T> Mesh<T> {
 const DEFAULT_VERTICES: [Vertex; 4] = [
     Vertex {
         position: glam::Vec3::new(0.0, 0.0, 0.0),
-        uv_x: 0.0,
-        normal: glam::Vec3::new(0.0, 0.0, 1.0),
-        uv_y: 0.0,
-        color: glam::Vec3::new(1.0, 0.0, 0.0),
     },
     Vertex {
         position: glam::Vec3::new(1.0, 0.0, 0.0),
-        uv_x: 1.0,
-        normal: glam::Vec3::new(0.0, 0.0, 1.0),
-        uv_y: 0.0,
-        color: glam::Vec3::new(0.0, 1.0, 0.0),
     },
     Vertex {
         position: glam::Vec3::new(0.0, 1.0, 0.0),
-        uv_x: 0.0,
-        normal: glam::Vec3::new(0.0, 0.0, 1.0),
-        uv_y: 1.0,
-        color: glam::Vec3::new(0.0, 0.0, 1.0),
     },
     Vertex {
         position: glam::Vec3::new(1.0, 1.0, 0.0),
-        uv_x: 1.0,
-        normal: glam::Vec3::new(0.0, 0.0, 1.0),
-        uv_y: 1.0,
-        color: glam::Vec3::new(1.0, 1.0, 0.0),
     },
 ];
 

@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use ash::vk;
 
 use crate::{
@@ -38,6 +40,7 @@ impl<'a, T: Copy> Renderer for MeshRenderer<'a, T> {
 
         if let Some(constants) = self.push_constants.as_ref() {
             let push_constants = crate::helpers::struct_to_bytes(constants);
+            crate::helpers::print_bytes_in_hex(push_constants);
             engine.device.cmd_push_constants(
                 cmd,
                 self.graphics_pipeline.layout.clone(),

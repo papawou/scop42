@@ -61,7 +61,7 @@ fn main() -> anyhow::Result<()> {
             .unwrap();
 
         MeshRenderer {
-            graphics_pipeline: create_mesh_pipeline::<Vertex>(
+            graphics_pipeline: create_mesh_pipeline(
                 &engine.device,
                 engine.render_pass,
                 engine.swapchain.extent,
@@ -107,7 +107,7 @@ fn main() -> anyhow::Result<()> {
                                 unsafe { engine.handle_resize((new_size.width, new_size.height)) };
 
                                 renderer.graphics_pipeline =
-                                    graphics_pipeline::create_mesh_pipeline::<Vertex>(
+                                    graphics_pipeline::create_mesh_pipeline(
                                         &engine.device,
                                         engine.render_pass,
                                         engine.swapchain.extent,
@@ -191,6 +191,6 @@ fn update_mesh_constants<'a>(engine: &Engine, constants: MeshConstants<'a>) -> M
 
     MeshConstants {
         render_matrix: mesh_matrix,
-        ..constants.clone()
+        vertex_buffer: &constants.vertex_buffer,
     }
 }

@@ -1,6 +1,6 @@
 use ash::vk::{self, Framebuffer};
 
-use crate::{engine::Engine, vertex::VertexHelpers};
+use crate::engine::Engine;
 
 pub struct GraphicsPipeline<'a> {
     pub layout: &'a vk::PipelineLayout,
@@ -112,7 +112,7 @@ pub fn create_tri_pipeline<'a>(
     }
 }
 
-pub fn create_mesh_pipeline<'a, T: VertexHelpers>(
+pub fn create_mesh_pipeline<'a>(
     device: &ash::Device,
     render_pass: vk::RenderPass,
     extent: vk::Extent2D,

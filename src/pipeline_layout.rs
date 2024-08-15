@@ -1,7 +1,7 @@
 use ash::vk;
 
 //MESH should be another file ?
-#[repr(C)]
+#[repr(C, align(16))]
 #[derive(Debug, Clone, Copy)]
 pub struct MeshConstants<'a> {
     pub render_matrix: glam::Mat4,
