@@ -1,7 +1,7 @@
 use ash::vk::{self};
 use vk_mem::Alloc;
 
-use crate::helpers::vec_to_bytes;
+use crate::helpers::{print_bytes_in_hex, vec_to_bytes};
 use crate::{
     engine::Engine,
     helpers::{copy_buffer, struct_to_bytes},
@@ -118,15 +118,19 @@ impl<T> Mesh<T> {
 const DEFAULT_VERTICES: [Vertex; 4] = [
     Vertex {
         position: glam::Vec3::new(0.0, 0.0, 0.0),
+        _padding_position: 0f32,
     },
     Vertex {
         position: glam::Vec3::new(1.0, 0.0, 0.0),
+        _padding_position: 0f32,
     },
     Vertex {
         position: glam::Vec3::new(0.0, 1.0, 0.0),
+        _padding_position: 0f32,
     },
     Vertex {
         position: glam::Vec3::new(1.0, 1.0, 0.0),
+        _padding_position: 0f32,
     },
 ];
 

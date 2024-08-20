@@ -74,7 +74,6 @@ fn main() -> anyhow::Result<()> {
             }),
         }
     };
-
     let mut require_resize = false;
 
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
@@ -116,7 +115,7 @@ fn main() -> anyhow::Result<()> {
                             }
 
                             // engine loop
-                            if let Some(constants) = renderer.push_constants {
+                            if let Some(constants) = &renderer.push_constants {
                                 let updated_constants = update_mesh_constants(&engine, constants);
                                 renderer.push_constants = Some(updated_constants);
                             }
@@ -177,7 +176,7 @@ struct AllocatedBuffer {
     allocation: vk_mem::Allocation,
 }
 
-fn update_mesh_constants<'a>(engine: &Engine, constants: MeshConstants<'a>) -> MeshConstants<'a> {
+fn update_mesh_constants<'a>(engine: &Engine, constants: &MeshConstants<'a>) -> MeshConstants<'a> {
     let elapsed = engine.start_instant.elapsed().as_secs_f32();
 
     let mesh_matrix = {
@@ -191,6 +190,6 @@ fn update_mesh_constants<'a>(engine: &Engine, constants: MeshConstants<'a>) -> M
 
     MeshConstants {
         render_matrix: mesh_matrix,
-        vertex_buffer: &constants.vertex_buffer,
+        vertex_buffer: constants.vertex_buffer,
     }
 }
