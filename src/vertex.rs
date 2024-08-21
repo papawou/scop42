@@ -4,5 +4,7 @@ use ash::vk;
 #[derive(Debug, Default, Copy, Clone)]
 pub struct Vertex {
     pub position: glam::Vec3,
-    pub _padding_position: f32, //added because glsl std430 consider vec3 as vec4 (float)
+    pub uv_x: f32,
+    pub color: glam::Vec3,
+    pub uv_y: f32,
 }
