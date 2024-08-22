@@ -73,8 +73,7 @@ impl<T> Mesh<T> {
                 .size(buffer_size as vk::DeviceSize)
                 .usage(vk::BufferUsageFlags::INDEX_BUFFER | vk::BufferUsageFlags::TRANSFER_DST);
             let allocation_info = vk_mem::AllocationCreateInfo {
-                flags: vk_mem::AllocationCreateFlags::HOST_ACCESS_RANDOM
-                    | vk_mem::AllocationCreateFlags::MAPPED,
+                flags: vk_mem::AllocationCreateFlags::HOST_ACCESS_RANDOM,
                 usage: vk_mem::MemoryUsage::AutoPreferDevice,
                 ..vk_mem::AllocationCreateInfo::default()
             };
@@ -88,14 +87,12 @@ impl<T> Mesh<T> {
             (buffer, buffer_size, allocation)
         };
 
-        let allocated_buffer = AllocatedBuffer {
+        self.index_buffer = Some(AllocatedBuffer {
             buffer,
             device_address: None,
             buffer_size,
             allocation,
-        };
-
-        self.index_buffer = Some(allocated_buffer);
+        });
     }
 
     pub fn destroy_buffers(&mut self, allocator: &vk_mem::Allocator) {

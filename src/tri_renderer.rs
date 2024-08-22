@@ -6,7 +6,7 @@ use crate::{
 };
 
 pub struct TriRenderer<'a> {
-    pub graphics_pipeline: GraphicsPipeline<'a>,
+    pub graphics_pipeline: GraphicsPipeline<'a, ()>,
 }
 
 impl<'a> Renderer for TriRenderer<'a> {

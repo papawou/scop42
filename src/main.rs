@@ -5,8 +5,10 @@ mod engine;
 mod graphics_pipeline;
 mod helpers;
 mod mesh;
+mod mesh_constants;
 mod mesh_renderer;
 mod pipeline_layout;
+mod traits;
 mod tri_renderer;
 mod vertex;
 
@@ -16,8 +18,9 @@ use anyhow::Ok;
 use ash::vk::{self};
 use engine::Engine;
 use graphics_pipeline::{create_mesh_pipeline, create_tri_pipeline, GraphicsPipeline};
+use mesh_constants::MeshConstants;
 use mesh_renderer::MeshRenderer;
-use pipeline_layout::{create_default_layout, create_mesh_layout, MeshConstants};
+use pipeline_layout::{create_default_layout, create_mesh_layout};
 use tri_renderer::TriRenderer;
 use vertex::Vertex;
 use winit::{
@@ -153,20 +156,10 @@ fn main() -> anyhow::Result<()> {
     if let Some(allocator) = &engine.allocator {
         mesh.destroy_buffers(&allocator);
     }
-    unsafe { engine.device.destroy_pipeline_layout(layout, None) };
+    unsafe { engine.device.destroy_pipeline_layout(layout.as_vk(), None) };
     unsafe { engine.destroy() };
 
     Ok(())
-}
-
-enum GraphicsPipelineType<'a> {
-    Tri(&'a GraphicsPipeline<'a>),
-    Mesh(&'a GraphicsPipeline<'a>),
-    None,
-}
-struct GraphicsPipelineAtlas<'a> {
-    tri_pipeline: GraphicsPipelineType<'a>,
-    mesh_pipeline: GraphicsPipelineType<'a>,
 }
 
 struct AllocatedBuffer {

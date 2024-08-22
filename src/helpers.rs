@@ -63,14 +63,8 @@ pub fn create_staging_buffer(
         let allocation_info = allocator.get_allocation_info(&allocation);
         let data_ptr = allocation_info.mapped_data;
 
-        // Explicitly check for null
         if data_ptr.is_null() {
             panic!("Mapped data pointer is null");
-        } else {
-            println!(
-                "Mapped data pointer is valid: {:?} {:?}",
-                data_ptr, buffer_size
-            );
         }
 
         std::ptr::copy_nonoverlapping(data.as_ptr(), data_ptr as *mut u8, buffer_size as usize);

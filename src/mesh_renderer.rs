@@ -7,20 +7,19 @@ use crate::{
     graphics_pipeline::GraphicsPipeline,
     helpers::print_bytes_in_hex,
     mesh::Mesh,
-    pipeline_layout::IntoOwned,
     vertex::Vertex,
 };
 
 pub struct MeshRenderer<'a, T>
 where
-    T: IntoOwned,
+    T: crate::traits::IntoOwned,
 {
-    pub graphics_pipeline: GraphicsPipeline<'a>,
+    pub graphics_pipeline: GraphicsPipeline<'a, T>,
     pub mesh: &'a Mesh<Vertex>,
     pub push_constants: Option<T>,
 }
 
-impl<'a, T: IntoOwned> Renderer for MeshRenderer<'a, T> {
+impl<'a, T: crate::traits::IntoOwned> Renderer for MeshRenderer<'a, T> {
     unsafe fn render(&self, engine: &Engine, framebuffer: vk::Framebuffer, cmd: vk::CommandBuffer) {
         let clear_values = [vk::ClearValue {
             color: vk::ClearColorValue {
@@ -45,7 +44,7 @@ impl<'a, T: IntoOwned> Renderer for MeshRenderer<'a, T> {
             let push_constants = crate::helpers::struct_to_bytes(&tmp);
             engine.device.cmd_push_constants(
                 cmd,
-                self.graphics_pipeline.layout.clone(),
+                self.graphics_pipeline.layout.as_vk(),
                 vk::ShaderStageFlags::VERTEX,
                 0,
                 push_constants,

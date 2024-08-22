@@ -1,9 +1,9 @@
 use ash::vk::{self, Framebuffer};
 
-use crate::engine::Engine;
+use crate::{engine::Engine, pipeline_layout::PipelineLayout};
 
-pub struct GraphicsPipeline<'a> {
-    pub layout: &'a vk::PipelineLayout,
+pub struct GraphicsPipeline<'a, T> {
+    pub layout: &'a PipelineLayout<T>,
     //pub render_pass: vk::RenderPass,
     pub pipeline: vk::Pipeline,
 }
@@ -65,8 +65,8 @@ pub fn create_tri_pipeline<'a>(
     device: &ash::Device,
     render_pass: vk::RenderPass,
     extent: vk::Extent2D,
-    layout: &'a vk::PipelineLayout,
-) -> GraphicsPipeline<'a> {
+    layout: &'a PipelineLayout,
+) -> GraphicsPipeline<'a, ()> {
     let main_entry = std::ffi::CString::new("main").unwrap();
     let vert_module = create_shader_module(device, "./shaders/colored_tri.vert.spv");
     let vert_stage = vk::PipelineShaderStageCreateInfo::default()
@@ -93,7 +93,7 @@ pub fn create_tri_pipeline<'a>(
         .stages(&stages)
         .vertex_input_state(&vertex_input_state)
         .viewport_state(&viewport_state)
-        .layout(layout.clone())
+        .layout(layout.as_vk())
         .render_pass(render_pass);
 
     //GRAPHICS_PIPELINE
@@ -112,12 +112,12 @@ pub fn create_tri_pipeline<'a>(
     }
 }
 
-pub fn create_mesh_pipeline<'a>(
+pub fn create_mesh_pipeline<'a, T>(
     device: &ash::Device,
     render_pass: vk::RenderPass,
     extent: vk::Extent2D,
-    layout: &'a vk::PipelineLayout,
-) -> GraphicsPipeline<'a> {
+    layout: &'a PipelineLayout<T>,
+) -> GraphicsPipeline<'a, T> {
     let main_entry = std::ffi::CString::new("main").unwrap();
     let vert_module = create_shader_module(device, "./shaders/mesh_dba.vert.spv");
     let vert_stage = vk::PipelineShaderStageCreateInfo::default()
@@ -143,7 +143,7 @@ pub fn create_mesh_pipeline<'a>(
         .stages(&stages)
         .viewport_state(&viewport_state)
         .vertex_input_state(&vertex_input_state)
-        .layout(layout.clone())
+        .layout(layout.as_vk())
         .render_pass(render_pass);
 
     let pipelines = unsafe {
