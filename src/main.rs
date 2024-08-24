@@ -31,6 +31,9 @@ use winit::{
 fn main() -> anyhow::Result<()> {
     std::env::set_var("RUST_BACKTRACE", "full");
 
+
+    let obj = ObjAsset::ObjAsset::parse("f 11/11// 1 4 13");
+
     let entry = unsafe { ash::Entry::load()? };
 
     //window
@@ -53,9 +56,6 @@ fn main() -> anyhow::Result<()> {
         engine.frames[0].command_buffer,
         engine.frames[0].command_pool,
     );
-
-    let obj = ObjAsset::ObjAsset::parse("f 11/11/2 1 4 13");
-
     let layout = create_mesh_layout::<MeshConstants>(&engine.device);
     let mut renderer = {
         let device_address = mesh
