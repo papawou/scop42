@@ -1,5 +1,6 @@
 #![allow(warnings)]
 
+mod ObjAsset;
 mod conf;
 mod engine;
 mod graphics_pipeline;
@@ -52,6 +53,8 @@ fn main() -> anyhow::Result<()> {
         engine.frames[0].command_buffer,
         engine.frames[0].command_pool,
     );
+
+    let obj = ObjAsset::ObjAsset::parse("f 11/11/2 1 4 13");
 
     let layout = create_mesh_layout::<MeshConstants>(&engine.device);
     let mut renderer = {
