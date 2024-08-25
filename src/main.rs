@@ -19,6 +19,7 @@ use anyhow::Ok;
 use ash::vk::{self};
 use engine::Engine;
 use graphics_pipeline::{create_mesh_pipeline, create_tri_pipeline, GraphicsPipeline};
+use mesh::from_obj;
 use mesh_constants::MeshConstants;
 use mesh_renderer::MeshRenderer;
 use pipeline_layout::{create_default_layout, create_mesh_layout};
@@ -30,9 +31,6 @@ use winit::{
 
 fn main() -> anyhow::Result<()> {
     std::env::set_var("RUST_BACKTRACE", "full");
-
-
-    let obj = ObjAsset::ObjAsset::parse("f 11/11// 1 4 13");
 
     let entry = unsafe { ash::Entry::load()? };
 
@@ -49,13 +47,27 @@ fn main() -> anyhow::Result<()> {
     let mut engine = engine::Engine::new(entry, &window);
 
     //MESH RENDERER
-    let mut mesh = mesh::load_default_mesh(
-        &engine.device,
-        engine.allocator.as_mut().unwrap(),
-        engine.graphics_queue,
-        engine.frames[0].command_buffer,
-        engine.frames[0].command_pool,
-    );
+    // let mut test = mesh::load_default_mesh(
+    //     &engine.device,
+    //     engine.allocator.as_mut().unwrap(),
+    //     engine.graphics_queue,
+    //     engine.frames[0].command_buffer,
+    //     engine.frames[0].command_pool,
+    // );
+
+    let mut mesh = {
+        let obj = ObjAsset::ObjAsset::load_from_file("resources/42.obj");
+        let mut mesh = from_obj(&obj);
+        mesh.load(
+            &engine.device,
+            engine.allocator.as_mut().unwrap(),
+            engine.graphics_queue,
+            engine.frames[0].command_buffer,
+            engine.frames[0].command_pool,
+        );
+        mesh
+    };
+
     let layout = create_mesh_layout::<MeshConstants>(&engine.device);
     let mut renderer = {
         let device_address = mesh
@@ -157,7 +169,7 @@ fn main() -> anyhow::Result<()> {
             .destroy_pipeline(renderer.graphics_pipeline.pipeline, None)
     };
     if let Some(allocator) = &engine.allocator {
-        mesh.destroy_buffers(&allocator);
+        mesh.unload(&allocator);
     }
     unsafe { engine.device.destroy_pipeline_layout(layout.as_vk(), None) };
     unsafe { engine.destroy() };
@@ -165,6 +177,7 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Debug)]
 struct AllocatedBuffer {
     buffer: vk::Buffer,
     device_address: Option<vk::DeviceAddress>,

@@ -9,6 +9,7 @@ pub struct GraphicsPipeline<'a, T> {
 }
 
 pub struct GraphicsPipelineInfoBuilder<'a> {
+    vertex_input_state: vk::PipelineVertexInputStateCreateInfo<'a>,
     input_assembly: vk::PipelineInputAssemblyStateCreateInfo<'a>,
     rasterization: vk::PipelineRasterizationStateCreateInfo<'a>,
     multisample: vk::PipelineMultisampleStateCreateInfo<'a>,
@@ -19,6 +20,7 @@ pub struct GraphicsPipelineInfoBuilder<'a> {
 impl<'a> GraphicsPipelineInfoBuilder<'a> {
     pub fn new() -> Self {
         GraphicsPipelineInfoBuilder {
+            vertex_input_state: vk::PipelineVertexInputStateCreateInfo::default(),
             input_assembly: vk::PipelineInputAssemblyStateCreateInfo::default()
                 .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
                 .primitive_restart_enable(false),
@@ -49,10 +51,20 @@ impl<'a> GraphicsPipelineInfoBuilder<'a> {
         }
     }
 
+    pub fn set_obj_compatible(&mut self) -> &mut Self {
+        self.input_assembly = self
+            .input_assembly
+            .topology(vk::PrimitiveTopology::TRIANGLE_STRIP)
+            .primitive_restart_enable(true);
+
+        self
+    }
+
     pub fn build(&'a mut self) -> vk::GraphicsPipelineCreateInfo<'a> {
         self.color_blend = self.color_blend.attachments(&self.color_blend_attachments);
 
         vk::GraphicsPipelineCreateInfo::default()
+            .vertex_input_state(&self.vertex_input_state)
             .input_assembly_state(&self.input_assembly)
             .rasterization_state(&self.rasterization)
             .multisample_state(&self.multisample)
@@ -85,13 +97,10 @@ pub fn create_tri_pipeline<'a>(
         .viewports(&viewports)
         .scissors(&scissors);
 
-    let vertex_input_state = &vk::PipelineVertexInputStateCreateInfo::default();
-
     let mut default_pipeline_info = GraphicsPipelineInfoBuilder::new();
     let pipeline_info = default_pipeline_info
         .build()
         .stages(&stages)
-        .vertex_input_state(&vertex_input_state)
         .viewport_state(&viewport_state)
         .layout(layout.as_vk())
         .render_pass(render_pass);
@@ -136,13 +145,12 @@ pub fn create_mesh_pipeline<'a, T>(
         .viewports(&viewports)
         .scissors(&scissors);
 
-    let vertex_input_state = vk::PipelineVertexInputStateCreateInfo::default();
     let mut default_pipeline_info = GraphicsPipelineInfoBuilder::new();
     let pipeline_info = default_pipeline_info
+        .set_obj_compatible()
         .build()
         .stages(&stages)
         .viewport_state(&viewport_state)
-        .vertex_input_state(&vertex_input_state)
         .layout(layout.as_vk())
         .render_pass(render_pass);
 

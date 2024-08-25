@@ -179,6 +179,7 @@ impl Engine {
             .begin_command_buffer(cmd, &cmd_begin_info)
             .unwrap();
 
+        //RENDERER
         renderer.render(&self, framebuffer, cmd);
 
         self.device.end_command_buffer(cmd).unwrap();
