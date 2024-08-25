@@ -1,7 +1,10 @@
+use std::u32;
+
 use ash::vk::{self};
 use vk_mem::Alloc;
 
 use crate::helpers::{print_bytes_in_hex, vec_to_bytes};
+use crate::ObjAsset::ObjAsset;
 use crate::{
     engine::Engine,
     helpers::{copy_buffer, struct_to_bytes},
@@ -9,6 +12,7 @@ use crate::{
     AllocatedBuffer,
 };
 
+#[derive(Debug)]
 pub struct Mesh<T> {
     pub vertices: Vec<T>,
     pub indices: Vec<u32>,
@@ -95,7 +99,7 @@ impl<T> Mesh<T> {
         });
     }
 
-    pub fn destroy_buffers(&mut self, allocator: &vk_mem::Allocator) {
+    pub fn unload(&mut self, allocator: &vk_mem::Allocator) {
         match &mut self.vertex_buffer.take() {
             Some(allocated_buffer) => unsafe {
                 allocator.destroy_buffer(allocated_buffer.buffer, &mut allocated_buffer.allocation);
@@ -110,36 +114,68 @@ impl<T> Mesh<T> {
             _ => {}
         }
     }
+
+    pub fn load(
+        &mut self,
+        device: &ash::Device,
+        allocator: &mut vk_mem::Allocator,
+        graphics_queue: vk::Queue,
+        cmd: vk::CommandBuffer,
+        command_pool: vk::CommandPool,
+    ) {
+        {
+            let data = vec_to_bytes(&self.vertices);
+
+            let mut staging_buffer = crate::helpers::create_staging_buffer(
+                data,
+                data.len() as vk::DeviceSize,
+                allocator,
+            );
+
+            self.create_vertex_buffer(device, allocator);
+            let vertex_buffer = self.vertex_buffer.as_ref().unwrap();
+
+            copy_buffer(
+                device,
+                staging_buffer.buffer,
+                vertex_buffer.buffer,
+                vertex_buffer.buffer_size as vk::DeviceSize,
+                command_pool,
+                graphics_queue,
+            );
+
+            unsafe {
+                allocator.destroy_buffer(staging_buffer.buffer, &mut staging_buffer.allocation);
+            }
+        }
+
+        {
+            let data = vec_to_bytes(&self.indices);
+
+            let mut staging_buffer = crate::helpers::create_staging_buffer(
+                data,
+                data.len() as vk::DeviceSize,
+                allocator,
+            );
+
+            self.create_index_buffer(allocator);
+            let index_buffer = self.index_buffer.as_ref().unwrap();
+
+            copy_buffer(
+                device,
+                staging_buffer.buffer,
+                index_buffer.buffer,
+                index_buffer.buffer_size as vk::DeviceSize,
+                command_pool,
+                graphics_queue,
+            );
+
+            unsafe {
+                allocator.destroy_buffer(staging_buffer.buffer, &mut staging_buffer.allocation);
+            }
+        }
+    }
 }
-
-const DEFAULT_VERTICES: [Vertex; 4] = [
-    Vertex {
-        position: glam::Vec3::new(0.0, 0.0, 0.0),
-        uv_x: 0f32,
-        color: glam::Vec3::new(0.0, 0.0, 0.0),
-        uv_y: 0f32,
-    },
-    Vertex {
-        position: glam::Vec3::new(1.0, 0.0, 0.0),
-        uv_x: 0f32,
-        color: glam::Vec3::new(1.0, 0.0, 0.0),
-        uv_y: 0f32,
-    },
-    Vertex {
-        position: glam::Vec3::new(0.0, 1.0, 0.0),
-        uv_x: 0f32,
-        color: glam::Vec3::new(0.0, 1.0, 0.0),
-        uv_y: 0f32,
-    },
-    Vertex {
-        position: glam::Vec3::new(1.0, 1.0, 0.0),
-        uv_x: 0f32,
-        color: glam::Vec3::new(1.0, 1.0, 0.0),
-        uv_y: 0f32,
-    },
-];
-
-const DEFAULT_INDICES: [u32; 6] = [0, 1, 2, 2, 1, 3];
 
 pub fn load_default_mesh(
     device: &ash::Device,
@@ -148,6 +184,35 @@ pub fn load_default_mesh(
     cmd: vk::CommandBuffer,
     command_pool: vk::CommandPool,
 ) -> Mesh<Vertex> {
+    const DEFAULT_VERTICES: [Vertex; 4] = [
+        Vertex {
+            position: glam::Vec3::new(0.0, 0.0, 0.0),
+            uv_x: 0f32,
+            color: glam::Vec3::new(0.0, 0.0, 0.0),
+            uv_y: 0f32,
+        },
+        Vertex {
+            position: glam::Vec3::new(1.0, 0.0, 0.0),
+            uv_x: 0f32,
+            color: glam::Vec3::new(1.0, 0.0, 0.0),
+            uv_y: 0f32,
+        },
+        Vertex {
+            position: glam::Vec3::new(0.0, 1.0, 0.0),
+            uv_x: 0f32,
+            color: glam::Vec3::new(0.0, 1.0, 0.0),
+            uv_y: 0f32,
+        },
+        Vertex {
+            position: glam::Vec3::new(1.0, 1.0, 0.0),
+            uv_x: 0f32,
+            color: glam::Vec3::new(1.0, 1.0, 0.0),
+            uv_y: 0f32,
+        },
+    ];
+
+    const DEFAULT_INDICES: [u32; 6] = [0, 1, 2, 2, 1, 3];
+
     let mut mesh = Mesh {
         vertices: DEFAULT_VERTICES.to_vec(),
         indices: DEFAULT_INDICES.to_vec(),
@@ -155,51 +220,36 @@ pub fn load_default_mesh(
         vertex_buffer: None,
     };
 
-    {
-        let data = vec_to_bytes(&mesh.vertices);
-
-        let mut staging_buffer =
-            crate::helpers::create_staging_buffer(data, data.len() as vk::DeviceSize, allocator);
-
-        mesh.create_vertex_buffer(device, allocator);
-        let vertex_buffer = mesh.vertex_buffer.as_ref().unwrap();
-
-        copy_buffer(
-            device,
-            staging_buffer.buffer,
-            vertex_buffer.buffer,
-            vertex_buffer.buffer_size as vk::DeviceSize,
-            command_pool,
-            graphics_queue,
-        );
-
-        unsafe {
-            allocator.destroy_buffer(staging_buffer.buffer, &mut staging_buffer.allocation);
-        }
-    }
-
-    {
-        let data = vec_to_bytes(&mesh.indices);
-
-        let mut staging_buffer =
-            crate::helpers::create_staging_buffer(data, data.len() as vk::DeviceSize, allocator);
-
-        mesh.create_index_buffer(allocator);
-        let index_buffer = mesh.index_buffer.as_ref().unwrap();
-
-        copy_buffer(
-            device,
-            staging_buffer.buffer,
-            index_buffer.buffer,
-            index_buffer.buffer_size as vk::DeviceSize,
-            command_pool,
-            graphics_queue,
-        );
-
-        unsafe {
-            allocator.destroy_buffer(staging_buffer.buffer, &mut staging_buffer.allocation);
-        }
-    }
-
+    mesh.load(device, allocator, graphics_queue, cmd, command_pool);
     mesh
+}
+
+pub fn from_obj(obj: &ObjAsset) -> Mesh<Vertex> {
+    let mut vertices: Vec<Vertex> = vec![];
+
+    for vertice in &obj.vertices {
+        vertices.push(Vertex {
+            position: glam::Vec3 {
+                x: vertice.x,
+                y: vertice.y,
+                z: vertice.z,
+            },
+            ..Default::default()
+        })
+    }
+
+    let mut indices: Vec<u32> = vec![];
+    for face in &obj.faces {
+        for vertex_attr in &face.vertex_attributes {
+            indices.push(vertex_attr.vertex_index - 1);
+        }
+        indices.push(u32::MAX);
+    }
+
+    Mesh {
+        vertices,
+        indices,
+        vertex_buffer: None,
+        index_buffer: None,
+    }
 }
