@@ -39,4 +39,14 @@ impl FrameData {
             present_semaphore,
         }
     }
+
+    pub fn destroy(self, device: &ash::Device) {
+        unsafe {
+            device.destroy_semaphore(self.render_semaphore, None);
+            device.destroy_semaphore(self.present_semaphore, None);
+            device.destroy_fence(self.fence, None);
+            device.free_command_buffers(self.command_pool, &[self.command_buffer]);
+            device.destroy_command_pool(self.command_pool, None);
+        }
+    }
 }

@@ -20,62 +20,66 @@ impl Swapchain {
         queue_families: &QueueFamilies,
         old_swapchain: Option<vk::SwapchainKHR>,
     ) -> Self {
-        let swap_surface_format = choose_swap_surface_format(&surface_support.formats);
-        let swap_present_mode = choose_swap_present_mode(&surface_support.present_modes);
-        let swap_extent = choose_swap_extent(
-            &surface_support.capabilities,
-            (physical_size.0, physical_size.1),
-        );
+        let surface_format = choose_surface_format(&surface_support.formats);
+        let extent = choose_extent(&surface_support.capabilities, physical_size);
 
-        let image_count = (surface_support.capabilities.min_image_count + 1).min(
-            if surface_support.capabilities.max_image_count > 0 {
-                surface_support.capabilities.max_image_count
+        // Swapchain
+        let swapchain = {
+            let min_image_count = (surface_support.capabilities.min_image_count + 1).min(
+                if surface_support.capabilities.max_image_count > 0 {
+                    surface_support.capabilities.max_image_count
+                } else {
+                    u32::MAX
+                },
+            );
+            let present_mode = choose_present_mode(&surface_support.present_modes);
+            let queue_family_indices = [queue_families.graphics, queue_families.present];
+
+            let mut create_info = vk::SwapchainCreateInfoKHR::default()
+                .surface(surface)
+                .min_image_count(min_image_count)
+                .image_format(surface_format.format)
+                .image_color_space(surface_format.color_space)
+                .image_extent(extent)
+                .image_array_layers(1)
+                .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
+                .pre_transform(surface_support.capabilities.current_transform)
+                .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
+                .present_mode(present_mode)
+                .clipped(true)
+                .image_sharing_mode(vk::SharingMode::EXCLUSIVE);
+
+            create_info = if queue_families.graphics != queue_families.present {
+                create_info
+                    .image_sharing_mode(vk::SharingMode::CONCURRENT)
+                    .queue_family_indices(&queue_family_indices)
             } else {
-                u32::MAX
-            },
-        );
+                create_info
+            };
 
-        let mut swapchain_create_info = vk::SwapchainCreateInfoKHR::default()
-            .surface(surface)
-            .min_image_count(image_count)
-            .image_format(swap_surface_format.format)
-            .image_color_space(swap_surface_format.color_space)
-            .image_extent(swap_extent)
-            .image_array_layers(1)
-            .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT);
+            create_info = if let Some(old_swap) = old_swapchain {
+                create_info.old_swapchain(old_swap)
+            } else {
+                create_info
+            };
 
-        let swapchain_queue_families = [queue_families.graphics, queue_families.present];
-        swapchain_create_info = if queue_families.graphics != queue_families.present {
-            swapchain_create_info
-                .image_sharing_mode(vk::SharingMode::CONCURRENT)
-                .queue_family_indices(&swapchain_queue_families)
-        } else {
-            swapchain_create_info.image_sharing_mode(vk::SharingMode::EXCLUSIVE)
-        };
-        swapchain_create_info = match old_swapchain {
-            Some(p) => swapchain_create_info.old_swapchain(p),
-            None => swapchain_create_info,
-        };
-        swapchain_create_info = swapchain_create_info
-            .pre_transform(surface_support.capabilities.current_transform)
-            .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
-            .present_mode(swap_present_mode)
-            .clipped(true);
-        let swapchain = unsafe {
-            swapchain_loader
-                .create_swapchain(&swapchain_create_info, None)
-                .unwrap()
+            unsafe {
+                swapchain_loader
+                    .create_swapchain(&create_info, None)
+                    .unwrap()
+            }
         };
 
-        let swapchain_images: Vec<vk::Image> =
+        // Image & ImageView
+        let images: Vec<vk::Image> =
             unsafe { swapchain_loader.get_swapchain_images(swapchain).unwrap() };
-        let swapchain_images_view = swapchain_images
+        let image_views = images
             .iter()
             .map(|&e| {
                 let image_view_info = vk::ImageViewCreateInfo::default()
                     .image(e)
                     .view_type(vk::ImageViewType::TYPE_2D)
-                    .format(swap_surface_format.format)
+                    .format(surface_format.format)
                     .components(vk::ComponentMapping {
                         r: vk::ComponentSwizzle::IDENTITY,
                         g: vk::ComponentSwizzle::IDENTITY,
@@ -90,27 +94,51 @@ impl Swapchain {
                     );
                 unsafe { device.create_image_view(&image_view_info, None).unwrap() }
             })
-            .collect::<Vec<_>>();
+            .collect::<Vec<vk::ImageView>>();
 
         Self {
-            extent: swap_extent,
-            surface_format: swap_surface_format,
+            extent,
+            surface_format,
             chain: swapchain,
-            images: swapchain_images,
-            image_views: swapchain_images_view,
+            images,
+            image_views,
         }
     }
 
-    pub fn clean(&mut self, device: &ash::Device, swapchain_loader: &ash::khr::swapchain::Device) {
+    //self dropped because shoud not be used more
+    pub fn destroy(self, device: &ash::Device, swapchain_loader: &ash::khr::swapchain::Device) {
         for &image_view in &self.image_views {
             unsafe { device.destroy_image_view(image_view, None) };
         }
-        self.image_views.clear();
         unsafe { swapchain_loader.destroy_swapchain(self.chain, None) };
+    }
+
+    pub fn get_framebuffers(
+        &self,
+        device: &ash::Device,
+        render_pass: vk::RenderPass,
+    ) -> Vec<vk::Framebuffer> {
+        let mut framebuffers = Vec::with_capacity(self.image_views.len());
+
+        //When rendering, the swapchain will give us the index of the image to render into, so we will use the framebuffer of the same index.
+        for &image_view in &self.image_views {
+            let attachments = [image_view];
+            let framebuffer_info = vk::FramebufferCreateInfo::default()
+                .render_pass(render_pass)
+                .attachments(&attachments)
+                .width(self.extent.width)
+                .height(self.extent.height)
+                .layers(1);
+            let framebuffer =
+                unsafe { device.create_framebuffer(&framebuffer_info, None).unwrap() };
+            framebuffers.push(framebuffer);
+        }
+
+        framebuffers
     }
 }
 
-fn choose_swap_surface_format(formats: &Vec<vk::SurfaceFormatKHR>) -> vk::SurfaceFormatKHR {
+fn choose_surface_format(formats: &Vec<vk::SurfaceFormatKHR>) -> vk::SurfaceFormatKHR {
     formats
         .iter()
         .find(|p| {
@@ -121,7 +149,7 @@ fn choose_swap_surface_format(formats: &Vec<vk::SurfaceFormatKHR>) -> vk::Surfac
         .unwrap_or_else(|| formats.get(0).cloned().unwrap())
 }
 
-fn choose_swap_present_mode(presents: &Vec<vk::PresentModeKHR>) -> vk::PresentModeKHR {
+fn choose_present_mode(presents: &Vec<vk::PresentModeKHR>) -> vk::PresentModeKHR {
     if presents.contains(&vk::PresentModeKHR::MAILBOX) {
         return vk::PresentModeKHR::MAILBOX;
     }
@@ -129,7 +157,7 @@ fn choose_swap_present_mode(presents: &Vec<vk::PresentModeKHR>) -> vk::PresentMo
     vk::PresentModeKHR::FIFO
 }
 
-fn choose_swap_extent(
+fn choose_extent(
     capabilities: &vk::SurfaceCapabilitiesKHR,
     (width, height): (u32, u32),
 ) -> vk::Extent2D {

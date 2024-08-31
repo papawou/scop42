@@ -1,13 +1,16 @@
 mod frame_data;
 mod queue_famillies;
+mod render_pass;
 mod surface_support;
 mod swapchain;
 
 use ash::vk::{self};
+use std::time::Instant;
+
 use frame_data::FrameData;
 use queue_famillies::QueueFamilies;
-use std::time::Instant;
 use surface_support::SurfaceSupport;
+use swapchain::Swapchain;
 
 use crate::conf;
 use winit::{platform::windows::WindowExtWindows, raw_window_handle::HasWindowHandle};
@@ -89,7 +92,7 @@ impl Engine {
 
         //swapchain
         let swapchain_loader = ash::khr::swapchain::Device::new(&instance, &device);
-        let swapchain = swapchain::Swapchain::new(
+        let swapchain = Swapchain::new(
             &swapchain_loader,
             &device,
             (window_physical_size.width, window_physical_size.height),
@@ -104,9 +107,9 @@ impl Engine {
         //vmem allocator
         let allocator = create_allocator(&instance, &device, physical_device);
 
-        let render_pass = create_default_render_pass(&device, swapchain.surface_format.format);
+        let render_pass = render_pass::create_default(&device, swapchain.surface_format.format);
 
-        let framebuffers = create_framebuffers(&device, &swapchain, render_pass);
+        let framebuffers = swapchain.get_framebuffers(&device, render_pass);
 
         Self {
             entry,
@@ -220,7 +223,7 @@ impl Engine {
         false
     }
 
-    pub unsafe fn destroy(&mut self) {
+    pub unsafe fn destroy(mut self) {
         for frame in &self.frames {
             self.device.destroy_semaphore(frame.present_semaphore, None);
             self.device.destroy_semaphore(frame.render_semaphore, None);
@@ -237,7 +240,7 @@ impl Engine {
 
         self.allocator = None; //vmaDestroyAllocator(_allocator);
 
-        self.swapchain.clean(&self.device, &self.swapchain_loader);
+        self.swapchain.destroy(&self.device, &self.swapchain_loader);
 
         self.device.destroy_device(None);
 
@@ -249,33 +252,36 @@ impl Engine {
     }
 
     pub unsafe fn handle_resize(&mut self, physical_size: (u32, u32)) -> bool {
-        //swapchain
-        let surface_support =
-            SurfaceSupport::new(self.physical_device, self.surface, &self.surface_loader);
-        let new_swapchain = swapchain::Swapchain::new(
-            &self.swapchain_loader,
-            &self.device,
-            (physical_size.0, physical_size.1),
-            &surface_support,
-            self.surface,
-            &self.queue_families,
-            Some(self.swapchain.chain),
-        );
+        let new_swapchain = {
+            //swapchain
+            let surface_support =
+                SurfaceSupport::new(self.physical_device, self.surface, &self.surface_loader);
+            swapchain::Swapchain::new(
+                &self.swapchain_loader,
+                &self.device,
+                (physical_size.0, physical_size.1),
+                &surface_support,
+                self.surface,
+                &self.queue_families,
+                Some(self.swapchain.chain),
+            )
+        };
 
-        for &framebuffer in &self.framebuffers {
-            self.device.destroy_framebuffer(framebuffer, None)
+        let old_swapchain = std::mem::replace(&mut self.swapchain, new_swapchain);
+
+        {
+            for &framebuffer in &self.framebuffers {
+                self.device.destroy_framebuffer(framebuffer, None)
+            }
+            self.device.destroy_render_pass(self.render_pass, None);
+            old_swapchain.destroy(&self.device, &self.swapchain_loader);
         }
 
-        self.device.destroy_render_pass(self.render_pass, None);
-
-        self.swapchain.clean(&self.device, &self.swapchain_loader);
-
-        //init
-        self.swapchain = new_swapchain;
-
         self.render_pass =
-            create_default_render_pass(&self.device, self.swapchain.surface_format.format);
-        self.framebuffers = create_framebuffers(&self.device, &self.swapchain, self.render_pass);
+            render_pass::create_default(&self.device, self.swapchain.surface_format.format);
+        self.framebuffers = self
+            .swapchain
+            .get_framebuffers(&self.device, self.render_pass);
 
         return false;
     }
@@ -409,29 +415,6 @@ unsafe extern "system" fn vulkan_debug_utils_callback(
     vk::FALSE
 }
 
-fn create_framebuffers(
-    device: &ash::Device,
-    swapchain: &swapchain::Swapchain,
-    render_pass: vk::RenderPass,
-) -> Vec<vk::Framebuffer> {
-    let mut framebuffers = Vec::with_capacity(swapchain.image_views.len());
-
-    //When rendering, the swapchain will give us the index of the image to render into, so we will use the framebuffer of the same index.
-    for &image_view in &swapchain.image_views {
-        let attachments = [image_view];
-        let framebuffer_info = vk::FramebufferCreateInfo::default()
-            .render_pass(render_pass)
-            .attachments(&attachments)
-            .width(swapchain.extent.width)
-            .height(swapchain.extent.height)
-            .layers(1);
-        let framebuffer = unsafe { device.create_framebuffer(&framebuffer_info, None).unwrap() };
-        framebuffers.push(framebuffer);
-    }
-
-    framebuffers
-}
-
 fn create_present_frames(
     device: &ash::Device,
     graphics_family: u32,
@@ -453,27 +436,4 @@ fn create_allocator(
     create_info.flags = vk_mem::AllocatorCreateFlags::BUFFER_DEVICE_ADDRESS;
     create_info.vulkan_api_version = vk::API_VERSION_1_3;
     unsafe { vk_mem::Allocator::new(create_info).unwrap() }
-}
-
-fn create_default_render_pass(device: &ash::Device, format: vk::Format) -> vk::RenderPass {
-    let color_attachments = [vk::AttachmentReference::default()
-        .attachment(0) //index link to renderpass.attachments
-        .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)];
-    let subpasses = [vk::SubpassDescription::default()
-        .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
-        .color_attachments(&color_attachments)];
-
-    let attachments = [vk::AttachmentDescription::default()
-        .format(format)
-        .samples(vk::SampleCountFlags::TYPE_1)
-        .load_op(vk::AttachmentLoadOp::CLEAR)
-        .store_op(vk::AttachmentStoreOp::STORE)
-        .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
-        .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
-        .initial_layout(vk::ImageLayout::UNDEFINED)
-        .final_layout(vk::ImageLayout::PRESENT_SRC_KHR)];
-    let render_pass_info = vk::RenderPassCreateInfo::default()
-        .attachments(&attachments)
-        .subpasses(&subpasses);
-    unsafe { device.create_render_pass(&render_pass_info, None).unwrap() }
 }
