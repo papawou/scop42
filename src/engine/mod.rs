@@ -23,41 +23,44 @@ pub trait Renderer {
 pub struct Engine {
     pub entry: ash::Entry,
     pub instance: ash::Instance,
-    pub device: ash::Device,
 
-    //vmem
-    pub allocator: Option<vk_mem::Allocator>,
+    pub start_instant: Instant,
 
-    //swapchain
-    pub swapchain_loader: ash::khr::swapchain::Device,
-    pub swapchain: swapchain::Swapchain,
-
-    //debug
+    // Debug
     pub debug_utils_loader: ash::ext::debug_utils::Instance,
     pub debug_utils_messenger: vk::DebugUtilsMessengerEXT,
 
-    //device
+    // Phyisical device
     pub physical_device: vk::PhysicalDevice,
+
+    // Surface
+    pub surface_loader: ash::khr::surface::Instance,
+    pub surface: vk::SurfaceKHR,
+
+    // Device
+    pub device: ash::Device,
     pub queue_families: QueueFamilies,
     pub graphics_queue: vk::Queue,
     pub present_queue: vk::Queue,
 
-    //surface
-    pub surface_loader: ash::khr::surface::Instance,
-    pub surface: vk::SurfaceKHR,
+    // vkMem
+    pub allocator: Option<vk_mem::Allocator>,
+
+    // Swapchain
+    pub frames: [FrameData; conf::MAX_FRAMES_IN_FLIGHT],
+
+    pub swapchain_loader: ash::khr::swapchain::Device,
+    pub swapchain: swapchain::Swapchain,
 
     pub render_pass: vk::RenderPass,
     pub framebuffers: Vec<vk::Framebuffer>,
 
-    pub frames: [FrameData; conf::MAX_FRAMES_IN_FLIGHT],
-
     pub frame_count: usize,
-    pub start_instant: Instant,
 }
 
 impl Engine {
     pub fn new(entry: ash::Entry, window: &winit::window::Window) -> Self {
-        //  window
+        // Window
         let hwnd = match window.window_handle().unwrap().as_raw() {
             winit::raw_window_handle::RawWindowHandle::Win32(handle) => handle.hwnd.get(),
             _ => panic!("Unsupported platform!"),
