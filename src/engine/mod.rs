@@ -70,27 +70,32 @@ impl Engine {
         let instance = create_instance(&entry);
         let (debug_utils_loader, debug_utils_messenger) = setup_debug_utils(&entry, &instance);
 
-        //  surface
+        // Physical device
+        let physical_device = get_physical_device(&instance);
+
+        //  Surface
         let win_surface_loader = ash::khr::win32_surface::Instance::new(&entry, &instance);
         let surface =
             unsafe { win_surface_loader.create_win32_surface(&window_info, None) }.unwrap();
-
         let surface_loader = ash::khr::surface::Instance::new(&entry, &instance);
-
-        // device
-        let physical_device = get_physical_device(&instance);
 
         let surface_support = SurfaceSupport::new(physical_device, surface, &surface_loader);
         if !surface_support.is_physical_device_compatible(&instance, physical_device) {
             panic!("physical_device invalid")
         }
 
+        // Device
         let (device, queue_families) =
             create_device(&instance, physical_device, &surface_loader, surface).unwrap();
         let graphics_queue = unsafe { device.get_device_queue(queue_families.graphics, 0) };
         let present_queue = unsafe { device.get_device_queue(queue_families.present, 0) };
 
-        //swapchain
+        // vk_mem Allocator
+        let allocator = create_allocator(&instance, &device, physical_device);
+
+        // FrameData
+        let frames = create_present_frames(&device, queue_families.graphics);
+        // Swapchain
         let swapchain_loader = ash::khr::swapchain::Device::new(&instance, &device);
         let swapchain = Swapchain::new(
             &swapchain_loader,
@@ -101,14 +106,7 @@ impl Engine {
             &queue_families,
             None,
         );
-
-        let frames = create_present_frames(&device, queue_families.graphics);
-
-        //vmem allocator
-        let allocator = create_allocator(&instance, &device, physical_device);
-
         let render_pass = render_pass::create_default(&device, swapchain.surface_format.format);
-
         let framebuffers = swapchain.get_framebuffers(&device, render_pass);
 
         Self {
