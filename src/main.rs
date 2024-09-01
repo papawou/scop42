@@ -177,14 +177,6 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[derive(Debug)]
-struct AllocatedBuffer {
-    buffer: vk::Buffer,
-    device_address: Option<vk::DeviceAddress>,
-    buffer_size: usize,
-    allocation: vk_mem::Allocation,
-}
-
 fn update_mesh_constants<'a>(engine: &Engine, constants: &MeshConstants<'a>) -> MeshConstants<'a> {
     let elapsed = engine.start_instant.elapsed().as_secs_f32();
 

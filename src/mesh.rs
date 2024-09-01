@@ -3,13 +3,13 @@ use std::u32;
 use ash::vk::{self};
 use vk_mem::Alloc;
 
+use crate::engine::allocated_buffer::AllocatedBuffer;
 use crate::helpers::{print_bytes_in_hex, vec_to_bytes};
 use crate::ObjAsset::ObjAsset;
 use crate::{
     engine::Engine,
     helpers::{copy_buffer, struct_to_bytes},
     vertex::{self, Vertex},
-    AllocatedBuffer,
 };
 
 #[derive(Debug)]

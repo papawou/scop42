@@ -1,3 +1,4 @@
+pub mod allocated_buffer;
 mod frame_data;
 mod queue_famillies;
 mod render_pass;
