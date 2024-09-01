@@ -6,7 +6,6 @@ pub struct Swapchain {
     pub extent: vk::Extent2D,
     pub surface_format: vk::SurfaceFormatKHR,
     pub chain: vk::SwapchainKHR,
-    pub images: Vec<vk::Image>,
     pub image_views: Vec<vk::ImageView>,
 }
 
@@ -70,7 +69,7 @@ impl Swapchain {
             }
         };
 
-        // Image & ImageView
+        // ImageView
         let images: Vec<vk::Image> =
             unsafe { swapchain_loader.get_swapchain_images(swapchain).unwrap() };
         let image_views = images
@@ -100,7 +99,6 @@ impl Swapchain {
             extent,
             surface_format,
             chain: swapchain,
-            images,
             image_views,
         }
     }
