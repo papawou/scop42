@@ -1,18 +1,31 @@
-use ash::vk;
+use std::any::Any;
 
-use super::{queue_famillies::QueueFamilies, surface_support::SurfaceSupport};
+use ash::vk;
+use vk_mem::Alloc;
+
+use super::{
+    allocated_image::AllocatedImage, queue_famillies::QueueFamilies,
+    surface_support::SurfaceSupport,
+};
 
 pub struct Swapchain {
     pub extent: vk::Extent2D,
     pub surface_format: vk::SurfaceFormatKHR,
     pub chain: vk::SwapchainKHR,
+    pub min_image_count: u32,
+
+    // RENDERING
     pub image_views: Vec<vk::ImageView>,
+
+    // DEPTH
+    pub depth_images: Vec<AllocatedImage>,
 }
 
 impl Swapchain {
     pub fn new(
         swapchain_loader: &ash::khr::swapchain::Device,
         device: &ash::Device,
+        allocator: &vk_mem::Allocator,
         physical_size: (u32, u32),
         surface_support: &SurfaceSupport,
         surface: vk::SurfaceKHR,
@@ -23,17 +36,26 @@ impl Swapchain {
         let extent = choose_extent(&surface_support.capabilities, physical_size);
 
         // Swapchain
-        let swapchain = {
-            let min_image_count = (surface_support.capabilities.min_image_count + 1).min(
-                if surface_support.capabilities.max_image_count > 0 {
-                    surface_support.capabilities.max_image_count
-                } else {
-                    u32::MAX
-                },
-            );
-            let present_mode = choose_present_mode(&surface_support.present_modes);
-            let queue_family_indices = [queue_families.graphics, queue_families.present];
+        let present_mode = choose_present_mode(&surface_support.present_modes);
+        let queue_family_indices = [queue_families.graphics, queue_families.present];
 
+        // Determine optimal image count
+        let min_image_count = {
+            let mut desired_image_count = surface_support.capabilities.min_image_count + 1;
+            // For `MAILBOX` present mode, we want at least 3 images for triple-buffering
+            if present_mode == vk::PresentModeKHR::MAILBOX {
+                desired_image_count = 3;
+            }
+            // Surface has a limit
+            if surface_support.capabilities.max_image_count > 0 {
+                desired_image_count = desired_image_count
+                    .min(surface_support.capabilities.max_image_count) //minimum is max
+                    .max(surface_support.capabilities.min_image_count); //maximum is min
+            }
+            desired_image_count
+        };
+
+        let swapchain = {
             let mut create_info = vk::SwapchainCreateInfoKHR::default()
                 .surface(surface)
                 .min_image_count(min_image_count)
@@ -69,37 +91,51 @@ impl Swapchain {
             }
         };
 
-        // ImageView
+        // Images
         let images: Vec<vk::Image> =
             unsafe { swapchain_loader.get_swapchain_images(swapchain).unwrap() };
-        let image_views = images
-            .iter()
-            .map(|&e| {
-                let image_view_info = vk::ImageViewCreateInfo::default()
-                    .image(e)
-                    .view_type(vk::ImageViewType::TYPE_2D)
-                    .format(surface_format.format)
-                    .components(vk::ComponentMapping {
-                        r: vk::ComponentSwizzle::IDENTITY,
-                        g: vk::ComponentSwizzle::IDENTITY,
-                        b: vk::ComponentSwizzle::IDENTITY,
-                        a: vk::ComponentSwizzle::IDENTITY,
-                    })
-                    .subresource_range(
-                        vk::ImageSubresourceRange::default()
-                            .aspect_mask(vk::ImageAspectFlags::COLOR)
-                            .level_count(1)
-                            .layer_count(1),
-                    );
-                unsafe { device.create_image_view(&image_view_info, None).unwrap() }
-            })
-            .collect::<Vec<vk::ImageView>>();
+        let mut image_views: Vec<vk::ImageView> = vec![];
+        let mut depth_images: Vec<AllocatedImage> = vec![];
+
+        for &image in &images {
+            let image_view_info = vk::ImageViewCreateInfo::default()
+                .image(image)
+                .format(surface_format.format)
+                .view_type(vk::ImageViewType::TYPE_2D)
+                .components(vk::ComponentMapping {
+                    r: vk::ComponentSwizzle::IDENTITY,
+                    g: vk::ComponentSwizzle::IDENTITY,
+                    b: vk::ComponentSwizzle::IDENTITY,
+                    a: vk::ComponentSwizzle::IDENTITY,
+                })
+                .subresource_range(
+                    vk::ImageSubresourceRange::default()
+                        .aspect_mask(vk::ImageAspectFlags::COLOR)
+                        .level_count(1)
+                        .layer_count(1),
+                );
+            let image_view = unsafe { device.create_image_view(&image_view_info, None).unwrap() };
+
+            let depth_image = create_depth_image(
+                device,
+                allocator,
+                vk::Extent3D {
+                    depth: 1,
+                    ..extent.into()
+                },
+            );
+
+            image_views.push(image_view);
+            depth_images.push(depth_image);
+        }
 
         Self {
+            chain: swapchain,
             extent,
             surface_format,
-            chain: swapchain,
             image_views,
+            min_image_count,
+            depth_images,
         }
     }
 
@@ -119,14 +155,15 @@ impl Swapchain {
         let mut framebuffers = Vec::with_capacity(self.image_views.len());
 
         //When rendering, the swapchain will give us the index of the image to render into, so we will use the framebuffer of the same index.
-        for &image_view in &self.image_views {
-            let attachments = [image_view];
+        for (&image_view, depth_image) in self.image_views.iter().zip(self.depth_images.iter()) {
+            let attachments = [image_view, depth_image.image_view];
             let framebuffer_info = vk::FramebufferCreateInfo::default()
                 .render_pass(render_pass)
                 .attachments(&attachments)
                 .width(self.extent.width)
                 .height(self.extent.height)
                 .layers(1);
+
             let framebuffer =
                 unsafe { device.create_framebuffer(&framebuffer_info, None).unwrap() };
             framebuffers.push(framebuffer);
@@ -172,5 +209,60 @@ fn choose_extent(
             capabilities.min_image_extent.height,
             capabilities.max_image_extent.height,
         ),
+    }
+}
+
+pub fn create_depth_image(
+    device: &ash::Device,
+    allocator: &vk_mem::Allocator,
+    extent: vk::Extent3D,
+) -> AllocatedImage {
+    let format = vk::Format::D32_SFLOAT;
+
+    let (image, allocation) = {
+        let image_create_info = vk::ImageCreateInfo::default()
+            .image_type(vk::ImageType::TYPE_2D)
+            .samples(vk::SampleCountFlags::TYPE_1)
+            .usage(vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT)
+            .extent(extent)
+            .format(format)
+            .mip_levels(1)
+            .array_layers(1);
+        let allocation_create_info = vk_mem::AllocationCreateInfo {
+            usage: vk_mem::MemoryUsage::AutoPreferDevice,
+            required_flags: vk::MemoryPropertyFlags::DEVICE_LOCAL,
+            ..Default::default()
+        };
+        unsafe {
+            allocator
+                .create_image(&image_create_info, &allocation_create_info)
+                .unwrap()
+        }
+    };
+
+    let image_view = {
+        let image_view_create_info = vk::ImageViewCreateInfo::default()
+            .image(image)
+            .format(format)
+            .view_type(vk::ImageViewType::TYPE_2D)
+            .subresource_range(
+                vk::ImageSubresourceRange::default()
+                    .aspect_mask(vk::ImageAspectFlags::DEPTH)
+                    .level_count(1)
+                    .layer_count(1),
+            );
+        unsafe {
+            device
+                .create_image_view(&image_view_create_info, None)
+                .unwrap()
+        }
+    };
+
+    AllocatedImage {
+        image,
+        image_view,
+        extent,
+        allocation,
+        format,
     }
 }
