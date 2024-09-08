@@ -17,12 +17,13 @@ pub fn create_default(device: &ash::Device, format: vk::Format) -> vk::RenderPas
         .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
 
     //DEPTH
+    let depth_format = vk::Format::D32_SFLOAT; // duplicated in swapchain::create_depth_image
     let depth_attachement = vk::AttachmentDescription::default()
-        .format(format)
+        .format(depth_format)
         .samples(vk::SampleCountFlags::TYPE_1)
         .load_op(vk::AttachmentLoadOp::CLEAR)
         .store_op(vk::AttachmentStoreOp::STORE)
-        .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
+        .stencil_load_op(vk::AttachmentLoadOp::CLEAR)
         .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
         .initial_layout(vk::ImageLayout::UNDEFINED)
         .final_layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
