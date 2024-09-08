@@ -1,4 +1,5 @@
 pub mod allocated_buffer;
+mod allocated_image;
 mod frame_data;
 mod queue_famillies;
 mod render_pass;
@@ -7,6 +8,7 @@ mod swapchain;
 
 use ash::vk::{self};
 use std::time::Instant;
+use vk_mem::Alloc;
 
 use frame_data::FrameData;
 use queue_famillies::QueueFamilies;
@@ -104,12 +106,14 @@ impl Engine {
         let swapchain = Swapchain::new(
             &swapchain_loader,
             &device,
+            &allocator,
             (window_physical_size.width, window_physical_size.height),
             &surface_support,
             surface,
             &queue_families,
             None,
         );
+
         let render_pass = render_pass::create_default(&device, swapchain.surface_format.format);
         let framebuffers = swapchain.get_framebuffers(&device, render_pass);
 
@@ -261,6 +265,7 @@ impl Engine {
             swapchain::Swapchain::new(
                 &self.swapchain_loader,
                 &self.device,
+                &self.allocator.as_ref().unwrap(),
                 (physical_size.0, physical_size.1),
                 &surface_support,
                 self.surface,
