@@ -15,6 +15,7 @@ pub struct GraphicsPipelineInfoBuilder<'a> {
     multisample: vk::PipelineMultisampleStateCreateInfo<'a>,
     color_blend: vk::PipelineColorBlendStateCreateInfo<'a>,
     color_blend_attachments: Vec<vk::PipelineColorBlendAttachmentState>,
+    depth_stencil: vk::PipelineDepthStencilStateCreateInfo<'a>,
 }
 
 impl<'a> GraphicsPipelineInfoBuilder<'a> {
@@ -48,6 +49,7 @@ impl<'a> GraphicsPipelineInfoBuilder<'a> {
                 .blend_enable(false)],
             color_blend: vk::PipelineColorBlendStateCreateInfo::default()
                 .logic_op(vk::LogicOp::COPY),
+            depth_stencil: vk::PipelineDepthStencilStateCreateInfo::default(),
         }
     }
 
@@ -56,6 +58,20 @@ impl<'a> GraphicsPipelineInfoBuilder<'a> {
             .input_assembly
             .topology(vk::PrimitiveTopology::TRIANGLE_STRIP)
             .primitive_restart_enable(true);
+
+        self
+    }
+
+    pub fn set_depth_stencil(&mut self) -> &mut Self {
+        self.depth_stencil = self
+            .depth_stencil
+            .depth_test_enable(true)
+            .depth_write_enable(true)
+            .depth_compare_op(vk::CompareOp::ALWAYS)
+            .depth_bounds_test_enable(false)
+            .min_depth_bounds(0.0f32)
+            .max_depth_bounds(1.0f32)
+            .stencil_test_enable(false);
 
         self
     }
@@ -69,6 +85,7 @@ impl<'a> GraphicsPipelineInfoBuilder<'a> {
             .rasterization_state(&self.rasterization)
             .multisample_state(&self.multisample)
             .color_blend_state(&self.color_blend)
+            .depth_stencil_state(&self.depth_stencil)
     }
 }
 
@@ -148,6 +165,7 @@ pub fn create_mesh_pipeline<'a, T>(
     let mut default_pipeline_info = GraphicsPipelineInfoBuilder::new();
     let pipeline_info = default_pipeline_info
         .set_obj_compatible()
+        .set_depth_stencil()
         .build()
         .stages(&stages)
         .viewport_state(&viewport_state)

@@ -21,11 +21,20 @@ where
 
 impl<'a, T: crate::traits::IntoOwned> Renderer for MeshRenderer<'a, T> {
     unsafe fn render(&self, engine: &Engine, framebuffer: vk::Framebuffer, cmd: vk::CommandBuffer) {
-        let clear_values = [vk::ClearValue {
+        let color_clear_value = vk::ClearValue {
             color: vk::ClearColorValue {
                 float32: [0.0f32, 0.0f32, 0.0f32, 1.0f32],
             },
-        }];
+        };
+
+        let depth_clear_value = vk::ClearValue {
+            depth_stencil: vk::ClearDepthStencilValue {
+                depth: 1.0f32,
+                stencil: 0,
+            },
+        };
+
+        let clear_values = [color_clear_value, depth_clear_value];
 
         let renderpass_info = vk::RenderPassBeginInfo::default()
             .render_pass(engine.render_pass)
