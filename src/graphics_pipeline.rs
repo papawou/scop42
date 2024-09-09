@@ -164,7 +164,7 @@ pub fn create_mesh_pipeline<'a, T>(
 
     let mut default_pipeline_info = GraphicsPipelineInfoBuilder::new();
     let pipeline_info = default_pipeline_info
-        //.set_obj_compatible()
+        .set_obj_compatible()
         //.set_depth_stencil()
         .build()
         .stages(&stages)
