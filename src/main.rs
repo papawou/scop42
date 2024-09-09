@@ -94,7 +94,21 @@ fn main() -> anyhow::Result<()> {
     };
     let mut require_resize = false;
 
-    let mut cam = glam::Vec3::ZERO;
+    let mut camera_pos = glam::Vec3::ZERO;
+
+    let handle_key_event = |physical_key: winit::keyboard::PhysicalKey,
+                            state: winit::event::ElementState| {
+        match (physical_key, state) {
+            (
+                winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::KeyW),
+                winit::event::ElementState::Pressed,
+            ) => {
+                println!("W key pressed");
+            }
+            // Add other keys and actions as needed
+            _ => {}
+        }
+    };
 
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
     event_loop
@@ -136,7 +150,8 @@ fn main() -> anyhow::Result<()> {
 
                             // engine loop
                             if let Some(constants) = &renderer.push_constants {
-                                let updated_constants = update_mesh_constants(&engine, constants);
+                                let updated_constants =
+                                    update_mesh_constants(&engine, camera_pos, constants);
                                 renderer.push_constants = Some(updated_constants);
                             }
 
@@ -147,16 +162,27 @@ fn main() -> anyhow::Result<()> {
                         winit::event::WindowEvent::KeyboardInput {
                             event:
                                 winit::event::KeyEvent {
-                                    physical_key:
-                                        winit::keyboard::PhysicalKey::Code(
-                                            winit::keyboard::KeyCode::KeyW,
-                                        ),
+                                    physical_key,
                                     state: winit::event::ElementState::Pressed,
                                     repeat: false,
                                     ..
                                 },
                             ..
-                        } => cam += -1.0f32,
+                        } => match physical_key {
+                            winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::KeyW) => {
+                                camera_pos.z += -1.0f32;
+                            }
+                            winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::KeyS) => {
+                                camera_pos.z += 1.0f32;
+                            }
+                            winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::KeyA) => {
+                                camera_pos.x += -1.0f32;
+                            }
+                            winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::KeyD) => {
+                                camera_pos.x += 1.0f32;
+                            }
+                            _ => {}
+                        },
                         _ => {}
                     },
                     _ => {}
@@ -179,12 +205,17 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn update_mesh_constants<'a>(engine: &Engine, constants: &MeshConstants<'a>) -> MeshConstants<'a> {
+fn update_mesh_constants<'a>(
+    engine: &Engine,
+    camera_pos: glam::Vec3,
+    constants: &MeshConstants<'a>,
+) -> MeshConstants<'a> {
     let elapsed = engine.start_instant.elapsed().as_secs_f32();
 
     let mesh_matrix = {
-        let cam_pos = glam::Vec3::new(0.0, 0.0, 5.0);
-        let cam_target = glam::Vec3::new(0.0, 2.0, 0.0);
+        let cam_pos = camera_pos;
+        //let cam_pos = glam::Vec3::new(0.0, 0.0, 5.0);
+        let cam_target = glam::Vec3::new(0.0, 0.0, 0.0);
         let cam_up = glam::Vec3::new(0.0, 1.0, 0.0);
 
         let view = glam::Mat4::look_at_rh(cam_pos, cam_target, cam_up);
