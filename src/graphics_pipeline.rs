@@ -29,9 +29,9 @@ impl<'a> GraphicsPipelineInfoBuilder<'a> {
                 .depth_clamp_enable(false)
                 .rasterizer_discard_enable(false)
                 .line_width(1.0)
-                //no backface cull
+                // backface cull
                 .cull_mode(vk::CullModeFlags::NONE)
-                .front_face(vk::FrontFace::CLOCKWISE)
+                .front_face(vk::FrontFace::COUNTER_CLOCKWISE)
                 //no depth bias
                 .depth_bias_enable(false)
                 .depth_bias_constant_factor(0.0)
@@ -164,8 +164,8 @@ pub fn create_mesh_pipeline<'a, T>(
 
     let mut default_pipeline_info = GraphicsPipelineInfoBuilder::new();
     let pipeline_info = default_pipeline_info
-        .set_obj_compatible()
-        .set_depth_stencil()
+        //.set_obj_compatible()
+        //.set_depth_stencil()
         .build()
         .stages(&stages)
         .viewport_state(&viewport_state)

@@ -1,0 +1,10 @@
+# Blender v2.71 (sub 0) OBJ File: '42.blend'
+# www.blender.org
+
+o Tri
+
+v 1.0 0.0 0.0
+v 0.0 1.0 0.0
+v 0.0 0.0 0.0
+
+f 1 2 3

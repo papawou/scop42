@@ -29,5 +29,5 @@ void main()
 
 	//output data
 	gl_Position = PushConstants.render_matrix * vec4(v.position, 1.0f);
-	outColor = vec3(1.0f, 1.0f, 1.0f);
+	outColor = v.position;
 }
