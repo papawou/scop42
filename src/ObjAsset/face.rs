@@ -27,6 +27,8 @@ impl VertexAttribute {
             .iter()
             .map(|&v| Self::vertex_attribute_parse(v))
             .collect::<Vec<Option<u32>>>();
+
+        //todo parse texture and normal
         vertex_attributes.resize(3, None);
 
         match vertex_attributes[..] {

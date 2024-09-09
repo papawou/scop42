@@ -40,7 +40,7 @@ impl ObjAsset {
     }
 
     pub fn load_from_file(path: &str) -> Self {
-        let install_path = std::path::Path::new("resources/42.obj");
+        let install_path = std::path::Path::new(path);
         let content = std::fs::read_to_string(install_path).unwrap();
 
         Self::parse(&content)

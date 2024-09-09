@@ -56,7 +56,7 @@ fn main() -> anyhow::Result<()> {
     // );
 
     let mut mesh = {
-        let obj = ObjAsset::ObjAsset::load_from_file("resources/42.obj");
+        let obj = ObjAsset::ObjAsset::load_from_file("resources/tri.obj");
         let mut mesh = from_obj(&obj);
         mesh.load(
             &engine.device,
@@ -93,6 +93,8 @@ fn main() -> anyhow::Result<()> {
         }
     };
     let mut require_resize = false;
+
+    let mut cam = glam::Vec3::ZERO;
 
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
     event_loop
@@ -154,7 +156,7 @@ fn main() -> anyhow::Result<()> {
                                     ..
                                 },
                             ..
-                        } => {}
+                        } => cam += -1.0f32,
                         _ => {}
                     },
                     _ => {}
@@ -181,16 +183,23 @@ fn update_mesh_constants<'a>(engine: &Engine, constants: &MeshConstants<'a>) -> 
     let elapsed = engine.start_instant.elapsed().as_secs_f32();
 
     let mesh_matrix = {
-        let cam_pos = glam::Vec3::new(0.0, 0.0, -5.0);
-        let view = glam::Mat4::from_translation(cam_pos);
-        let projection = glam::Mat4::perspective_rh_gl(
+        let cam_pos = glam::Vec3::new(0.0, 0.0, 5.0);
+        let cam_target = glam::Vec3::new(0.0, 2.0, 0.0);
+        let cam_up = glam::Vec3::new(0.0, 1.0, 0.0);
+
+        let view = glam::Mat4::look_at_rh(cam_pos, cam_target, cam_up);
+        let projection = glam::Mat4::perspective_rh(
             70.0_f32.to_radians(),
             engine.swapchain.extent.width as f32 / engine.swapchain.extent.height as f32,
             0.1,
             200.0,
         );
-        let model = glam::Mat4::from_rotation_y(elapsed * 20.0f32.to_radians());
-        projection * view * model
+        //let model = glam::Mat4::from_rotation_x(0.0f32);
+        let fix_upside = glam::Mat4 {
+            y_axis: glam::vec4(0.0, -1.0, 0.0, 0.0),
+            ..glam::Mat4::IDENTITY
+        };
+        projection * fix_upside * view
     };
 
     MeshConstants {
