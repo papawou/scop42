@@ -30,7 +30,7 @@ impl<'a> GraphicsPipelineInfoBuilder<'a> {
                 .rasterizer_discard_enable(false)
                 .line_width(1.0)
                 // backface cull
-                .cull_mode(vk::CullModeFlags::NONE)
+                .cull_mode(vk::CullModeFlags::BACK)
                 .front_face(vk::FrontFace::COUNTER_CLOCKWISE)
                 //no depth bias
                 .depth_bias_enable(false)
