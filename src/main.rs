@@ -96,20 +96,6 @@ fn main() -> anyhow::Result<()> {
 
     let mut camera_pos = glam::Vec3::ZERO;
 
-    let handle_key_event = |physical_key: winit::keyboard::PhysicalKey,
-                            state: winit::event::ElementState| {
-        match (physical_key, state) {
-            (
-                winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::KeyW),
-                winit::event::ElementState::Pressed,
-            ) => {
-                println!("W key pressed");
-            }
-            // Add other keys and actions as needed
-            _ => {}
-        }
-    };
-
     let mut last_update = std::time::Instant::now();
 
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
