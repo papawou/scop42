@@ -233,7 +233,6 @@ fn update_mesh_constants<'a>(
 
     let mesh_matrix = {
         let cam_pos = camera_pos;
-        //let cam_pos = glam::Vec3::new(0.0, 0.0, 5.0);
         let cam_target = glam::Vec3::new(0.0, 0.0, 0.0);
         let cam_up = glam::Vec3::new(0.0, 1.0, 0.0);
 
@@ -244,7 +243,7 @@ fn update_mesh_constants<'a>(
             0.1,
             200.0,
         );
-        //let model = glam::Mat4::from_rotation_x(0.0f32);
+
         let fix_upside = glam::Mat4 {
             y_axis: glam::vec4(0.0, -1.0, 0.0, 0.0),
             ..glam::Mat4::IDENTITY
