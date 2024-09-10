@@ -56,7 +56,7 @@ fn main() -> anyhow::Result<()> {
     // );
 
     let mut mesh = {
-        let obj = ObjAsset::ObjAsset::load_from_file("resources/tri.obj");
+        let obj = ObjAsset::ObjAsset::load_from_file("resources/cow.obj");
         let mut mesh = from_obj(&obj);
         mesh.load(
             &engine.device,

@@ -67,7 +67,7 @@ impl<'a> GraphicsPipelineInfoBuilder<'a> {
             .depth_stencil
             .depth_test_enable(true)
             .depth_write_enable(true)
-            .depth_compare_op(vk::CompareOp::ALWAYS)
+            .depth_compare_op(vk::CompareOp::LESS)
             .depth_bounds_test_enable(false)
             .min_depth_bounds(0.0f32)
             .max_depth_bounds(1.0f32)
@@ -165,7 +165,7 @@ pub fn create_mesh_pipeline<'a, T>(
     let mut default_pipeline_info = GraphicsPipelineInfoBuilder::new();
     let pipeline_info = default_pipeline_info
         .set_obj_compatible()
-        //.set_depth_stencil()
+        .set_depth_stencil()
         .build()
         .stages(&stages)
         .viewport_state(&viewport_state)
