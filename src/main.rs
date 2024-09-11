@@ -2,7 +2,7 @@
 
 mod ObjAsset;
 mod conf;
-mod engine;
+mod ft_vk;
 mod graphics_pipeline;
 mod helpers;
 mod mesh;
@@ -17,7 +17,7 @@ use std::{path, time::Duration};
 
 use anyhow::Ok;
 use ash::vk::{self};
-use engine::Engine;
+use ft_vk::Engine;
 use graphics_pipeline::{create_mesh_pipeline, create_tri_pipeline, GraphicsPipeline};
 use mesh::from_obj;
 use mesh_constants::MeshConstants;
@@ -44,7 +44,7 @@ fn main() -> anyhow::Result<()> {
         ))
         .build(&event_loop)?;
 
-    let mut engine = engine::Engine::new(entry, &window);
+    let mut engine = ft_vk::Engine::new(entry, &window);
 
     //MESH RENDERER
     // let mut test = mesh::load_default_mesh(
@@ -103,7 +103,6 @@ fn main() -> anyhow::Result<()> {
         .run(
             |event: winit::event::Event<_>, elwt: &winit::event_loop::EventLoopWindowTarget<_>| {
                 match event {
-                    // winit::event::Event::AboutToWait => window.request_redraw(),
                     winit::event::Event::LoopExiting => {
                         unsafe { engine.device.device_wait_idle() }.unwrap();
                     }
@@ -119,7 +118,7 @@ fn main() -> anyhow::Result<()> {
                             if require_resize {
                                 let new_size = window.inner_size();
 
-                                unsafe { engine.device.device_wait_idle().unwrap() }; //FLOW CONTROL wait for device no more work
+                                unsafe { engine.device.device_wait_idle().unwrap() }; // FLOW CONTROL wait for device no more work
 
                                 unsafe {
                                     engine

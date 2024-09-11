@@ -1,6 +1,6 @@
 use ash::vk::{self, Framebuffer};
 
-use crate::{engine::Engine, pipeline_layout::PipelineLayout};
+use crate::{ft_vk::Engine, pipeline_layout::PipelineLayout};
 
 pub struct GraphicsPipeline<'a, T> {
     pub layout: &'a PipelineLayout<T>,

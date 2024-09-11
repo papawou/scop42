@@ -3,7 +3,7 @@ use std::io::Write;
 use ash::vk;
 
 use crate::{
-    engine::{Engine, Renderer},
+    ft_vk::{Engine, Renderer},
     graphics_pipeline::GraphicsPipeline,
     helpers::print_bytes_in_hex,
     mesh::Mesh,

@@ -1,7 +1,7 @@
 use ash::vk;
 
 use crate::{
-    engine::{Engine, Renderer},
+    ft_vk::{Engine, Renderer},
     graphics_pipeline::GraphicsPipeline,
 };
 

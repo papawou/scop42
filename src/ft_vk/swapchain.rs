@@ -212,7 +212,7 @@ fn choose_extent(
     }
 }
 
-pub fn create_depth_image(
+fn create_depth_image(
     device: &ash::Device,
     allocator: &vk_mem::Allocator,
     extent: vk::Extent3D,

@@ -1,7 +1,7 @@
 use ash::vk;
 use vk_mem::Alloc;
 
-use crate::engine::allocated_buffer::AllocatedBuffer;
+use crate::ft_vk::allocated_buffer::AllocatedBuffer;
 
 pub fn copy_buffer(
     device: &ash::Device,
