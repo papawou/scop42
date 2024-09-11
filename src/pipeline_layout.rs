@@ -1,21 +1,6 @@
 use ash::vk;
 
-use crate::mesh::Mesh;
-
-pub struct PipelineLayout<T = ()> {
-    pub layout: vk::PipelineLayout,
-    _marker: std::marker::PhantomData<T>,
-}
-
-impl<T> PipelineLayout<T> {
-    pub fn as_ref_vk(&self) -> &vk::PipelineLayout {
-        &self.layout
-    }
-
-    pub fn as_vk(&self) -> vk::PipelineLayout {
-        self.layout.clone()
-    }
-}
+use crate::{ft_vk::PipelineLayout, mesh::Mesh};
 
 pub fn create_default_layout(device: &ash::Device) -> PipelineLayout {
     let layout = unsafe {

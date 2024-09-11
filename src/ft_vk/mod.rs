@@ -1,7 +1,15 @@
 pub mod allocated_buffer;
 mod allocated_image;
 mod frame_data;
+mod graphics_pipeline;
+mod pipeline_layout;
+mod shader_module;
+pub use graphics_pipeline::GraphicsPipelineInfoBuilder;
+pub use pipeline_layout::PipelineLayout;
+pub use shader_module::ShaderModule;
 mod queue_famillies;
+pub use queue_famillies::QueueFamilies;
+
 mod render_pass;
 mod surface_support;
 mod swapchain;
@@ -11,7 +19,6 @@ use std::time::Instant;
 use vk_mem::Alloc;
 
 use frame_data::FrameData;
-use queue_famillies::QueueFamilies;
 use surface_support::SurfaceSupport;
 use swapchain::Swapchain;
 
@@ -99,8 +106,6 @@ impl Engine {
         // vk_mem Allocator
         let allocator = create_allocator(&instance, &device, physical_device);
 
-        // FrameData
-        let frames = create_present_frames(&device, queue_families.graphics);
         // Swapchain
         let swapchain_loader = ash::khr::swapchain::Device::new(&instance, &device);
         let swapchain = Swapchain::new(
@@ -114,6 +119,7 @@ impl Engine {
             None,
         );
 
+        let frames = create_present_frames(&device, queue_families.graphics);
         let render_pass = render_pass::create_default(&device, swapchain.surface_format.format);
         let framebuffers = swapchain.get_framebuffers(&device, render_pass);
 
