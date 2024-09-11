@@ -140,9 +140,20 @@ impl Swapchain {
     }
 
     //self dropped because shoud not be used more
-    pub fn destroy(self, device: &ash::Device, swapchain_loader: &ash::khr::swapchain::Device) {
+    pub fn destroy(
+        self,
+        device: &ash::Device,
+        allocator: &vk_mem::Allocator,
+        swapchain_loader: &ash::khr::swapchain::Device,
+    ) {
         for &image_view in &self.image_views {
             unsafe { device.destroy_image_view(image_view, None) };
+        }
+        for depth_image in self.depth_images {
+            unsafe { device.destroy_image_view(depth_image.image_view, None) };
+
+            let mut depth_image = depth_image;
+            unsafe { allocator.destroy_image(depth_image.image, &mut depth_image.allocation) }
         }
         unsafe { swapchain_loader.destroy_swapchain(self.chain, None) };
     }

@@ -56,7 +56,7 @@ pub struct Engine {
     pub allocator: Option<vk_mem::Allocator>,
 
     // Swapchain
-    pub frames: [FrameData; conf::MAX_FRAMES_IN_FLIGHT],
+    pub frames: Vec<FrameData>,
 
     pub swapchain_loader: ash::khr::swapchain::Device,
     pub swapchain: swapchain::Swapchain,
@@ -106,7 +106,8 @@ impl Engine {
         // vk_mem Allocator
         let allocator = create_allocator(&instance, &device, physical_device);
 
-        // Swapchain
+        // SWAPCHAIN
+
         let swapchain_loader = ash::khr::swapchain::Device::new(&instance, &device);
         let swapchain = Swapchain::new(
             &swapchain_loader,
@@ -119,7 +120,11 @@ impl Engine {
             None,
         );
 
-        let frames = create_present_frames(&device, queue_families.graphics);
+        let frames = create_present_frames(
+            &device,
+            queue_families.graphics,
+            swapchain.min_image_count as usize,
+        );
         let render_pass = render_pass::create_default(&device, swapchain.surface_format.format);
         let framebuffers = swapchain.get_framebuffers(&device, render_pass);
 
@@ -162,7 +167,7 @@ impl Engine {
             present_semaphore,
             render_semaphore,
             ..
-        } = self.frames[self.frame_count % conf::MAX_FRAMES_IN_FLIGHT];
+        } = self.frames[self.frame_count % self.swapchain.min_image_count as usize];
 
         self.device
             .wait_for_fences(&[fence], true, u64::MAX)
@@ -252,7 +257,11 @@ impl Engine {
 
         self.allocator = None; //vmaDestroyAllocator(_allocator);
 
-        self.swapchain.destroy(&self.device, &self.swapchain_loader);
+        self.swapchain.destroy(
+            &self.device,
+            self.allocator.as_ref().unwrap(),
+            &self.swapchain_loader,
+        );
 
         self.device.destroy_device(None);
 
@@ -287,7 +296,11 @@ impl Engine {
                 self.device.destroy_framebuffer(framebuffer, None)
             }
             self.device.destroy_render_pass(self.render_pass, None);
-            old_swapchain.destroy(&self.device, &self.swapchain_loader);
+            old_swapchain.destroy(
+                &self.device,
+                self.allocator.as_ref().unwrap(),
+                &self.swapchain_loader,
+            );
         }
 
         self.render_pass =
@@ -321,7 +334,6 @@ fn create_instance(entry: &ash::Entry) -> ash::Instance {
 }
 
 //DEVICES
-
 fn get_physical_device(instance: &ash::Instance) -> vk::PhysicalDevice {
     let phys_devs = unsafe { instance.enumerate_physical_devices().unwrap() };
     let phys_dev = phys_devs
@@ -431,13 +443,15 @@ unsafe extern "system" fn vulkan_debug_utils_callback(
 fn create_present_frames(
     device: &ash::Device,
     graphics_family: u32,
-) -> [FrameData; conf::MAX_FRAMES_IN_FLIGHT] {
-    let mut frames = Vec::with_capacity(conf::MAX_FRAMES_IN_FLIGHT);
+    count: usize,
+) -> Vec<FrameData> {
+    let mut frames = Vec::with_capacity(count);
 
-    for _ in 0..conf::MAX_FRAMES_IN_FLIGHT {
+    for _ in 0..count {
         frames.push(FrameData::new(device, graphics_family));
     }
-    frames.try_into().unwrap()
+
+    frames
 }
 
 fn create_allocator(

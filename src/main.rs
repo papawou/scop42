@@ -109,7 +109,6 @@ fn main() -> anyhow::Result<()> {
                     winit::event::Event::WindowEvent { event, .. } => match event {
                         // WINDOW
                         winit::event::WindowEvent::RedrawRequested => {
-                            println!("DRAW");
                             match window.is_minimized() {
                                 Some(false) => (),
                                 _ => return,
@@ -165,7 +164,6 @@ fn main() -> anyhow::Result<()> {
                                 .duration_since(engine.start_instant)
                                 .min(Duration::from_millis(30));
 
-                            println!("KEY {}", time_elapsed.as_millis());
                             match physical_key {
                                 winit::keyboard::PhysicalKey::Code(
                                     winit::keyboard::KeyCode::KeyW,

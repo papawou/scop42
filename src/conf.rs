@@ -38,5 +38,3 @@ pub const DEVICE_EXTENSION_NAMES: [&std::ffi::CStr; 2] = [
     ash::khr::swapchain::NAME,
     ash::khr::buffer_device_address::NAME,
 ];
-
-pub const MAX_FRAMES_IN_FLIGHT: usize = 2;
