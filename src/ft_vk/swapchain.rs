@@ -195,6 +195,7 @@ fn choose_surface_format(formats: &Vec<vk::SurfaceFormatKHR>) -> vk::SurfaceForm
         .unwrap_or_else(|| formats.get(0).cloned().unwrap())
 }
 
+// MAILBOX ?? FIFO
 fn choose_present_mode(presents: &Vec<vk::PresentModeKHR>) -> vk::PresentModeKHR {
     if presents.contains(&vk::PresentModeKHR::MAILBOX) {
         return vk::PresentModeKHR::MAILBOX;
