@@ -327,6 +327,7 @@ impl Engine {
 
         let old_swapchain = std::mem::replace(&mut self.swapchain, new_swapchain);
 
+        //destroy old_swapchain
         {
             for &framebuffer in &self.framebuffers {
                 self.device.destroy_framebuffer(framebuffer, None)

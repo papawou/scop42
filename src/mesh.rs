@@ -123,6 +123,7 @@ impl<T> Mesh<T> {
         cmd: vk::CommandBuffer,
         command_pool: vk::CommandPool,
     ) {
+        // Vertex
         {
             let data = vec_to_bytes(&self.vertices);
 
@@ -149,6 +150,7 @@ impl<T> Mesh<T> {
             }
         }
 
+        // Index
         {
             let data = vec_to_bytes(&self.indices);
 
