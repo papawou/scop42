@@ -23,7 +23,6 @@ use surface_support::SurfaceSupport;
 use swapchain::Swapchain;
 
 use crate::conf;
-use winit::{platform::windows::WindowExtWindows, raw_window_handle::HasWindowHandle};
 
 pub trait Renderer {
     unsafe fn render(&self, engine: &Engine, framebuffer: vk::Framebuffer, cmd: vk::CommandBuffer);
@@ -69,29 +68,66 @@ pub struct Engine {
 
 impl Engine {
     pub fn new(entry: ash::Entry, window: &winit::window::Window) -> Self {
-        // Window
-        let hwnd = match window.window_handle().unwrap().as_raw() {
-            winit::raw_window_handle::RawWindowHandle::Win32(handle) => handle.hwnd.get(),
-            _ => panic!("Unsupported platform!"),
-        };
-        let hinstance = unsafe { winapi::um::libloaderapi::GetModuleHandleW(std::ptr::null()) };
-        let window_info = vk::Win32SurfaceCreateInfoKHR::default()
-            .hwnd(hwnd as vk::HWND)
-            .hinstance(hinstance as vk::HINSTANCE);
-        let window_physical_size = window.inner_size();
-
+        // Instance
         let instance = create_instance(&entry);
         let (debug_utils_loader, debug_utils_messenger) = setup_debug_utils(&entry, &instance);
 
         // Physical device
         let physical_device = get_physical_device(&instance);
 
-        //  Surface
-        let win_surface_loader = ash::khr::win32_surface::Instance::new(&entry, &instance);
-        let surface =
-            unsafe { win_surface_loader.create_win32_surface(&window_info, None) }.unwrap();
-        let surface_loader = ash::khr::surface::Instance::new(&entry, &instance);
+        // Window
+        let window_physical_size = window.inner_size();
 
+        #[cfg(target_os = "windows")]
+        let surface = {
+            let window_info = {
+                use winit::raw_window_handle::HasWindowHandle;
+
+                let hwnd = match window.window_handle().unwrap().as_raw() {
+                    winit::raw_window_handle::RawWindowHandle::Win32(handle) => handle.hwnd.get(),
+                    _ => panic!("Unsupported platform!"),
+                };
+
+                let hinstance = {
+                    let hmodule = unsafe {
+                        windows::Win32::System::LibraryLoader::GetModuleHandleW(None).unwrap()
+                    };
+
+                    if hmodule.is_invalid() {
+                        panic!("Unsupported windows hinstance")
+                    }
+
+                    hmodule.0
+                };
+
+                vk::Win32SurfaceCreateInfoKHR::default()
+                    .hwnd(hwnd as vk::HWND)
+                    .hinstance(hinstance as vk::HINSTANCE)
+            };
+
+            let win_surface_loader = ash::khr::win32_surface::Instance::new(&entry, &instance);
+            unsafe { win_surface_loader.create_win32_surface(&window_info, None) }.unwrap()
+        };
+
+        #[cfg(target_os = "linux")]
+        let surface = {
+            let window_info = {
+                use winit::raw_window_handle::HasWindowHandle;
+
+                let hwnd = match window.window_handle().unwrap().as_raw() {
+                    winit::raw_window_handle::RawWindowHandle::Xlib(handle) => handle,
+                    _ => panic!("Unsupported platform!"),
+                };
+
+                vk::XlibSurfaceCreateInfoKHR::default().window(hwnd.window)
+            };
+
+            let xlib_surface_loader = ash::khr::xlib_surface::Instance::new(&entry, &instance);
+            unsafe { xlib_surface_loader.create_xlib_surface(&window_info, None) }.unwrap()
+        };
+
+        // Surface
+        let surface_loader = ash::khr::surface::Instance::new(&entry, &instance);
         let surface_support = SurfaceSupport::new(physical_device, surface, &surface_loader);
         if !surface_support.is_physical_device_compatible(&instance, physical_device) {
             panic!("physical_device invalid")
