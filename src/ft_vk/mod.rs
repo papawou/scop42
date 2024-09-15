@@ -291,13 +291,13 @@ impl Engine {
 
         self.device.destroy_render_pass(self.render_pass, None);
 
-        self.allocator = None; //vmaDestroyAllocator(_allocator);
-
         self.swapchain.destroy(
             &self.device,
             self.allocator.as_ref().unwrap(),
             &self.swapchain_loader,
         );
+
+        self.allocator = None; //vmaDestroyAllocator(_allocator);
 
         self.device.destroy_device(None);
 
