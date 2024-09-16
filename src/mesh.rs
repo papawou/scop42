@@ -8,7 +8,6 @@ use vk_mem::Alloc;
 
 use crate::ft_vk::allocated_buffer::AllocatedBuffer;
 use crate::helpers::{print_bytes_in_hex, vec_to_bytes};
-use crate::obj::face::VertexAttribute;
 use crate::obj::{self, ObjRaw};
 use crate::{
     ft_vk::Engine,
@@ -236,11 +235,11 @@ pub fn load_default_mesh(
 
 pub fn from_obj(obj: &ObjRaw) -> Mesh<Vertex> {
     let mut vertices: Vec<Vertex> = vec![];
-    let mut indices: Vec<usize> = vec![];
+    let mut indices: Vec<u32> = vec![];
 
-    let mut indice: usize = 0;
+    let mut indice: u32 = 0;
     for face in &obj.faces {
-        for vertex_attribute in face.vertex_attributes {
+        for vertex_attribute in &face.vertex_attributes {
             indice += 1;
             indices.push(indice);
 
