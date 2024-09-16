@@ -17,6 +17,7 @@ mod swapchain;
 use ash::vk::{self};
 use std::time::Instant;
 use vk_mem::Alloc;
+use winit::raw_window_handle::HasRawWindowHandle;
 
 use frame_data::FrameData;
 use surface_support::SurfaceSupport;
@@ -111,16 +112,30 @@ impl Engine {
 
         #[cfg(target_os = "linux")]
         let surface = {
-            let window_info = {
-                use winit::raw_window_handle::HasWindowHandle;
+            use winit::raw_window_handle::HasDisplayHandle;
+            use winit::raw_window_handle::HasWindowHandle;
 
-                let hwnd = match window.window_handle().unwrap().as_raw() {
-                    winit::raw_window_handle::RawWindowHandle::Xlib(handle) => handle,
+            let (window_handle, display_handle) = {
+                let window_handle = window.window_handle().unwrap().as_raw();
+                let display_handle = window.display_handle().unwrap().as_raw();
+                match (window_handle, display_handle) {
+                    (
+                        winit::raw_window_handle::RawWindowHandle::Xlib(window_handle),
+                        winit::raw_window_handle::RawDisplayHandle::Xlib(display_handle),
+                    ) => (
+                        window_handle.window,
+                        display_handle
+                            .display
+                            .map(|d| d.as_ptr())
+                            .unwrap_or(std::ptr::null_mut()),
+                    ),
                     _ => panic!("Unsupported platform!"),
-                };
-
-                vk::XlibSurfaceCreateInfoKHR::default().window(hwnd.window)
+                }
             };
+
+            let window_info = vk::XlibSurfaceCreateInfoKHR::default()
+                .window(window_handle)
+                .dpy(display_handle);
 
             let xlib_surface_loader = ash::khr::xlib_surface::Instance::new(&entry, &instance);
             unsafe { xlib_surface_loader.create_xlib_surface(&window_info, None) }.unwrap()

@@ -25,9 +25,7 @@ use mesh_renderer::MeshRenderer;
 use pipeline_layout::{create_default_layout, create_mesh_layout};
 use tri_renderer::TriRenderer;
 use vertex::Vertex;
-use winit::{
-    event_loop::EventLoop, platform::windows::WindowExtWindows, raw_window_handle::HasWindowHandle,
-};
+use winit::event_loop::EventLoop;
 
 fn main() -> anyhow::Result<()> {
     std::env::set_var("RUST_BACKTRACE", "full");
