@@ -1,13 +1,34 @@
 pub struct Face {
     pub vertex_attributes: Vec<VertexAttribute>,
 }
+impl Face {
+    pub fn parse(line: &str) -> Self {
+        let mut words = line.split_whitespace();
+
+        match words.next() {
+            Some("f") => (),
+            _ => panic!(),
+        }
+
+        let vertex_attributes: Vec<&str> = words.collect();
+        if vertex_attributes.len() < 3 {
+            panic!();
+        }
+
+        Self {
+            vertex_attributes: vertex_attributes
+                .iter()
+                .map(|word| VertexAttribute::parse(word))
+                .collect(),
+        }
+    }
+}
 
 pub struct VertexAttribute {
     pub vertex_index: u32,
     pub vertex_texture_index: Option<u32>,
     pub vertex_normal_index: Option<u32>,
 }
-
 impl VertexAttribute {
     fn vertex_attribute_parse(str: &str) -> Option<u32> {
         if str.is_empty() {
@@ -38,29 +59,6 @@ impl VertexAttribute {
                 vertex_normal_index,
             },
             _ => panic!("{:?}", raw_vertex_attributes),
-        }
-    }
-}
-
-impl Face {
-    pub fn parse(line: &str) -> Self {
-        let mut words = line.split_whitespace();
-
-        match words.next() {
-            Some("f") => (),
-            _ => panic!(),
-        }
-
-        let vertex_attributes: Vec<&str> = words.collect();
-        if vertex_attributes.len() < 3 {
-            panic!();
-        }
-
-        Self {
-            vertex_attributes: vertex_attributes
-                .iter()
-                .map(|word| VertexAttribute::parse(word))
-                .collect(),
         }
     }
 }
