@@ -1,6 +1,5 @@
 #![allow(warnings)]
 
-mod ObjAsset;
 mod conf;
 mod ft_vk;
 mod graphics_pipeline;
@@ -8,6 +7,7 @@ mod helpers;
 mod mesh;
 mod mesh_constants;
 mod mesh_renderer;
+pub mod obj;
 mod pipeline_layout;
 mod traits;
 mod tri_renderer;
@@ -22,6 +22,7 @@ use graphics_pipeline::{create_mesh_pipeline, create_tri_pipeline, GraphicsPipel
 use mesh::from_obj;
 use mesh_constants::MeshConstants;
 use mesh_renderer::MeshRenderer;
+use obj::ObjRaw;
 use pipeline_layout::{create_default_layout, create_mesh_layout};
 use tri_renderer::TriRenderer;
 use vertex::Vertex;
@@ -54,7 +55,7 @@ fn main() -> anyhow::Result<()> {
     // );
 
     let mut mesh = {
-        let obj = ObjAsset::ObjAsset::load_from_file("resources/cow.obj");
+        let obj = ObjRaw::load_from_file("resources/cow.obj");
         let mut mesh = from_obj(&obj);
         mesh.load(
             &engine.device,

@@ -1,3 +1,6 @@
+#![feature(get_many_mut)]
+
+use std::collections::{hash_set, HashMap, VecDeque};
 use std::u32;
 
 use ash::vk::{self};
@@ -5,7 +8,8 @@ use vk_mem::Alloc;
 
 use crate::ft_vk::allocated_buffer::AllocatedBuffer;
 use crate::helpers::{print_bytes_in_hex, vec_to_bytes};
-use crate::ObjAsset::ObjAsset;
+use crate::obj::face::VertexAttribute;
+use crate::obj::{self, ObjRaw};
 use crate::{
     ft_vk::Engine,
     helpers::{copy_buffer, struct_to_bytes},
@@ -192,24 +196,28 @@ pub fn load_default_mesh(
             uv_x: 0f32,
             color: glam::Vec3::new(0.0, 0.0, 0.0),
             uv_y: 0f32,
+            normal: glam::Vec3::ZERO,
         },
         Vertex {
             position: glam::Vec3::new(1.0, 0.0, 0.0),
             uv_x: 0f32,
             color: glam::Vec3::new(1.0, 0.0, 0.0),
             uv_y: 0f32,
+            normal: glam::Vec3::ZERO,
         },
         Vertex {
             position: glam::Vec3::new(0.0, 1.0, 0.0),
             uv_x: 0f32,
             color: glam::Vec3::new(0.0, 1.0, 0.0),
             uv_y: 0f32,
+            normal: glam::Vec3::ZERO,
         },
         Vertex {
             position: glam::Vec3::new(1.0, 1.0, 0.0),
             uv_x: 0f32,
             color: glam::Vec3::new(1.0, 1.0, 0.0),
             uv_y: 0f32,
+            normal: glam::Vec3::ZERO,
         },
     ];
 
@@ -226,27 +234,106 @@ pub fn load_default_mesh(
     mesh
 }
 
-pub fn from_obj(obj: &ObjAsset) -> Mesh<Vertex> {
+pub fn from_obj(obj: &ObjRaw) -> Mesh<Vertex> {
     let mut vertices: Vec<Vertex> = vec![];
+    let mut indices: Vec<usize> = vec![];
 
-    for vertice in &obj.vertices {
-        vertices.push(Vertex {
-            position: glam::Vec3 {
-                x: vertice.x,
-                y: vertice.y,
-                z: vertice.z,
-            },
-            ..Default::default()
-        })
-    }
-
-    let mut indices: Vec<u32> = vec![];
+    let mut indice: usize = 0;
     for face in &obj.faces {
-        for vertex_attr in &face.vertex_attributes {
-            indices.push(vertex_attr.vertex_index - 1);
+        for vertex_attribute in face.vertex_attributes {
+            indice += 1;
+            indices.push(indice);
+
+            vertices.push(Vertex {
+                position: obj
+                    .vertices
+                    .get(vertex_attribute.vertex_index as usize)
+                    .and_then(|vertex| {
+                        Some(glam::Vec3 {
+                            x: vertex.x,
+                            y: vertex.y,
+                            z: vertex.z,
+                        })
+                    })
+                    .unwrap(),
+                normal: if let Some(normal_index) = vertex_attribute.vertex_normal_index {
+                    obj.textures
+                        .get(normal_index as usize)
+                        .and_then(|normal| {
+                            Some(glam::Vec3 {
+                                x: normal.x,
+                                y: normal.y,
+                                z: normal.z,
+                            })
+                        })
+                        .unwrap()
+                } else {
+                    glam::Vec3::NAN
+                },
+                uv_x: if let Some(texture_index) = vertex_attribute.vertex_texture_index {
+                    obj.textures
+                        .get(texture_index as usize)
+                        .and_then(|texture_uv| Some(texture_uv.x))
+                        .unwrap()
+                } else {
+                    0.0f32
+                },
+                uv_y: if let Some(texture_index) = vertex_attribute.vertex_texture_index {
+                    obj.textures
+                        .get(texture_index as usize)
+                        .and_then(|texture_uv| Some(texture_uv.y))
+                        .unwrap()
+                } else {
+                    0.0f32
+                },
+                ..Default::default()
+            });
         }
-        indices.push(u32::MAX);
     }
+
+    // // hash<vertex_index, count>
+    // let mut vertex_attributes_hash = HashMap::<usize, (glam::Vec3, usize)>::with_capacity(
+    //     obj.faces
+    //         .iter()
+    //         .fold(0, |vertices_number, face| face.vertex_attributes.len()),
+    // );
+    //
+    //     // as tri_list topology
+    //     for tri_list in face_vertices.windows(3) {
+    //         let face_normal = {
+    //             let edge_a = tri_list[1].position - tri_list[0].position;
+    //             let edge_b = tri_list[2].position - tri_list[0].position;
+    //             edge_a.cross(edge_b)
+    //         };
+
+    //         for &index in &indices_array {
+    //             // Position
+    //             let vertex = &mut vertices[index];
+
+    //             if let Some(normal) = obj.normals.get(index) {}
+
+    //             vertex.normal += face_normal;
+    //             // normal divide per face
+    //             vertex_attributes_hash
+    //                 .entry(index)
+    //                 .and_modify(|e| *e += 1)
+    //                 .or_insert(1);
+
+    //             // Texture
+    //             vertex.uv_x = obj.textures[index].x;
+    //             vertex.uv_y = obj.textures[index].y;
+    //         }
+    //     }
+
+    //     indices.push(u32::MAX);
+    // }
+
+    // // apply vertices
+    // for (key, value) in vertex_attributes_hash {
+    //     let vertex = &mut vertices[key];
+    //     vertex.normal /= value as f32;
+    //     vertex.normal = vertex.normal.normalize();
+    // }
 
     Mesh {
         vertices,

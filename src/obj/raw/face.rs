@@ -1,3 +1,5 @@
+use glam::Vec3;
+
 pub struct Face {
     pub vertex_attributes: Vec<VertexAttribute>,
 }
