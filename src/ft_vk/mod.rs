@@ -401,7 +401,7 @@ fn get_physical_device(instance: &ash::Instance) -> vk::PhysicalDevice {
                 _ => None,
             }
         })
-        .unwrap();
+        .unwrap(); //onpanic ? see conf::PHYSICAL_DEVICE_NAME
 
     phys_dev
 }
