@@ -144,7 +144,7 @@ fn main() -> anyhow::Result<()> {
                             require_resize = unsafe { engine.draw_frame(&renderer) };
                             window.request_redraw();
                         }
-                        winit::event::WindowEvent::Resized(_) => require_resize = false,
+                        winit::event::WindowEvent::Resized(_) => require_resize = true,
                         winit::event::WindowEvent::CloseRequested => elwt.exit(),
 
                         // CONTROLS
