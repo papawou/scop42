@@ -1,9 +1,6 @@
-pub struct Vertex {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
-    pub w: f32,
-}
+use glam::Vec4;
+
+pub struct Vertex(Vec4);
 
 impl Vertex {
     pub fn parse(line: &str) -> Self {
@@ -32,12 +29,12 @@ impl Vertex {
         vertex.resize(4, None);
 
         match vertex[..] {
-            [Some(x), Some(y), Some(z), w] => Vertex {
+            [Some(x), Some(y), Some(z), w] => Vertex({
                 x,
                 y,
                 z,
-                w: w.unwrap_or(1f32),
-            },
+                w: w.unwrap_or(1f32)
+            }),
             _ => panic!(),
         }
     }
