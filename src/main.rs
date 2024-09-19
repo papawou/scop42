@@ -1,6 +1,5 @@
 #![allow(warnings)]
 
-mod ObjAsset;
 mod conf;
 mod ft_vk;
 mod graphics_pipeline;
@@ -8,6 +7,7 @@ mod helpers;
 mod mesh;
 mod mesh_constants;
 mod mesh_renderer;
+pub mod obj;
 mod pipeline_layout;
 mod traits;
 mod tri_renderer;
@@ -22,6 +22,7 @@ use graphics_pipeline::{create_mesh_pipeline, create_tri_pipeline, GraphicsPipel
 use mesh::from_obj;
 use mesh_constants::MeshConstants;
 use mesh_renderer::MeshRenderer;
+use obj::{ObjAssetBuilder, ObjRaw};
 use pipeline_layout::{create_default_layout, create_mesh_layout};
 use tri_renderer::TriRenderer;
 use vertex::Vertex;
@@ -54,8 +55,9 @@ fn main() -> anyhow::Result<()> {
     // );
 
     let mut mesh = {
-        let obj = ObjAsset::ObjAsset::load_from_file("resources/cow.obj");
-        let mut mesh = from_obj(&obj);
+        let obj = ObjRaw::load_from_file("resources/cow.obj");
+        let obj_asset = ObjAssetBuilder::new(&obj).normals_from_face(true).build();
+        let mut mesh = from_obj(&obj_asset);
         mesh.load(
             &engine.device,
             engine.allocator.as_mut().unwrap(),
@@ -92,7 +94,10 @@ fn main() -> anyhow::Result<()> {
     };
     let mut require_resize = false;
 
-    let mut camera_pos = glam::Vec3::ZERO;
+    let mut camera_pos = glam::Vec3 {
+        z: 2.0f32,
+        ..glam::Vec3::ZERO
+    };
 
     let mut last_update = std::time::Instant::now();
 

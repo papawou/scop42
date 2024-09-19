@@ -1,21 +1,30 @@
-use face::Face;
-use vertice::Vertex;
+use face::{Face, VertexAttribute};
+use glam::{Vec3, Vec4};
+use vertex_normal::VertexNormal;
+use vertex_position::VertexPosition;
+use vertex_texture::VertexTexture;
 
-mod face;
-mod vertice;
+pub mod face;
+pub mod vertex_normal;
+pub mod vertex_position;
+pub mod vertex_texture;
 
-pub struct ObjAsset {
+pub struct ObjRaw {
     pub group: String,
     pub faces: Vec<Face>,
-    pub vertices: Vec<Vertex>,
+    pub positions: Vec<VertexPosition>,
+    pub textures: Vec<VertexTexture>,
+    pub normals: Vec<VertexNormal>,
 }
 
-impl ObjAsset {
+impl ObjRaw {
     pub fn parse(str: &str) -> Self {
         let lines = str.lines().filter(|line| !line.trim().is_empty());
 
         let mut faces: Vec<Face> = vec![];
-        let mut vertices: Vec<Vertex> = vec![];
+        let mut positions: Vec<VertexPosition> = vec![];
+        let mut textures: Vec<VertexTexture> = vec![];
+        let mut normals: Vec<VertexNormal> = vec![];
         let mut group = String::new();
 
         for line in lines.map(|line| line.trim()) {
@@ -23,7 +32,9 @@ impl ObjAsset {
             if let Some(word) = words.next() {
                 match word {
                     "f" => faces.push(Face::parse(line)),
-                    "v" => vertices.push(Vertex::parse(line)),
+                    "v" => positions.push(VertexPosition::parse(line)),
+                    "vt" => textures.push(VertexTexture::parse(line)),
+                    "vn" => normals.push(VertexNormal::parse(line)),
                     "o" => {
                         group = words.collect::<Vec<&str>>().join(" ");
                     }
@@ -34,7 +45,9 @@ impl ObjAsset {
 
         Self {
             faces,
-            vertices,
+            positions,
+            textures,
+            normals,
             group,
         }
     }

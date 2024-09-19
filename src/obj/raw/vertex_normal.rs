@@ -1,21 +1,18 @@
-pub struct Vertex {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
-    pub w: f32,
-}
+use glam::Vec3;
 
-impl Vertex {
+pub struct VertexNormal(Vec3);
+
+impl VertexNormal {
     pub fn parse(line: &str) -> Self {
         let mut words = line.split_whitespace();
 
         match words.next() {
-            Some("v") => (),
+            Some("vt") => (),
             _ => panic!(),
         }
 
         let raw_vertices: Vec<&str> = words.collect();
-        if raw_vertices.len() < 3 && 4 < raw_vertices.len() {
+        if raw_vertices.len() != 3 {
             panic!();
         }
 
@@ -29,16 +26,15 @@ impl Vertex {
                 }
             })
             .collect::<Vec<Option<f32>>>();
-        vertex.resize(4, None);
+        vertex.resize(3, None);
 
         match vertex[..] {
-            [Some(x), Some(y), Some(z), w] => Vertex {
-                x,
-                y,
-                z,
-                w: w.unwrap_or(1f32),
-            },
+            [Some(x), Some(y), Some(z)] => Self(Vec3 { x, y, z }),
             _ => panic!(),
         }
+    }
+
+    pub fn normal(&self) -> Vec3 {
+        self.0
     }
 }

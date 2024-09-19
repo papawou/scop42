@@ -1,11 +1,15 @@
+#![feature(get_many_mut)]
+
+use std::collections::{hash_set, HashMap, VecDeque};
 use std::u32;
 
 use ash::vk::{self};
+use glam::Vec3;
 use vk_mem::Alloc;
 
 use crate::ft_vk::allocated_buffer::AllocatedBuffer;
 use crate::helpers::{print_bytes_in_hex, vec_to_bytes};
-use crate::ObjAsset::ObjAsset;
+use crate::obj::{self, ObjAsset, ObjRaw};
 use crate::{
     ft_vk::Engine,
     helpers::{copy_buffer, struct_to_bytes},
@@ -192,24 +196,32 @@ pub fn load_default_mesh(
             uv_x: 0f32,
             color: glam::Vec3::new(0.0, 0.0, 0.0),
             uv_y: 0f32,
+            normal: glam::Vec3::ZERO,
+            _padding_hack: 0.0f32,
         },
         Vertex {
             position: glam::Vec3::new(1.0, 0.0, 0.0),
             uv_x: 0f32,
             color: glam::Vec3::new(1.0, 0.0, 0.0),
             uv_y: 0f32,
+            normal: glam::Vec3::ZERO,
+            _padding_hack: 0.0f32,
         },
         Vertex {
             position: glam::Vec3::new(0.0, 1.0, 0.0),
             uv_x: 0f32,
             color: glam::Vec3::new(0.0, 1.0, 0.0),
             uv_y: 0f32,
+            normal: glam::Vec3::ZERO,
+            _padding_hack: 0.0f32,
         },
         Vertex {
             position: glam::Vec3::new(1.0, 1.0, 0.0),
             uv_x: 0f32,
             color: glam::Vec3::new(1.0, 1.0, 0.0),
             uv_y: 0f32,
+            normal: glam::Vec3::ZERO,
+            _padding_hack: 0.0f32,
         },
     ];
 
@@ -228,24 +240,25 @@ pub fn load_default_mesh(
 
 pub fn from_obj(obj: &ObjAsset) -> Mesh<Vertex> {
     let mut vertices: Vec<Vertex> = vec![];
-
-    for vertice in &obj.vertices {
-        vertices.push(Vertex {
-            position: glam::Vec3 {
-                x: vertice.x,
-                y: vertice.y,
-                z: vertice.z,
-            },
-            ..Default::default()
-        })
-    }
-
     let mut indices: Vec<u32> = vec![];
-    for face in &obj.faces {
-        for vertex_attr in &face.vertex_attributes {
-            indices.push(vertex_attr.vertex_index - 1);
+
+    let mut indice: u32 = 0;
+    for face in obj.faces() {
+        for vertex in face {
+            indices.push(indice);
+
+            vertices.push(Vertex {
+                position: vertex.position.truncate(),
+                normal: vertex.normal.unwrap_or(Vec3::ZERO),
+                uv_x: vertex.texture.unwrap_or_default().x,
+                uv_y: vertex.texture.unwrap_or_default().y,
+                color: Vec3::ZERO,
+                ..Default::default()
+            });
+
+            indice += 1;
         }
-        indices.push(u32::MAX);
+        indices.push(u32::MAX); // triangle strip
     }
 
     Mesh {
