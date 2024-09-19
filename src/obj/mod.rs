@@ -43,39 +43,7 @@ impl<'a> ObjAssetBuilder<'a> {
 
     pub fn build(self) -> ObjAsset {
         //normals_from_face
-        let mut normal_map: HashMap<usize, Vec3> = HashMap::new(); // vertex_index
-        for face in &self.obj_raw.faces {
-            for tri in face.vertex_attributes.windows(3) {
-                let tri: Vec<(u32, Vertex)> = tri
-                    .iter()
-                    .map(|vertex| (vertex.vertex_index, self.vertex(vertex)))
-                    .collect();
-
-                let [(a_index, a), (b_index, b), (c_index, c)] = tri.as_slice() else {
-                    continue;
-                };
-
-                // Calculate tri normal
-                let normal = {
-                    let edge_a = b.position - a.position;
-                    let edge_b = c.position - a.position;
-                    edge_a.truncate().cross(edge_b.truncate()).normalize()
-                };
-
-                normal_map
-                    .entry(*a_index as usize)
-                    .and_modify(|n| *n += normal)
-                    .or_insert(normal);
-                normal_map
-                    .entry(*b_index as usize)
-                    .and_modify(|n| *n += normal)
-                    .or_insert(normal);
-                normal_map
-                    .entry(*c_index as usize)
-                    .and_modify(|n| *n += normal)
-                    .or_insert(normal);
-            }
-        }
+        let normal_map = self.get_normals_from_face();
 
         // generate faces
         let mut faces: Vec<Vec<Vertex>> = vec![];
@@ -83,20 +51,20 @@ impl<'a> ObjAssetBuilder<'a> {
             let tri: Vec<Vertex> = face
                 .vertex_attributes
                 .iter()
-                .map(|vertex_attribute| {
-                    //normals_from_face
-                    let normal = {
+                .map(|vertex_attribute| Vertex {
+                    normal: {
                         let vertex_index = vertex_attribute.vertex_index as usize;
-                        normal_map
-                            .get(&vertex_index)
-                            .and_then(|normal| Some(normal.normalize()))
-                    };
 
-                    // generate vertex
-                    Vertex {
-                        normal,
-                        ..self.vertex(vertex_attribute)
-                    }
+                        //normals_from_face
+                        if self.normals_from_face {
+                            normal_map
+                                .get(&vertex_index)
+                                .and_then(|normal| Some(normal.normalize()))
+                        } else {
+                            self.vertex(vertex_attribute).normal
+                        }
+                    },
+                    ..self.vertex(vertex_attribute)
                 })
                 .collect();
             faces.push(tri);
@@ -142,6 +110,45 @@ impl<'a> ObjAssetBuilder<'a> {
             texture,
             normal,
         }
+    }
+
+    fn get_normals_from_face(&self) -> HashMap<usize, Vec3> {
+        let mut normal_map: HashMap<usize, Vec3> = HashMap::new();
+
+        for face in &self.obj_raw.faces {
+            for tri in face.vertex_attributes.windows(3) {
+                let tri: Vec<(u32, Vertex)> = tri
+                    .iter()
+                    .map(|vertex| (vertex.vertex_index, self.vertex(vertex)))
+                    .collect();
+
+                let [(a_index, a), (b_index, b), (c_index, c)] = tri.as_slice() else {
+                    continue;
+                };
+
+                // Calculate tri normal
+                let normal = {
+                    let edge_a = b.position - a.position;
+                    let edge_b = c.position - a.position;
+                    edge_a.truncate().cross(edge_b.truncate()).normalize()
+                };
+
+                normal_map
+                    .entry(*a_index as usize)
+                    .and_modify(|n| *n += normal)
+                    .or_insert(normal);
+                normal_map
+                    .entry(*b_index as usize)
+                    .and_modify(|n| *n += normal)
+                    .or_insert(normal);
+                normal_map
+                    .entry(*c_index as usize)
+                    .and_modify(|n| *n += normal)
+                    .or_insert(normal);
+            }
+        }
+
+        normal_map
     }
 }
 
