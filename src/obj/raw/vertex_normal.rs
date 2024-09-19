@@ -1,8 +1,6 @@
-pub struct VertexNormal {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
-}
+use glam::Vec3;
+
+pub struct VertexNormal(Vec3);
 
 impl VertexNormal {
     pub fn parse(line: &str) -> Self {
@@ -31,8 +29,12 @@ impl VertexNormal {
         vertex.resize(3, None);
 
         match vertex[..] {
-            [Some(x), Some(y), Some(z)] => VertexNormal { x, y, z },
+            [Some(x), Some(y), Some(z)] => Self(Vec3 { x, y, z }),
             _ => panic!(),
         }
+    }
+
+    pub fn normal(&self) -> Vec3 {
+        self.0
     }
 }

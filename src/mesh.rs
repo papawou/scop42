@@ -245,7 +245,7 @@ pub fn from_obj(obj: &ObjRaw) -> Mesh<Vertex> {
 
             vertices.push(Vertex {
                 position: obj
-                    .vertices
+                    .positions
                     .get(vertex_attribute.vertex_index as usize)
                     .and_then(|vertex| {
                         Some(glam::Vec3 {

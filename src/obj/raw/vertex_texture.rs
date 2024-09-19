@@ -1,10 +1,8 @@
+use glam::Vec3;
+
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
-pub struct VertexTexture {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
-}
+pub struct VertexTexture(Vec3);
 
 impl VertexTexture {
     pub fn parse(line: &str) -> Self {
@@ -33,8 +31,12 @@ impl VertexTexture {
         vertex.resize(3, None);
 
         match vertex[..] {
-            [Some(x), Some(y), Some(z)] => VertexTexture { x, y, z },
+            [Some(x), Some(y), Some(z)] => Self(Vec3 { x, y, z }),
             _ => panic!(),
         }
+    }
+
+    pub fn uv(&self) -> Vec3 {
+        self.0
     }
 }
