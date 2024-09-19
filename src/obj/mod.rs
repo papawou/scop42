@@ -99,7 +99,6 @@ impl<'a> ObjAssetBuilder<'a> {
                     }
                 })
                 .collect();
-            println!("{:?}", tri);
             faces.push(tri);
         }
 

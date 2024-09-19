@@ -197,6 +197,7 @@ pub fn load_default_mesh(
             color: glam::Vec3::new(0.0, 0.0, 0.0),
             uv_y: 0f32,
             normal: glam::Vec3::ZERO,
+            _padding_hack: 0.0f32,
         },
         Vertex {
             position: glam::Vec3::new(1.0, 0.0, 0.0),
@@ -204,6 +205,7 @@ pub fn load_default_mesh(
             color: glam::Vec3::new(1.0, 0.0, 0.0),
             uv_y: 0f32,
             normal: glam::Vec3::ZERO,
+            _padding_hack: 0.0f32,
         },
         Vertex {
             position: glam::Vec3::new(0.0, 1.0, 0.0),
@@ -211,6 +213,7 @@ pub fn load_default_mesh(
             color: glam::Vec3::new(0.0, 1.0, 0.0),
             uv_y: 0f32,
             normal: glam::Vec3::ZERO,
+            _padding_hack: 0.0f32,
         },
         Vertex {
             position: glam::Vec3::new(1.0, 1.0, 0.0),
@@ -218,6 +221,7 @@ pub fn load_default_mesh(
             color: glam::Vec3::new(1.0, 1.0, 0.0),
             uv_y: 0f32,
             normal: glam::Vec3::ZERO,
+            _padding_hack: 0.0f32,
         },
     ];
 
@@ -249,11 +253,12 @@ pub fn from_obj(obj: &ObjAsset) -> Mesh<Vertex> {
                 uv_x: vertex.texture.unwrap_or_default().x,
                 uv_y: vertex.texture.unwrap_or_default().y,
                 color: Vec3::ZERO,
+                ..Default::default()
             });
 
             indice += 1;
         }
-        indices.push(u32::MAX);
+        indices.push(u32::MAX); // triangle strip
     }
 
     Mesh {

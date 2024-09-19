@@ -55,7 +55,7 @@ fn main() -> anyhow::Result<()> {
     // );
 
     let mut mesh = {
-        let obj = ObjRaw::load_from_file("resources/tri.obj");
+        let obj = ObjRaw::load_from_file("resources/cow.obj");
         let obj_asset = ObjAssetBuilder::new(&obj).normals_from_face(true).build();
         let mut mesh = from_obj(&obj_asset);
         mesh.load(

@@ -9,6 +9,7 @@ struct Vertex {
 	uint uv_x;
 	vec3 color;
 	uint uv_y;
+	vec3 normal;
 };
 
 layout(buffer_reference, std430) readonly buffer VertexBuffer{
