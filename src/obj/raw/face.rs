@@ -51,14 +51,15 @@ impl VertexAttribute {
             .map(|&v| Self::vertex_attribute_parse(v))
             .collect::<Vec<Option<u32>>>();
 
-        //todo!("parse texture and normal");
         vertex_attributes.resize(3, None);
 
         match vertex_attributes[..] {
             [Some(vertex_index), vertex_texture_index, vertex_normal_index] => VertexAttribute {
-                vertex_index,
-                vertex_texture_index,
-                vertex_normal_index,
+                vertex_index: vertex_index - 1,
+                vertex_texture_index: vertex_texture_index
+                    .and_then(|vertex_texture_index| Some(vertex_texture_index - 1)),
+                vertex_normal_index: vertex_normal_index
+                    .and_then(|vertex_normal_index| Some(vertex_normal_index - 1)),
             },
             _ => panic!("{:?}", raw_vertex_attributes),
         }

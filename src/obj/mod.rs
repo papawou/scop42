@@ -6,54 +6,58 @@ use glam::{Vec3, Vec4};
 use raw::face::VertexAttribute;
 pub use raw::ObjRaw;
 
-struct ObjAsset {
-    faces: Vec<Vec<Vertex>>,
-    indices: Vec<usize>,
+pub struct ObjAsset(Vec<Vec<Vertex>>);
+
+impl ObjAsset {
+    pub fn faces(&self) -> &Vec<Vec<Vertex>> {
+        &self.0
+    }
 }
 
-struct ObjAssetBuilder<'a> {
+pub struct ObjAssetBuilder<'a> {
     obj_raw: &'a ObjRaw,
     normals_from_face: bool,
 }
 
 impl<'a> ObjAssetBuilder<'a> {
-    fn normals_from_face(self, normals_from_face: bool) -> Self {
+    pub fn new(raw: &'a ObjRaw) -> ObjAssetBuilder<'a> {
+        ObjAssetBuilder {
+            obj_raw: raw,
+            normals_from_face: false,
+        }
+    }
+
+    pub fn obj_raw(self, raw: &'a ObjRaw) -> ObjAssetBuilder<'a> {
+        Self {
+            obj_raw: raw,
+            ..self
+        }
+    }
+
+    pub fn normals_from_face(self, normals_from_face: bool) -> Self {
         Self {
             normals_from_face,
             ..self
         }
     }
 
-    fn build(self) -> ObjAsset {
-        let mut faces: Vec<Vec<&VertexAttribute>> = vec![];
-        let mut indices: Vec<usize> = vec![];
-        let mut indice: usize = 0;
-
+    pub fn build(self) -> ObjAsset {
         //normals_from_face
-        let mut normal_map: HashMap<usize, Vec3> = HashMap::new();
-
+        let mut normal_map: HashMap<usize, Vec3> = HashMap::new(); // vertex_index
         for face in &self.obj_raw.faces {
-            let mut vertices: Vec<&VertexAttribute> = vec![];
-
-            for vertex_attribute in face.vertex_attributes.iter() {
-                indices.push(indice);
-                vertices.push(vertex_attribute);
-                indice += 1;
-            }
-
-            //normals_from_face
-            for tri in vertices.windows(3) {
-                let [(a_index, a), (b_index, b), (c_index, c)] = tri
+            for tri in face.vertex_attributes.windows(3) {
+                let tri: Vec<(u32, Vertex)> = tri
                     .iter()
                     .map(|vertex| (vertex.vertex_index, self.vertex(vertex)))
-                    .collect::<Vec<(u32, Vertex)>>()
-                    .as_slice()
-                else {
+                    .collect();
+
+                let [(a_index, a), (b_index, b), (c_index, c)] = tri.as_slice() else {
                     continue;
                 };
 
+                // Calculate tri normal
                 let normal = {
-                    let edge_a = a.position - a.position;
+                    let edge_a = b.position - a.position;
                     let edge_b = c.position - a.position;
                     edge_a.truncate().cross(edge_b.truncate()).normalize()
                 };
@@ -71,13 +75,35 @@ impl<'a> ObjAssetBuilder<'a> {
                     .and_modify(|n| *n += normal)
                     .or_insert(normal);
             }
-
-            faces.push(vertices);
         }
 
-        
+        // generate faces
+        let mut faces: Vec<Vec<Vertex>> = vec![];
+        for face in &self.obj_raw.faces {
+            let tri: Vec<Vertex> = face
+                .vertex_attributes
+                .iter()
+                .map(|vertex_attribute| {
+                    //normals_from_face
+                    let normal = {
+                        let vertex_index = vertex_attribute.vertex_index as usize;
+                        normal_map
+                            .get(&vertex_index)
+                            .and_then(|normal| Some(normal.normalize()))
+                    };
 
-        ObjAsset {}
+                    // generate vertex
+                    Vertex {
+                        normal,
+                        ..self.vertex(vertex_attribute)
+                    }
+                })
+                .collect();
+            println!("{:?}", tri);
+            faces.push(tri);
+        }
+
+        ObjAsset(faces)
     }
 
     fn vertex(&self, vertex_attribute: &VertexAttribute) -> Vertex {
@@ -120,8 +146,9 @@ impl<'a> ObjAssetBuilder<'a> {
     }
 }
 
-struct Vertex {
-    position: Vec4,
-    texture: Option<Vec3>,
-    normal: Option<Vec3>,
+#[derive(Debug, Default, Copy, Clone)]
+pub struct Vertex {
+    pub position: Vec4,
+    pub texture: Option<Vec3>,
+    pub normal: Option<Vec3>,
 }
