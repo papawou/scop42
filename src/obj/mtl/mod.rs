@@ -14,7 +14,7 @@ impl Mtl {
 
         let lines = str.lines().filter(|line| !line.trim().is_empty());
 
-        let mut material: Option<Material> = None;
+        let mut current_material: Option<Material> = None;
 
         for line in lines.map(|line| line.trim()) {
             let mut words = line.split_whitespace();
@@ -23,14 +23,16 @@ impl Mtl {
                 // for each line
                 match word {
                     "newmtl" => {
-                        // extract current material and store it in materials
-                        if let Some(prev_material) = material.take() {
+                        // extract current material and insert it in hash
+                        if let Some(prev_material) = current_material.take() {
                             materials.insert(prev_material.group.clone(), prev_material);
                         }
-                        material = Some(Material::new(&words.collect::<Vec<&str>>().join(" ")));
+                        current_material =
+                            Some(Material::new(&words.collect::<Vec<&str>>().join(" ")));
                     }
+                    // all subsequent call are current_material related
                     material_word => {
-                        if let Some(material) = material.as_mut() {
+                        if let Some(material) = current_material.as_mut() {
                             material.parse(line);
                         } else {
                             panic!("Material is None when expected to be Some");
@@ -38,6 +40,11 @@ impl Mtl {
                     }
                 }
             }
+        }
+
+        // finally add last material
+        if let Some(last_material) = current_material.take() {
+            materials.insert(last_material.group.clone(), last_material);
         }
 
         Self { materials }
