@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use face::{Face, VertexAttribute};
 use glam::{Vec3, Vec4};
 use group::Group;
@@ -17,30 +19,42 @@ pub struct ObjRaw {
     pub positions: Vec<VertexPosition>,
     pub textures: Vec<VertexTexture>,
     pub normals: Vec<VertexNormal>,
+
+    pub materials_lib: HashSet<String>,
 }
 
 impl ObjRaw {
     pub fn parse(str: &str) -> Self {
         let lines = str.lines().filter(|line| !line.trim().is_empty());
 
-        let mut faces: Vec<Face> = vec![];
-        let mut positions: Vec<VertexPosition> = vec![];
-        let mut textures: Vec<VertexTexture> = vec![];
-        let mut normals: Vec<VertexNormal> = vec![];
         let mut group: Option<Group> = None;
-        let mut mtllib: Option<String> = None;
+        let mut materials_lib = HashSet::<String>::new();
+
+        let mut positions: Vec<VertexPosition> = vec![];
+        let mut normals: Vec<VertexNormal> = vec![];
+        let mut textures: Vec<VertexTexture> = vec![];
+
+        let mut faces: Vec<Face> = vec![];
+
+        let mut material_name: Option<String> = None;
 
         for line in lines.map(|line| line.trim()) {
             let mut words = line.split_whitespace();
+
             if let Some(word) = words.next() {
                 match word {
                     "v" => positions.push(VertexPosition::parse(line)),
                     "vn" => normals.push(VertexNormal::parse(line)),
                     "vt" => textures.push(VertexTexture::parse(line)),
                     "mtllib" => {
-                        mtllib = Some(words.collect::<Vec<&str>>().join(" "));
+                        for word in words.next() {
+                            materials_lib.insert(word.to_string());
+                        }
                     }
-                    "f" => faces.push(Face::parse(line, mtllib.clone())),
+                    "usemtl" => {
+                        material_name = Some(words.collect::<Vec<&str>>().join(" "));
+                    }
+                    "f" => faces.push(Face::parse(line, material_name.clone())),
                     "o" => {
                         group = group.or(Some(Group::parse(line)));
                     }
@@ -55,6 +69,7 @@ impl ObjRaw {
             textures,
             normals,
             group,
+            materials_lib,
         }
     }
 

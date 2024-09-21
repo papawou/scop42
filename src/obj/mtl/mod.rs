@@ -1,14 +1,16 @@
+use std::collections::HashMap;
+
 use material::Material;
 
 mod material;
 
 struct Mtl {
-    materials: Vec<Material>,
+    materials: HashMap<String, Material>,
 }
 
 impl Mtl {
     pub fn parse(str: &str) -> Self {
-        let mut materials: Vec<Material> = vec![];
+        let mut materials: HashMap<String, Material> = HashMap::new();
 
         let lines = str.lines().filter(|line| !line.trim().is_empty());
 
@@ -23,7 +25,7 @@ impl Mtl {
                     "newmtl" => {
                         // extract current material and store it in materials
                         if let Some(prev_material) = material.take() {
-                            materials.push(prev_material);
+                            materials.insert(prev_material.group.clone(), prev_material);
                         }
                         material = Some(Material::new(&words.collect::<Vec<&str>>().join(" ")));
                     }
