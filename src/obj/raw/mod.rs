@@ -1,14 +1,12 @@
 use face::{Face, VertexAttribute};
 use glam::{Vec3, Vec4};
 use group::Group;
-use mtllib::Mtllib;
 use vertex_normal::VertexNormal;
 use vertex_position::VertexPosition;
 use vertex_texture::VertexTexture;
 
 pub mod face;
 mod group;
-mod mtllib;
 pub mod vertex_normal;
 pub mod vertex_position;
 pub mod vertex_texture;
@@ -30,7 +28,7 @@ impl ObjRaw {
         let mut textures: Vec<VertexTexture> = vec![];
         let mut normals: Vec<VertexNormal> = vec![];
         let mut group: Option<Group> = None;
-        let mut mtllib: Option<Mtllib> = None;
+        let mut mtllib: Option<String> = None;
 
         for line in lines.map(|line| line.trim()) {
             let mut words = line.split_whitespace();
@@ -40,7 +38,7 @@ impl ObjRaw {
                     "vn" => normals.push(VertexNormal::parse(line)),
                     "vt" => textures.push(VertexTexture::parse(line)),
                     "mtllib" => {
-                        mtllib = Some(Mtllib::parse(line));
+                        mtllib = Some(words.collect::<Vec<&str>>().join(" "));
                     }
                     "f" => faces.push(Face::parse(line, mtllib.clone())),
                     "o" => {

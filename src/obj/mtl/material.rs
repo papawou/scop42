@@ -1,5 +1,7 @@
 use glam::Vec3;
 
+use crate::obj::utils;
+
 #[derive(Debug, Default)]
 pub struct Material {
     pub group: String, // newmtl (Material Group Name)
@@ -32,32 +34,70 @@ impl Material {
         }
     }
 
-    pub fn parse(line: &str) -> Self {
-        let lines = lines.lines().filter(|line| !line.trim().is_empty());
+    pub fn parse(&mut self, line: &str) {
+        let mut words = line.split_whitespace();
 
-        let material = Material {
-            ..Default::default()
-        };
-
-        for line in lines.map(|line| line.trim()) {
-            let mut words = line.split_whitespace();
-            if let Some(word) = words.next() {
-                match word {
-                    "v" => positions.push(VertexPosition::parse(words)),
-                    "vn" => normals.push(VertexNormal::parse(words)),
-                    "vt" => textures.push(VertexTexture::parse(words)),
-                    "mtllib" => {
-                        mtllib = Some(Mtllib::parse(line));
+        if let Some(word) = words.next() {
+            match word {
+                "Ns" => {
+                    if let Some(value) = words.next() {
+                        self.shininess_exponent = value.parse::<f32>().unwrap_or(0.0);
                     }
-                    "f" => faces.push(Face::parse(line, mtllib.clone())),
-                    "o" => {
-                        group = group.or(Some(Group::parse(line)));
-                    }
-                    _ => (),
                 }
+                "Ka" => {
+                    self.ambient = utils::parse_vec3_with_default(&mut words, Some(Vec3::ZERO));
+                }
+                "Kd" => {
+                    self.diffuse = utils::parse_vec3_with_default(&mut words, Some(Vec3::ZERO));
+                }
+                "Ks" => {
+                    self.specular = utils::parse_vec3_with_default(&mut words, Some(Vec3::ZERO));
+                }
+                "Ke" => {
+                    self.emission = utils::parse_vec3_with_default(&mut words, Some(Vec3::ZERO));
+                }
+                "Ni" => {
+                    if let Some(value) = words.next() {
+                        self.optical_density = value.parse::<f32>().unwrap_or(1.0);
+                    }
+                }
+                "d" => {
+                    if let Some(value) = words.next() {
+                        self.dissolve = value.parse::<f32>().unwrap_or(1.0);
+                    }
+                }
+                "illum" => {
+                    if let Some(value) = words.next() {
+                        self.illumination = value.parse::<i32>().unwrap_or(0);
+                    }
+                }
+                "map_Ka" => {
+                    self.ambient_map = words.next().map(|s| s.to_string());
+                }
+                "map_Kd" => {
+                    self.diffuse_map = words.next().map(|s| s.to_string());
+                }
+                "map_Ks" => {
+                    self.specular_map = words.next().map(|s| s.to_string());
+                }
+                "map_Ns" => {
+                    self.optical_density_map = words.next().map(|s| s.to_string());
+                }
+                "map_d" => {
+                    self.dissolve_map = words.next().map(|s| s.to_string());
+                }
+                "disp" => {
+                    self.displacement_map = words.next().map(|s| s.to_string());
+                }
+                "decal" => {
+                    self.decal_map = words.next().map(|s| s.to_string());
+                }
+                "bump" | "map_Bump" => {
+                    self.bump_map = words.next().map(|s| s.to_string());
+                }
+                // Add more cases here if needed
+                _ => (),
             }
         }
-
-        material
     }
 }

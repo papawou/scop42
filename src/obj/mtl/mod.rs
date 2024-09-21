@@ -28,18 +28,11 @@ impl Mtl {
                         material = Some(Material::new(&words.collect::<Vec<&str>>().join(" ")));
                     }
                     material_word => {
-                        if material.is_none() {
-                            panic!();
+                        if let Some(material) = material.as_mut() {
+                            material.parse(line);
+                        } else {
+                            panic!("Material is None when expected to be Some");
                         }
-                        match material_word {
-                            "Ns" => {
-                                material.as_mut().unwrap().shininess_exponent =
-                                    material_word.parse::<f32>().unwrap();
-                            }
-                            _ => (),
-                        };
-
-                        material = material;
                     }
                 }
             }
