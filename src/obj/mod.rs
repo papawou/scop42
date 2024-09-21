@@ -1,5 +1,5 @@
+mod mtl;
 pub mod raw;
-
 use std::collections::{HashMap, HashSet};
 
 use glam::{Vec3, Vec4};

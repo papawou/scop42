@@ -1,16 +1,20 @@
 use face::{Face, VertexAttribute};
 use glam::{Vec3, Vec4};
+use group::Group;
+use mtllib::Mtllib;
 use vertex_normal::VertexNormal;
 use vertex_position::VertexPosition;
 use vertex_texture::VertexTexture;
 
 pub mod face;
+mod group;
+mod mtllib;
 pub mod vertex_normal;
 pub mod vertex_position;
 pub mod vertex_texture;
 
 pub struct ObjRaw {
-    pub group: String,
+    pub group: Option<Group>,
     pub faces: Vec<Face>,
     pub positions: Vec<VertexPosition>,
     pub textures: Vec<VertexTexture>,
@@ -25,18 +29,22 @@ impl ObjRaw {
         let mut positions: Vec<VertexPosition> = vec![];
         let mut textures: Vec<VertexTexture> = vec![];
         let mut normals: Vec<VertexNormal> = vec![];
-        let mut group = String::new();
+        let mut group: Option<Group> = None;
+        let mut mtllib: Option<Mtllib> = None;
 
         for line in lines.map(|line| line.trim()) {
             let mut words = line.split_whitespace();
             if let Some(word) = words.next() {
                 match word {
-                    "f" => faces.push(Face::parse(line)),
                     "v" => positions.push(VertexPosition::parse(line)),
-                    "vt" => textures.push(VertexTexture::parse(line)),
                     "vn" => normals.push(VertexNormal::parse(line)),
+                    "vt" => textures.push(VertexTexture::parse(line)),
+                    "mtllib" => {
+                        mtllib = Some(Mtllib::parse(line));
+                    }
+                    "f" => faces.push(Face::parse(line, mtllib.clone())),
                     "o" => {
-                        group = words.collect::<Vec<&str>>().join(" ");
+                        group = group.or(Some(Group::parse(line)));
                     }
                     _ => (),
                 }

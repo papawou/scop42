@@ -1,10 +1,13 @@
 use glam::Vec3;
 
+use super::mtllib::{self, Mtllib};
+
 pub struct Face {
+    pub mtllib: Option<Mtllib>,
     pub vertex_attributes: Vec<VertexAttribute>,
 }
 impl Face {
-    pub fn parse(line: &str) -> Self {
+    pub fn parse(line: &str, mtllib: Option<Mtllib>) -> Self {
         let mut words = line.split_whitespace();
 
         match words.next() {
@@ -22,6 +25,7 @@ impl Face {
                 .iter()
                 .map(|word| VertexAttribute::parse(word))
                 .collect(),
+            mtllib,
         }
     }
 }
