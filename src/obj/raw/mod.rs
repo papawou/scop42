@@ -1,4 +1,9 @@
-use std::collections::HashSet;
+use std::{
+    collections::HashSet,
+    fs::File,
+    io::Read,
+    path::{Path, PathBuf},
+};
 
 use face::{Face, VertexAttribute};
 use glam::{Vec3, Vec4};
@@ -14,18 +19,20 @@ pub mod vertex_position;
 pub mod vertex_texture;
 
 pub struct ObjRaw {
+    pub filepath: PathBuf,
+
     pub group: Option<Group>,
     pub faces: Vec<Face>,
     pub positions: Vec<VertexPosition>,
     pub textures: Vec<VertexTexture>,
     pub normals: Vec<VertexNormal>,
 
-    pub materials_lib: HashSet<String>,
+    pub material_libs: HashSet<String>,
 }
 
 impl ObjRaw {
-    pub fn parse(str: &str) -> Self {
-        let lines = str.lines().filter(|line| !line.trim().is_empty());
+    fn parse(filepath: &Path, data: &str) -> Self {
+        let lines = data.lines().filter(|line| !line.trim().is_empty());
 
         let mut group: Option<Group> = None;
         let mut materials_lib = HashSet::<String>::new();
@@ -43,6 +50,7 @@ impl ObjRaw {
 
             if let Some(word) = words.next() {
                 match word {
+                    "#" => {}
                     "v" => positions.push(VertexPosition::parse(line)),
                     "vn" => normals.push(VertexNormal::parse(line)),
                     "vt" => textures.push(VertexTexture::parse(line)),
@@ -58,25 +66,28 @@ impl ObjRaw {
                     "o" => {
                         group = group.or(Some(Group::parse(line)));
                     }
-                    _ => (),
+                    _ => {}
                 }
             }
         }
 
         Self {
+            filepath: filepath.to_path_buf(),
             faces,
             positions,
             textures,
             normals,
             group,
-            materials_lib,
+            material_libs: materials_lib,
         }
     }
 
-    pub fn load_from_file(path: &str) -> Self {
-        let install_path = std::path::Path::new(path);
-        let content = std::fs::read_to_string(install_path).unwrap();
+    pub fn load_from_file(filepath: &Path) -> Self {
+        let mut file = File::open(&filepath).unwrap();
 
-        Self::parse(&content)
+        let mut data = String::new();
+        file.read_to_string(&mut data);
+
+        Self::parse(filepath, &data)
     }
 }

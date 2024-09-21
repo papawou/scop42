@@ -4,7 +4,7 @@ use crate::obj::utils;
 
 #[derive(Debug, Default)]
 pub struct Material {
-    pub group: String, // newmtl (Material Group Name)
+    pub material_name: String, // newmtl (Material Group Name)
 
     pub shininess_exponent: f32, // Ns (Shininess Exponent)
     pub ambient: Vec3,           // Ka (Ambient RGB)
@@ -27,9 +27,9 @@ pub struct Material {
 }
 
 impl Material {
-    pub fn new(group: &str) -> Self {
+    pub fn new(material_name: &str) -> Self {
         Material {
-            group: group.to_string(),
+            material_name: material_name.to_string(),
             ..Default::default()
         }
     }
@@ -95,7 +95,6 @@ impl Material {
                 "bump" | "map_Bump" => {
                     self.bump_map = words.next().map(|s| s.to_string());
                 }
-                // Add more cases here if needed
                 _ => (),
             }
         }

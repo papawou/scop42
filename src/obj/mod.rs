@@ -1,14 +1,17 @@
-mod mtl;
+mod material_lib;
 pub mod raw;
 mod utils;
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    path::Path,
+};
 
 use glam::{Vec3, Vec4};
+use material_lib::MaterialLib;
 use raw::face::VertexAttribute;
 pub use raw::ObjRaw;
 
 pub struct ObjAsset(Vec<Vec<Vertex>>);
-
 impl ObjAsset {
     pub fn faces(&self) -> &Vec<Vec<Vertex>> {
         &self.0
@@ -18,17 +21,20 @@ impl ObjAsset {
 pub struct ObjAssetBuilder<'a> {
     obj_raw: &'a ObjRaw,
     normals_from_face: bool,
+    material_libs: HashMap<String, MaterialLib>,
 }
-
 impl<'a> ObjAssetBuilder<'a> {
-    pub fn new(raw: &'a ObjRaw) -> ObjAssetBuilder<'a> {
-        ObjAssetBuilder {
+    pub fn new(raw: &'a ObjRaw) -> Self {
+        let material_libs = parse_materials(raw);
+
+        Self {
             obj_raw: raw,
             normals_from_face: false,
+            material_libs,
         }
     }
 
-    pub fn obj_raw(self, raw: &'a ObjRaw) -> ObjAssetBuilder<'a> {
+    pub fn obj_raw(self, raw: &'a ObjRaw) -> Self {
         Self {
             obj_raw: raw,
             ..self
@@ -43,8 +49,12 @@ impl<'a> ObjAssetBuilder<'a> {
     }
 
     pub fn build(self) -> ObjAsset {
-        //normals_from_face
-        let normal_map = self.get_normals_from_face();
+        // normals_from_face
+        let mut normal_map = if self.normals_from_face {
+            Some(self.calculate_normals())
+        } else {
+            None
+        };
 
         // generate faces
         let mut faces: Vec<Vec<Vertex>> = vec![];
@@ -57,7 +67,7 @@ impl<'a> ObjAssetBuilder<'a> {
                         let vertex_index = vertex_attribute.vertex_index as usize;
 
                         //normals_from_face
-                        if self.normals_from_face {
+                        if let Some(normal_map) = normal_map.as_mut() {
                             normal_map
                                 .get(&vertex_index)
                                 .and_then(|normal| Some(normal.normalize()))
@@ -113,7 +123,7 @@ impl<'a> ObjAssetBuilder<'a> {
         }
     }
 
-    fn get_normals_from_face(&self) -> HashMap<usize, Vec3> {
+    fn calculate_normals(&self) -> HashMap<usize, Vec3> {
         let mut normal_map: HashMap<usize, Vec3> = HashMap::new();
 
         for face in &self.obj_raw.faces {
@@ -158,4 +168,17 @@ pub struct Vertex {
     pub position: Vec4,
     pub texture: Option<Vec3>,
     pub normal: Option<Vec3>,
+}
+
+fn parse_materials(raw: &ObjRaw) -> HashMap<String, MaterialLib> {
+    let dirname = raw.filepath.parent().unwrap();
+    let mut material_libs = HashMap::<String, MaterialLib>::new();
+
+    for material_lib_name in &raw.material_libs {
+        let filepath = dirname.join(material_lib_name);
+        let material_lib = MaterialLib::load_from_file(&filepath);
+        material_libs.insert(material_lib_name.clone(), material_lib);
+    }
+
+    material_libs
 }
