@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 use glam::Vec3;
 
 use crate::obj::utils;
@@ -45,16 +47,16 @@ impl Material {
                     }
                 }
                 "Ka" => {
-                    self.ambient = utils::parse_vec3_with_default(&mut words, Some(Vec3::ZERO));
+                    self.ambient = utils::parse_vec3_or(&mut words, Some(Vec3::ZERO));
                 }
                 "Kd" => {
-                    self.diffuse = utils::parse_vec3_with_default(&mut words, Some(Vec3::ZERO));
+                    self.diffuse = utils::parse_vec3_or(&mut words, Some(Vec3::ZERO));
                 }
                 "Ks" => {
-                    self.specular = utils::parse_vec3_with_default(&mut words, Some(Vec3::ZERO));
+                    self.specular = utils::parse_vec3_or(&mut words, Some(Vec3::ZERO));
                 }
                 "Ke" => {
-                    self.emission = utils::parse_vec3_with_default(&mut words, Some(Vec3::ZERO));
+                    self.emission = utils::parse_vec3_or(&mut words, Some(Vec3::ZERO));
                 }
                 "Ni" => {
                     if let Some(value) = words.next() {

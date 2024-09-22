@@ -1,5 +1,5 @@
 mod material_lib;
-pub mod raw;
+pub mod obj_raw;
 mod utils;
 use std::{
     collections::{HashMap, HashSet},
@@ -8,8 +8,8 @@ use std::{
 
 use glam::{Vec3, Vec4};
 use material_lib::MaterialLib;
-use raw::face::VertexAttribute;
-pub use raw::ObjRaw;
+use obj_raw::face::VertexAttribute;
+pub use obj_raw::ObjRaw;
 
 pub struct ObjAsset(Vec<Vec<Vertex>>);
 impl ObjAsset {
