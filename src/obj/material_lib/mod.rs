@@ -38,11 +38,8 @@ impl MaterialLib {
                     }
                     // all subsequent call are current_material related
                     material_word => {
-                        if let Some(material) = current_material.as_mut() {
-                            material.parse(line);
-                        } else {
-                            panic!();
-                        }
+                        let material = current_material.as_mut().unwrap();
+                        material.parse(line);
                     }
                 }
             }

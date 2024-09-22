@@ -1,11 +1,18 @@
 use glam::Vec3;
 
+use super::SmoothingGroup;
+
 pub struct Face {
     pub material_name: Option<String>,
+    pub smoothing_group: SmoothingGroup,
     pub vertex_attributes: Vec<VertexAttribute>,
 }
 impl Face {
-    pub fn parse(line: &str, material_name: Option<String>) -> Self {
+    pub fn parse(
+        line: &str,
+        material_name: Option<String>,
+        smoothing_group: SmoothingGroup,
+    ) -> Self {
         let mut words = line.split_whitespace();
 
         match words.next() {
@@ -24,6 +31,7 @@ impl Face {
                 .map(|word| VertexAttribute::parse(word))
                 .collect(),
             material_name,
+            smoothing_group,
         }
     }
 }

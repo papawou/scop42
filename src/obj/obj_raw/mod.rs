@@ -44,6 +44,7 @@ impl ObjRaw {
         let mut faces: Vec<Face> = vec![];
 
         let mut material_name: Option<String> = None;
+        let mut smoothing_group: SmoothingGroup = SmoothingGroup::Off;
 
         for line in lines.map(|line| line.trim()) {
             let mut words = line.split_whitespace();
@@ -59,10 +60,19 @@ impl ObjRaw {
                             materials_lib.insert(word.to_string());
                         }
                     }
+                    "s" => match words.next() {
+                        Some(group) => match group {
+                            "off" => smoothing_group = SmoothingGroup::Off,
+                            _ => {
+                                smoothing_group = SmoothingGroup::On(group.parse::<u32>().unwrap());
+                            }
+                        },
+                        _ => panic!(),
+                    },
                     "usemtl" => {
-                        material_name = Some(words.collect::<Vec<&str>>().join(" "));
+                        material_name = Some(words.next().unwrap().to_string());
                     }
-                    "f" => faces.push(Face::parse(line, material_name.clone())),
+                    "f" => faces.push(Face::parse(line, material_name.clone(), smoothing_group)),
                     "o" => {
                         group = group.or(Some(Group::parse(line)));
                     }
@@ -90,4 +100,10 @@ impl ObjRaw {
 
         Self::parse(filepath, &data)
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum SmoothingGroup {
+    On(u32),
+    Off,
 }
