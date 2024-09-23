@@ -49,36 +49,17 @@ impl<'a> ObjAssetBuilder<'a> {
     }
 
     pub fn build(self) -> ObjAsset {
-        // normals_from_face
-        let mut normal_map = if self.normals_from_face {
-            Some(self.calculate_normals())
-        } else {
-            None
-        };
-
         // generate faces
         let mut faces: Vec<Vec<Vertex>> = vec![];
         for face in &self.obj_raw.faces {
-            let tri: Vec<Vertex> = face
+            let face_vertices: Vec<Vertex> = face
                 .vertex_attributes
                 .iter()
                 .map(|vertex_attribute| Vertex {
-                    normal: {
-                        let vertex_index = vertex_attribute.vertex_index as usize;
-
-                        //normals_from_face
-                        if let Some(normal_map) = normal_map.as_mut() {
-                            normal_map
-                                .get(&vertex_index)
-                                .and_then(|normal| Some(normal.normalize()))
-                        } else {
-                            self.vertex(vertex_attribute).normal
-                        }
-                    },
                     ..self.vertex(vertex_attribute)
                 })
                 .collect();
-            faces.push(tri);
+            faces.push(face_vertices);
         }
 
         ObjAsset(faces)
