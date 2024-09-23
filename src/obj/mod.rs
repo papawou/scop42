@@ -11,9 +11,9 @@ use material_lib::MaterialLib;
 use obj_raw::face::VertexAttribute;
 pub use obj_raw::ObjRaw;
 
-pub struct ObjAsset(Vec<Vec<Vertex>>);
+pub struct ObjAsset(Vec<[Vertex; 3]>);
 impl ObjAsset {
-    pub fn faces(&self) -> &Vec<Vec<Vertex>> {
+    pub fn faces(&self) -> &Vec<[Vertex; 3]> {
         &self.0
     }
 }
@@ -49,18 +49,10 @@ impl<'a> ObjAssetBuilder<'a> {
     }
 
     pub fn build(self) -> ObjAsset {
-        // generate faces
-        let mut faces: Vec<Vec<Vertex>> = vec![];
-        for face in &self.obj_raw.faces {
-            let face_vertices: Vec<Vertex> = face
-                .vertex_attributes
-                .iter()
-                .map(|vertex_attribute| Vertex {
-                    ..self.vertex(vertex_attribute)
-                })
-                .collect();
-            faces.push(face_vertices);
-        }
+        let tris = self.triangulate_faces();
+
+        //todo! compute missing normals
+        //todo! smoothing group
 
         ObjAsset(faces)
     }
@@ -141,6 +133,21 @@ impl<'a> ObjAssetBuilder<'a> {
         }
 
         normal_map
+    }
+
+    fn triangulate_faces(&self) -> Vec<[&VertexAttribute; 3]> {
+        self.obj_raw
+            .faces
+            .iter()
+            .flat_map(|face| face.vertex_attributes.windows(3))
+            .filter_map(|window| {
+                if let [a, b, c] = window {
+                    Some([a, b, c])
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 }
 
