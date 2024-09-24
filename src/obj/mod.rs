@@ -6,10 +6,11 @@ use std::{
     path::Path,
 };
 
-use glam::{Vec3, Vec4};
+use glam::{Vec3, Vec4, Vec4Swizzles};
 use material_lib::MaterialLib;
-use obj_raw::face::VertexAttribute;
+use obj_raw::face::{Face, VertexAttribute};
 pub use obj_raw::ObjRaw;
+use utils::calculate_tri_normal;
 
 pub struct ObjAsset(Vec<[Vertex; 3]>);
 impl ObjAsset {
@@ -51,8 +52,18 @@ impl<'a> ObjAssetBuilder<'a> {
     pub fn build(self) -> ObjAsset {
         let tris = self.triangulate_faces();
 
+        let tris_normal = tris
+            .iter()
+            .map(|(face, tris)| {
+                let edge_a = self.vertex(b).position - self.vertex(a).position;
+                let edge_b = self.vertex(c).position - self.vertex(c).position;
+                edge_a.truncate().cross(edge_b.truncate())
+            })
+            .collect::<Vec<Vec3>>();
+
         //todo! compute missing normals
         //todo! smoothing group
+
 
         ObjAsset(faces)
     }
@@ -135,17 +146,21 @@ impl<'a> ObjAssetBuilder<'a> {
         normal_map
     }
 
-    fn triangulate_faces(&self) -> Vec<[&VertexAttribute; 3]> {
+    fn triangulate_faces(&self) -> Vec<(&Face, Vec<[&VertexAttribute; 3]>)> {
         self.obj_raw
             .faces
             .iter()
-            .flat_map(|face| face.vertex_attributes.windows(3))
-            .filter_map(|window| {
-                if let [a, b, c] = window {
-                    Some([a, b, c])
-                } else {
-                    None
-                }
+            .map(|face| {
+
+                // gather tris face
+                let face_tris = face.vertex_attributes.windows(3).filter_map(|window| {
+                    if let [a, b, c] = window {
+                        Some([a, b, c])
+                    } else {
+                        None
+                    }
+                }).collect::<Vec<[&VertexAttribute; 3]>>();
+                (face, face_tris)
             })
             .collect()
     }

@@ -2,6 +2,8 @@ use std::{fs::File, io::Read, path::Path};
 
 use glam::Vec3;
 
+use super::{obj_raw::face::VertexAttribute, Tri};
+
 pub fn parse_vec3_or<'a>(words: &mut impl Iterator<Item = &'a str>, default: Option<Vec3>) -> Vec3 {
     let mut components: [f32; 3] = if let Some(default) = default {
         [default.x, default.y, default.z]
