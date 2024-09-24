@@ -8,8 +8,11 @@ use std::{
 
 use glam::{Vec3, Vec4, Vec4Swizzles};
 use material_lib::MaterialLib;
-use obj_raw::face::{Face, VertexAttribute};
 pub use obj_raw::ObjRaw;
+use obj_raw::{
+    face::{Face, VertexAttribute},
+    SmoothingGroup,
+};
 use utils::calculate_tri_normal;
 
 pub struct ObjAsset(Vec<[Vertex; 3]>);
@@ -52,18 +55,37 @@ impl<'a> ObjAssetBuilder<'a> {
     pub fn build(self) -> ObjAsset {
         let tris = self.triangulate_faces();
 
-        let tris_normal = tris
-            .iter()
-            .map(|(face, tris)| {
-                let edge_a = self.vertex(b).position - self.vertex(a).position;
-                let edge_b = self.vertex(c).position - self.vertex(c).position;
-                edge_a.truncate().cross(edge_b.truncate())
-            })
-            .collect::<Vec<Vec3>>();
+        let mut hash_smooth: HashMap<(u32, u32), Vec3> = HashMap::new(); //(smoothing_group, vertex_index)
 
-        //todo! compute missing normals
+        for (face, tris) in tris {
+            match face.smoothing_group {
+                SmoothingGroup::On(smoothing_group_id) => {
+                    for [a, b, c] in tris {
+                        let face_normal = calculate_tri_normal(
+                            self.vertex(a).position.truncate(),
+                            self.vertex(b).position.truncate(),
+                            self.vertex(c).position.truncate(),
+                        );
+
+                        for vertex_attribute in [a, b, c] {
+                            // missing vn equals face_normal
+                            let vertex_normal = self.vertex(vertex_attribute).normal.unwrap_or(face_normal);
+
+                            hash_smooth
+                                .entry((smoothing_group_id, vertex_attribute.vertex_index))
+                                .and_modify(|entry| {
+                                    *entry += vertex_normal;
+                                })
+                                .or_insert(vertex_normal);
+                        }
+                    }
+                }
+                _ => {} //smoothing group off
+            }
+        }
+
         //todo! smoothing group
-
+        //todo! compute missing normals
 
         ObjAsset(faces)
     }
@@ -151,15 +173,18 @@ impl<'a> ObjAssetBuilder<'a> {
             .faces
             .iter()
             .map(|face| {
-
                 // gather tris face
-                let face_tris = face.vertex_attributes.windows(3).filter_map(|window| {
-                    if let [a, b, c] = window {
-                        Some([a, b, c])
-                    } else {
-                        None
-                    }
-                }).collect::<Vec<[&VertexAttribute; 3]>>();
+                let face_tris = face
+                    .vertex_attributes
+                    .windows(3)
+                    .filter_map(|window| {
+                        if let [a, b, c] = window {
+                            Some([a, b, c])
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<[&VertexAttribute; 3]>>();
                 (face, face_tris)
             })
             .collect()
