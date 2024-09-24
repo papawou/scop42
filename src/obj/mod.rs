@@ -53,23 +53,17 @@ impl<'a> ObjAssetBuilder<'a> {
     }
 
     pub fn build(self) -> ObjAsset {
-        let tris = self.triangulate_faces();
+        let face_tris: Vec<(&Face, Vec<([&VertexAttribute; 3], Vec3)>)> = self.triangulate_faces();
 
         let mut hash_smooth: HashMap<(u32, u32), Vec3> = HashMap::new(); //(smoothing_group, vertex_index)
 
-        for (face, tris) in tris {
+        for (face, tris) in &face_tris {
             match face.smoothing_group {
                 SmoothingGroup::On(smoothing_group_id) => {
-                    for [a, b, c] in tris {
-                        let face_normal = calculate_tri_normal(
-                            self.vertex(a).position.truncate(),
-                            self.vertex(b).position.truncate(),
-                            self.vertex(c).position.truncate(),
-                        );
-
-                        for vertex_attribute in [a, b, c] {
-                            // missing vn equals face_normal
-                            let vertex_normal = self.vertex(vertex_attribute).normal.unwrap_or(face_normal);
+                    for (tri, normal) in tris {
+                        tri.iter().map(|vertex_attribute| {
+                            let vertex_normal =
+                                self.vertex(vertex_attribute).normal.unwrap_or(*normal);
 
                             hash_smooth
                                 .entry((smoothing_group_id, vertex_attribute.vertex_index))
@@ -77,17 +71,45 @@ impl<'a> ObjAssetBuilder<'a> {
                                     *entry += vertex_normal;
                                 })
                                 .or_insert(vertex_normal);
-                        }
+                        });
                     }
                 }
-                _ => {} //smoothing group off
+                _ => {}
             }
         }
 
-        //todo! smoothing group
-        //todo! compute missing normals
+        // build vertex
+        let tris: Vec<[Vertex; 3]> = face_tris
+            .iter()
+            .flat_map(|(face, tris)| {
+                tris.iter()
+                    .map(|(tri, normal)| {
+                        tri.iter()
+                            .map(|vertex_attribute| {
+                                let vertex_normal = match face.smoothing_group {
+                                    SmoothingGroup::On(smoothing_group_id) => hash_smooth
+                                        .get(&(smoothing_group_id, vertex_attribute.vertex_index))
+                                        .unwrap()
+                                        .normalize(),
+                                    SmoothingGroup::Off => {
+                                        self.vertex(vertex_attribute).normal.unwrap_or(*normal)
+                                    }
+                                };
 
-        ObjAsset(faces)
+                                Vertex {
+                                    normal: Some(vertex_normal.normalize()),
+                                    ..self.vertex(vertex_attribute)
+                                }
+                            })
+                            .collect::<Vec<Vertex>>()
+                            .try_into()
+                            .unwrap()
+                    })
+                    .collect::<Vec<[Vertex; 3]>>()
+            })
+            .collect();
+
+        ObjAsset(tris)
     }
 
     fn vertex(&self, vertex_attribute: &VertexAttribute) -> Vertex {
@@ -168,7 +190,7 @@ impl<'a> ObjAssetBuilder<'a> {
         normal_map
     }
 
-    fn triangulate_faces(&self) -> Vec<(&Face, Vec<[&VertexAttribute; 3]>)> {
+    fn triangulate_faces(&self) -> Vec<(&Face, Vec<([&VertexAttribute; 3], Vec3)>)> {
         self.obj_raw
             .faces
             .iter()
@@ -179,12 +201,17 @@ impl<'a> ObjAssetBuilder<'a> {
                     .windows(3)
                     .filter_map(|window| {
                         if let [a, b, c] = window {
-                            Some([a, b, c])
+                            let normal = calculate_tri_normal(
+                                self.vertex(a).position.truncate(),
+                                self.vertex(b).position.truncate(),
+                                self.vertex(c).position.truncate(),
+                            );
+                            Some(([a, b, c], normal))
                         } else {
                             None
                         }
                     })
-                    .collect::<Vec<[&VertexAttribute; 3]>>();
+                    .collect();
                 (face, face_tris)
             })
             .collect()
