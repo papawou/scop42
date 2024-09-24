@@ -259,7 +259,7 @@ pub fn from_obj(obj: &ObjAsset) -> Mesh<Vertex> {
 
             indice += 1;
         }
-        indices.push(u32::MAX); // triangle strip
+        indices.push(u32::MAX); // triangle_strip but actually obj is triangle_list ready
     }
 
     Mesh {
@@ -272,5 +272,4 @@ pub fn from_obj(obj: &ObjAsset) -> Mesh<Vertex> {
 
 fn fix_missing_normals(face: Face) {
     //triangulate Faces
-    
 }
