@@ -58,7 +58,7 @@ fn main() -> anyhow::Result<()> {
     // );
 
     let mut mesh = {
-        let obj_path = Path::new("resources/teapot.obj");
+        let obj_path = Path::new("resources/teapot2.obj");
         let obj = ObjRaw::load_from_file(&obj_path);
         let obj_asset = ObjAssetBuilder::new(&obj).normals_from_face(true).build();
         let mut mesh = from_obj(&obj_asset);
