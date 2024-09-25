@@ -61,13 +61,9 @@ impl<'a> ObjAssetBuilder<'a> {
             match face.smoothing_group {
                 SmoothingGroup::On(smoothing_group_id) => {
                     for (tri, normal) in tris {
-                        tri.iter().map(|vertex_attribute| {
+                        tri.iter().for_each(|vertex_attribute| {
                             let vertex_normal =
                                 self.vertex(vertex_attribute).normal.unwrap_or(*normal);
-                            dbg!(
-                                (smoothing_group_id, vertex_attribute.vertex_index),
-                                vertex_normal
-                            );
                             hash_smooth
                                 .entry((smoothing_group_id, vertex_attribute.vertex_index))
                                 .and_modify(|entry| {
@@ -81,7 +77,6 @@ impl<'a> ObjAssetBuilder<'a> {
             }
         }
 
-        dbg!(&hash_smooth);
         // build vertex
         let tris: Vec<[Vertex; 3]> = face_tris
             .iter()
