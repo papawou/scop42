@@ -13,7 +13,10 @@ mod traits;
 mod tri_renderer;
 mod vertex;
 
-use std::{path, time::Duration};
+use std::{
+    path::{self, Path},
+    time::Duration,
+};
 
 use anyhow::Ok;
 use ash::vk::{self};
@@ -55,7 +58,8 @@ fn main() -> anyhow::Result<()> {
     // );
 
     let mut mesh = {
-        let obj = ObjRaw::load_from_file("resources/teddy.obj");
+        let obj_path = Path::new("resources/teapot2.obj");
+        let obj = ObjRaw::load_from_file(&obj_path);
         let obj_asset = ObjAssetBuilder::new(&obj).normals_from_face(true).build();
         let mut mesh = from_obj(&obj_asset);
         mesh.load(

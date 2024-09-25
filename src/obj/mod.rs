@@ -1,15 +1,23 @@
-pub mod raw;
+mod material_lib;
+pub mod obj_raw;
+mod utils;
+use std::{
+    collections::{HashMap, HashSet},
+    path::Path,
+};
 
-use std::collections::{HashMap, HashSet};
+use glam::{Vec3, Vec4, Vec4Swizzles};
+use material_lib::MaterialLib;
+pub use obj_raw::ObjRaw;
+use obj_raw::{
+    face::{Face, VertexAttribute},
+    SmoothingGroup,
+};
+use utils::calculate_tri_normal;
 
-use glam::{Vec3, Vec4};
-use raw::face::VertexAttribute;
-pub use raw::ObjRaw;
-
-pub struct ObjAsset(Vec<Vec<Vertex>>);
-
+pub struct ObjAsset(Vec<[Vertex; 3]>);
 impl ObjAsset {
-    pub fn faces(&self) -> &Vec<Vec<Vertex>> {
+    pub fn faces(&self) -> &Vec<[Vertex; 3]> {
         &self.0
     }
 }
@@ -17,17 +25,20 @@ impl ObjAsset {
 pub struct ObjAssetBuilder<'a> {
     obj_raw: &'a ObjRaw,
     normals_from_face: bool,
+    material_libs: HashMap<String, MaterialLib>,
 }
-
 impl<'a> ObjAssetBuilder<'a> {
-    pub fn new(raw: &'a ObjRaw) -> ObjAssetBuilder<'a> {
-        ObjAssetBuilder {
+    pub fn new(raw: &'a ObjRaw) -> Self {
+        let material_libs = parse_materials(raw);
+
+        Self {
             obj_raw: raw,
             normals_from_face: false,
+            material_libs,
         }
     }
 
-    pub fn obj_raw(self, raw: &'a ObjRaw) -> ObjAssetBuilder<'a> {
+    pub fn obj_raw(self, raw: &'a ObjRaw) -> Self {
         Self {
             obj_raw: raw,
             ..self
@@ -42,35 +53,62 @@ impl<'a> ObjAssetBuilder<'a> {
     }
 
     pub fn build(self) -> ObjAsset {
-        //normals_from_face
-        let normal_map = self.get_normals_from_face();
+        let face_tris: Vec<(&Face, Vec<([&VertexAttribute; 3], Vec3)>)> = self.triangulate_faces();
 
-        // generate faces
-        let mut faces: Vec<Vec<Vertex>> = vec![];
-        for face in &self.obj_raw.faces {
-            let tri: Vec<Vertex> = face
-                .vertex_attributes
-                .iter()
-                .map(|vertex_attribute| Vertex {
-                    normal: {
-                        let vertex_index = vertex_attribute.vertex_index as usize;
+        let mut hash_smooth: HashMap<(u32, u32), Vec3> = HashMap::new(); //(smoothing_group, vertex_index)
 
-                        //normals_from_face
-                        if self.normals_from_face {
-                            normal_map
-                                .get(&vertex_index)
-                                .and_then(|normal| Some(normal.normalize()))
-                        } else {
-                            self.vertex(vertex_attribute).normal
-                        }
-                    },
-                    ..self.vertex(vertex_attribute)
-                })
-                .collect();
-            faces.push(tri);
+        for (face, tris) in &face_tris {
+            match face.smoothing_group {
+                SmoothingGroup::On(smoothing_group_id) => {
+                    for (tri, normal) in tris {
+                        tri.iter().for_each(|vertex_attribute| {
+                            let vertex_normal =
+                                self.vertex(vertex_attribute).normal.unwrap_or(*normal);
+                            hash_smooth
+                                .entry((smoothing_group_id, vertex_attribute.vertex_index))
+                                .and_modify(|entry| {
+                                    *entry += vertex_normal;
+                                })
+                                .or_insert(vertex_normal);
+                        });
+                    }
+                }
+                _ => {}
+            }
         }
 
-        ObjAsset(faces)
+        // build vertex
+        let tris: Vec<[Vertex; 3]> = face_tris
+            .iter()
+            .flat_map(|(face, tris)| {
+                tris.iter()
+                    .map(|(tri, normal)| {
+                        tri.iter()
+                            .map(|vertex_attribute| {
+                                let vertex_normal = match face.smoothing_group {
+                                    SmoothingGroup::On(smoothing_group_id) => hash_smooth
+                                        .get(&(smoothing_group_id, vertex_attribute.vertex_index))
+                                        .unwrap()
+                                        .normalize(),
+                                    SmoothingGroup::Off => {
+                                        self.vertex(vertex_attribute).normal.unwrap_or(*normal)
+                                    }
+                                };
+
+                                Vertex {
+                                    normal: Some(vertex_normal.normalize()),
+                                    ..self.vertex(vertex_attribute)
+                                }
+                            })
+                            .collect::<Vec<Vertex>>()
+                            .try_into()
+                            .unwrap()
+                    })
+                    .collect::<Vec<[Vertex; 3]>>()
+            })
+            .collect();
+
+        ObjAsset(tris)
     }
 
     fn vertex(&self, vertex_attribute: &VertexAttribute) -> Vertex {
@@ -112,7 +150,7 @@ impl<'a> ObjAssetBuilder<'a> {
         }
     }
 
-    fn get_normals_from_face(&self) -> HashMap<usize, Vec3> {
+    fn calculate_normals(&self) -> HashMap<usize, Vec3> {
         let mut normal_map: HashMap<usize, Vec3> = HashMap::new();
 
         for face in &self.obj_raw.faces {
@@ -150,6 +188,33 @@ impl<'a> ObjAssetBuilder<'a> {
 
         normal_map
     }
+
+    fn triangulate_faces(&self) -> Vec<(&Face, Vec<([&VertexAttribute; 3], Vec3)>)> {
+        self.obj_raw
+            .faces
+            .iter()
+            .map(|face| {
+                // gather tris face
+                let face_tris = face
+                    .vertex_attributes
+                    .windows(3)
+                    .filter_map(|window| {
+                        if let [a, b, c] = window {
+                            let normal = calculate_tri_normal(
+                                self.vertex(a).position.truncate(),
+                                self.vertex(b).position.truncate(),
+                                self.vertex(c).position.truncate(),
+                            );
+                            Some(([a, b, c], normal))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                (face, face_tris)
+            })
+            .collect()
+    }
 }
 
 #[derive(Debug, Default, Copy, Clone)]
@@ -157,4 +222,17 @@ pub struct Vertex {
     pub position: Vec4,
     pub texture: Option<Vec3>,
     pub normal: Option<Vec3>,
+}
+
+fn parse_materials(raw: &ObjRaw) -> HashMap<String, MaterialLib> {
+    let dirname = raw.filepath.parent().unwrap();
+    let mut material_libs = HashMap::<String, MaterialLib>::new();
+
+    for material_lib_name in &raw.material_libs {
+        let filepath = dirname.join(material_lib_name);
+        let material_lib = MaterialLib::load_from_file(&filepath);
+        material_libs.insert(material_lib_name.clone(), material_lib);
+    }
+
+    material_libs
 }

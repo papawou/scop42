@@ -9,6 +9,7 @@ use vk_mem::Alloc;
 
 use crate::ft_vk::allocated_buffer::AllocatedBuffer;
 use crate::helpers::{print_bytes_in_hex, vec_to_bytes};
+use crate::obj::obj_raw::face::Face;
 use crate::obj::{self, ObjAsset, ObjRaw};
 use crate::{
     ft_vk::Engine,
@@ -258,7 +259,7 @@ pub fn from_obj(obj: &ObjAsset) -> Mesh<Vertex> {
 
             indice += 1;
         }
-        indices.push(u32::MAX); // triangle strip
+        indices.push(u32::MAX); // triangle_strip but actually obj is triangle_list ready
     }
 
     Mesh {
@@ -267,4 +268,8 @@ pub fn from_obj(obj: &ObjAsset) -> Mesh<Vertex> {
         vertex_buffer: None,
         index_buffer: None,
     }
+}
+
+fn fix_missing_normals(face: Face) {
+    //triangulate Faces
 }
