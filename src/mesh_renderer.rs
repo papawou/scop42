@@ -4,8 +4,7 @@ use ash::vk;
 
 use crate::{
     ft_vk::{Engine, Renderer},
-    graphics_pipeline::GraphicsPipeline,
-    helpers::print_bytes_in_hex,
+    material::Material,
     mesh::Mesh,
     vertex::Vertex,
 };
@@ -14,7 +13,7 @@ pub struct MeshRenderer<'a, T>
 where
     T: crate::traits::IntoOwned,
 {
-    pub graphics_pipeline: GraphicsPipeline<'a, T>,
+    pub material: Material<'a, T>,
     pub mesh: &'a Mesh<Vertex>,
     pub push_constants: Option<T>,
 }
@@ -53,7 +52,7 @@ impl<'a, T: crate::traits::IntoOwned> Renderer for MeshRenderer<'a, T> {
             let push_constants = crate::helpers::struct_to_bytes(&tmp);
             engine.device.cmd_push_constants(
                 cmd,
-                self.graphics_pipeline.layout.as_vk(),
+                self.material.layout.as_vk(),
                 vk::ShaderStageFlags::VERTEX,
                 0,
                 push_constants,
@@ -70,7 +69,7 @@ impl<'a, T: crate::traits::IntoOwned> Renderer for MeshRenderer<'a, T> {
         engine.device.cmd_bind_pipeline(
             cmd,
             vk::PipelineBindPoint::GRAPHICS,
-            self.graphics_pipeline.pipeline,
+            self.material.pipeline,
         );
         engine
             .device

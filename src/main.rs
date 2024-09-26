@@ -2,8 +2,8 @@
 
 mod conf;
 mod ft_vk;
-mod graphics_pipeline;
 mod helpers;
+pub mod material;
 mod mesh;
 mod mesh_constants;
 mod mesh_renderer;
@@ -21,7 +21,7 @@ use std::{
 use anyhow::Ok;
 use ash::vk::{self};
 use ft_vk::Engine;
-use graphics_pipeline::{create_mesh_pipeline, create_tri_pipeline, GraphicsPipeline};
+use material::{create_mesh_material, create_tri_material, Material};
 use mesh::from_obj;
 use mesh_constants::MeshConstants;
 use mesh_renderer::MeshRenderer;
@@ -83,7 +83,7 @@ fn main() -> anyhow::Result<()> {
             .unwrap();
 
         MeshRenderer {
-            graphics_pipeline: create_mesh_pipeline(
+            material: create_mesh_material(
                 &engine.device,
                 engine.render_pass,
                 engine.swapchain.extent,
@@ -129,18 +129,17 @@ fn main() -> anyhow::Result<()> {
                                 unsafe {
                                     engine
                                         .device
-                                        .destroy_pipeline(renderer.graphics_pipeline.pipeline, None)
+                                        .destroy_pipeline(renderer.material.pipeline, None)
                                 };
 
                                 unsafe { engine.handle_resize((new_size.width, new_size.height)) };
 
-                                renderer.graphics_pipeline =
-                                    graphics_pipeline::create_mesh_pipeline(
-                                        &engine.device,
-                                        engine.render_pass,
-                                        engine.swapchain.extent,
-                                        &layout,
-                                    );
+                                renderer.material = material::create_mesh_material(
+                                    &engine.device,
+                                    engine.render_pass,
+                                    engine.swapchain.extent,
+                                    &layout,
+                                );
                             }
 
                             // engine loop
@@ -217,7 +216,7 @@ fn main() -> anyhow::Result<()> {
     unsafe {
         engine
             .device
-            .destroy_pipeline(renderer.graphics_pipeline.pipeline, None)
+            .destroy_pipeline(renderer.material.pipeline, None)
     };
     if let Some(allocator) = &engine.allocator {
         mesh.unload(&allocator);
