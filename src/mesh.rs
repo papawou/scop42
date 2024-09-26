@@ -9,8 +9,8 @@ use vk_mem::Alloc;
 
 use crate::ft_vk::allocated_buffer::AllocatedBuffer;
 use crate::helpers::{print_bytes_in_hex, vec_to_bytes};
-use crate::obj::obj_raw::face::Face;
-use crate::obj::{self, ObjAsset, ObjRaw};
+use crate::obj_asset::obj_raw::face::Face;
+use crate::obj_asset::{self, ObjAsset, ObjRaw};
 use crate::{
     ft_vk::Engine,
     helpers::{copy_buffer, struct_to_bytes},
