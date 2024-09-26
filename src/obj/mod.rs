@@ -150,45 +150,6 @@ impl<'a> ObjAssetBuilder<'a> {
         }
     }
 
-    fn calculate_normals(&self) -> HashMap<usize, Vec3> {
-        let mut normal_map: HashMap<usize, Vec3> = HashMap::new();
-
-        for face in &self.obj_raw.faces {
-            for tri in face.vertex_attributes.windows(3) {
-                let tri: Vec<(u32, Vertex)> = tri
-                    .iter()
-                    .map(|vertex| (vertex.vertex_index, self.vertex(vertex)))
-                    .collect();
-
-                let [(a_index, a), (b_index, b), (c_index, c)] = tri.as_slice() else {
-                    continue;
-                };
-
-                // Calculate tri normal
-                let normal = {
-                    let edge_a = b.position - a.position;
-                    let edge_b = c.position - a.position;
-                    edge_a.truncate().cross(edge_b.truncate()).normalize()
-                };
-
-                normal_map
-                    .entry(*a_index as usize)
-                    .and_modify(|n| *n += normal)
-                    .or_insert(normal);
-                normal_map
-                    .entry(*b_index as usize)
-                    .and_modify(|n| *n += normal)
-                    .or_insert(normal);
-                normal_map
-                    .entry(*c_index as usize)
-                    .and_modify(|n| *n += normal)
-                    .or_insert(normal);
-            }
-        }
-
-        normal_map
-    }
-
     fn triangulate_faces(&self) -> Vec<(&Face, Vec<([&VertexAttribute; 3], Vec3)>)> {
         self.obj_raw
             .faces
