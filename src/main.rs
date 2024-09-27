@@ -7,10 +7,9 @@ pub mod material;
 mod materials;
 mod mesh;
 mod mesh_constants;
-mod mesh_renderer;
 pub mod obj_asset;
+mod renderers;
 mod traits;
-mod tri_renderer;
 mod vertex;
 
 use std::{
@@ -24,9 +23,8 @@ use ft_vk::Engine;
 use material::Material;
 use mesh::from_obj;
 use mesh_constants::MeshConstants;
-use mesh_renderer::MeshRenderer;
 use obj_asset::{ObjAssetBuilder, ObjRaw};
-use tri_renderer::TriRenderer;
+use renderers::{MeshRenderer, TriRenderer};
 use vertex::Vertex;
 use winit::event_loop::EventLoop;
 
