@@ -2,11 +2,11 @@ use ash::vk;
 
 use crate::{
     ft_vk::{Engine, Renderer},
-    graphics_pipeline::GraphicsPipeline,
+    material::Material,
 };
 
 pub struct TriRenderer<'a> {
-    pub graphics_pipeline: GraphicsPipeline<'a, ()>,
+    pub material: Material<'a, ()>,
 }
 
 impl<'a> Renderer for TriRenderer<'a> {
@@ -33,7 +33,7 @@ impl<'a> Renderer for TriRenderer<'a> {
         engine.device.cmd_bind_pipeline(
             cmd,
             vk::PipelineBindPoint::GRAPHICS,
-            self.graphics_pipeline.pipeline,
+            self.material.pipeline,
         );
         engine.device.cmd_draw(cmd, 3, 1, 0, 0);
 

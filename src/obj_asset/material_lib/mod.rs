@@ -7,7 +7,7 @@ use std::{
 
 use material::Material;
 
-mod material;
+pub mod material;
 
 pub struct MaterialLib {
     filepath: PathBuf,

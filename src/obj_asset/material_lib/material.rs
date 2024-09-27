@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use glam::Vec3;
 
-use crate::obj::utils;
+use crate::obj_asset::utils;
 
 #[derive(Debug, Default)]
 pub struct Material {

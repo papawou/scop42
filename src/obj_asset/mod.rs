@@ -1,4 +1,4 @@
-mod material_lib;
+pub mod material_lib;
 pub mod obj_raw;
 mod utils;
 use std::{
@@ -7,7 +7,7 @@ use std::{
 };
 
 use glam::{Vec3, Vec4, Vec4Swizzles};
-use material_lib::MaterialLib;
+pub use material_lib::{material::Material, MaterialLib};
 pub use obj_raw::ObjRaw;
 use obj_raw::{
     face::{Face, VertexAttribute},
@@ -25,16 +25,12 @@ impl ObjAsset {
 pub struct ObjAssetBuilder<'a> {
     obj_raw: &'a ObjRaw,
     normals_from_face: bool,
-    material_libs: HashMap<String, MaterialLib>,
 }
 impl<'a> ObjAssetBuilder<'a> {
     pub fn new(raw: &'a ObjRaw) -> Self {
-        let material_libs = parse_materials(raw);
-
         Self {
             obj_raw: raw,
             normals_from_face: false,
-            material_libs,
         }
     }
 
@@ -107,7 +103,6 @@ impl<'a> ObjAssetBuilder<'a> {
                     .collect::<Vec<[Vertex; 3]>>()
             })
             .collect();
-
         ObjAsset(tris)
     }
 
@@ -185,11 +180,11 @@ pub struct Vertex {
     pub normal: Option<Vec3>,
 }
 
-fn parse_materials(raw: &ObjRaw) -> HashMap<String, MaterialLib> {
-    let dirname = raw.filepath.parent().unwrap();
-    let mut material_libs = HashMap::<String, MaterialLib>::new();
+pub fn load_materials(obj_raw: &ObjRaw) -> HashMap<String, MaterialLib> {
+    let dirname = obj_raw.filepath.parent().unwrap();
+    let mut material_libs = HashMap::<String, MaterialLib>::new(); //todo! rework uniqueness of sources (can be same file with different filepath)
 
-    for material_lib_name in &raw.material_libs {
+    for material_lib_name in &obj_raw.material_libs {
         let filepath = dirname.join(material_lib_name);
         let material_lib = MaterialLib::load_from_file(&filepath);
         material_libs.insert(material_lib_name.clone(), material_lib);

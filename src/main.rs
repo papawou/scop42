@@ -2,15 +2,14 @@
 
 mod conf;
 mod ft_vk;
-mod graphics_pipeline;
 mod helpers;
+pub mod material;
+mod materials;
 mod mesh;
 mod mesh_constants;
-mod mesh_renderer;
-pub mod obj;
-mod pipeline_layout;
+pub mod obj_asset;
+mod renderers;
 mod traits;
-mod tri_renderer;
 mod vertex;
 
 use std::{
@@ -21,13 +20,11 @@ use std::{
 use anyhow::Ok;
 use ash::vk::{self};
 use ft_vk::Engine;
-use graphics_pipeline::{create_mesh_pipeline, create_tri_pipeline, GraphicsPipeline};
+use material::Material;
 use mesh::from_obj;
 use mesh_constants::MeshConstants;
-use mesh_renderer::MeshRenderer;
-use obj::{ObjAssetBuilder, ObjRaw};
-use pipeline_layout::{create_default_layout, create_mesh_layout};
-use tri_renderer::TriRenderer;
+use obj_asset::{ObjAssetBuilder, ObjRaw};
+use renderers::{MeshRenderer, TriRenderer};
 use vertex::Vertex;
 use winit::event_loop::EventLoop;
 
@@ -60,6 +57,7 @@ fn main() -> anyhow::Result<()> {
     let mut mesh = {
         let obj_path = Path::new("resources/teapot2.obj");
         let obj = ObjRaw::load_from_file(&obj_path);
+        let material_lib = obj_asset::load_materials(&obj);
         let obj_asset = ObjAssetBuilder::new(&obj).normals_from_face(true).build();
         let mut mesh = from_obj(&obj_asset);
         mesh.load(
@@ -72,7 +70,7 @@ fn main() -> anyhow::Result<()> {
         mesh
     };
 
-    let layout = create_mesh_layout::<MeshConstants>(&engine.device);
+    let layout = materials::mesh::create_mesh_layout::<MeshConstants>(&engine.device);
     let mut renderer = {
         let device_address = mesh
             .vertex_buffer
@@ -83,7 +81,7 @@ fn main() -> anyhow::Result<()> {
             .unwrap();
 
         MeshRenderer {
-            graphics_pipeline: create_mesh_pipeline(
+            material: materials::mesh::create_mesh_material(
                 &engine.device,
                 engine.render_pass,
                 engine.swapchain.extent,
@@ -129,18 +127,17 @@ fn main() -> anyhow::Result<()> {
                                 unsafe {
                                     engine
                                         .device
-                                        .destroy_pipeline(renderer.graphics_pipeline.pipeline, None)
+                                        .destroy_pipeline(renderer.material.pipeline, None)
                                 };
 
                                 unsafe { engine.handle_resize((new_size.width, new_size.height)) };
 
-                                renderer.graphics_pipeline =
-                                    graphics_pipeline::create_mesh_pipeline(
-                                        &engine.device,
-                                        engine.render_pass,
-                                        engine.swapchain.extent,
-                                        &layout,
-                                    );
+                                renderer.material = materials::mesh::create_mesh_material(
+                                    &engine.device,
+                                    engine.render_pass,
+                                    engine.swapchain.extent,
+                                    &layout,
+                                );
                             }
 
                             // engine loop
@@ -217,7 +214,7 @@ fn main() -> anyhow::Result<()> {
     unsafe {
         engine
             .device
-            .destroy_pipeline(renderer.graphics_pipeline.pipeline, None)
+            .destroy_pipeline(renderer.material.pipeline, None)
     };
     if let Some(allocator) = &engine.allocator {
         mesh.unload(&allocator);
