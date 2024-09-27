@@ -1,11 +1,8 @@
 use ash::vk;
 
-use crate::{
-    ft_vk::{GraphicsPipelineInfoBuilder, PipelineLayout, ShaderModule},
-    material::Material,
-};
+use crate::ft_vk::{GraphicsPipelineInfoBuilder, PipelineLayout, ShaderModule};
 
-use super::utils;
+use super::{utils, Material};
 
 //DEFAULT
 pub fn create_tri_material<'a>(

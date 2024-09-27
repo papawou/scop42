@@ -4,7 +4,6 @@ mod conf;
 mod ft_vk;
 mod helpers;
 pub mod material;
-mod materials;
 mod mesh;
 mod mesh_constants;
 pub mod obj_asset;
@@ -70,7 +69,7 @@ fn main() -> anyhow::Result<()> {
         mesh
     };
 
-    let layout = materials::mesh::create_mesh_layout::<MeshConstants>(&engine.device);
+    let layout = material::mesh::create_mesh_layout::<MeshConstants>(&engine.device);
     let mut renderer = {
         let device_address = mesh
             .vertex_buffer
@@ -81,7 +80,7 @@ fn main() -> anyhow::Result<()> {
             .unwrap();
 
         MeshRenderer {
-            material: materials::mesh::create_mesh_material(
+            material: material::mesh::create_mesh_material(
                 &engine.device,
                 engine.render_pass,
                 engine.swapchain.extent,
@@ -132,7 +131,7 @@ fn main() -> anyhow::Result<()> {
 
                                 unsafe { engine.handle_resize((new_size.width, new_size.height)) };
 
-                                renderer.material = materials::mesh::create_mesh_material(
+                                renderer.material = material::mesh::create_mesh_material(
                                     &engine.device,
                                     engine.render_pass,
                                     engine.swapchain.extent,

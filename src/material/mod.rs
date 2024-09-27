@@ -1,3 +1,8 @@
+pub mod mesh;
+pub mod tri;
+
+mod utils;
+
 use ash::vk::{self, Framebuffer};
 use glam::Vec3;
 
