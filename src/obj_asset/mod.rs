@@ -1,4 +1,4 @@
-mod material_lib;
+pub mod material_lib;
 pub mod obj_raw;
 mod utils;
 use std::{
@@ -7,7 +7,7 @@ use std::{
 };
 
 use glam::{Vec3, Vec4, Vec4Swizzles};
-use material_lib::MaterialLib;
+pub use material_lib::{material::Material, MaterialLib};
 pub use obj_raw::ObjRaw;
 use obj_raw::{
     face::{Face, VertexAttribute},

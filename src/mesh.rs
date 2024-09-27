@@ -269,7 +269,3 @@ pub fn from_obj(obj: &ObjAsset) -> Mesh<Vertex> {
         index_buffer: None,
     }
 }
-
-fn fix_missing_normals(face: Face) {
-    //triangulate Faces
-}

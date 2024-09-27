@@ -4,11 +4,11 @@ mod conf;
 mod ft_vk;
 mod helpers;
 pub mod material;
+mod materials;
 mod mesh;
 mod mesh_constants;
 mod mesh_renderer;
 pub mod obj_asset;
-mod pipeline_layout;
 mod traits;
 mod tri_renderer;
 mod vertex;
@@ -21,12 +21,11 @@ use std::{
 use anyhow::Ok;
 use ash::vk::{self};
 use ft_vk::Engine;
-use material::{create_mesh_material, create_tri_material, Material};
+use material::Material;
 use mesh::from_obj;
 use mesh_constants::MeshConstants;
 use mesh_renderer::MeshRenderer;
 use obj_asset::{ObjAssetBuilder, ObjRaw};
-use pipeline_layout::{create_default_layout, create_mesh_layout};
 use tri_renderer::TriRenderer;
 use vertex::Vertex;
 use winit::event_loop::EventLoop;
@@ -72,7 +71,7 @@ fn main() -> anyhow::Result<()> {
         mesh
     };
 
-    let layout = create_mesh_layout::<MeshConstants>(&engine.device);
+    let layout = materials::mesh::create_mesh_layout::<MeshConstants>(&engine.device);
     let mut renderer = {
         let device_address = mesh
             .vertex_buffer
@@ -83,7 +82,7 @@ fn main() -> anyhow::Result<()> {
             .unwrap();
 
         MeshRenderer {
-            material: create_mesh_material(
+            material: materials::mesh::create_mesh_material(
                 &engine.device,
                 engine.render_pass,
                 engine.swapchain.extent,
@@ -134,7 +133,7 @@ fn main() -> anyhow::Result<()> {
 
                                 unsafe { engine.handle_resize((new_size.width, new_size.height)) };
 
-                                renderer.material = material::create_mesh_material(
+                                renderer.material = materials::mesh::create_mesh_material(
                                     &engine.device,
                                     engine.render_pass,
                                     engine.swapchain.extent,
