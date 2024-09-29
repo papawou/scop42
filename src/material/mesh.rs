@@ -32,7 +32,7 @@ pub fn create_material<'a, T>(
     let pipeline_info = default_pipeline_info
         .set_obj_compatible()
         .set_depth_stencil()
-        .enable_blending_additive()
+        //.enable_blending_additive()
         .build()
         .stages(&stages)
         .viewport_state(&viewport_state)
