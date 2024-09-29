@@ -7,7 +7,7 @@ pub mod material;
 mod mesh;
 mod mesh_constants;
 pub mod obj_asset;
-mod renderers;
+mod renderer;
 mod traits;
 mod vertex;
 
@@ -23,7 +23,7 @@ use material::Material;
 use mesh::from_obj;
 use mesh_constants::MeshConstants;
 use obj_asset::{ObjAssetBuilder, ObjRaw};
-use renderers::{MeshRenderer, TriRenderer};
+use renderer::{MeshRenderer, TriRenderer};
 use vertex::Vertex;
 use winit::event_loop::EventLoop;
 
