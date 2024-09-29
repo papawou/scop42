@@ -68,7 +68,26 @@ impl<'a> GraphicsPipelineInfoBuilder<'a> {
         self
     }
 
+    pub fn enable_blending_additive(&mut self) -> &mut Self {
+        let color_blend_attachment = vk::PipelineColorBlendAttachmentState {
+            color_write_mask: vk::ColorComponentFlags::RGBA,
+            blend_enable: vk::TRUE,
+            src_color_blend_factor: vk::BlendFactor::SRC_ALPHA,
+            dst_color_blend_factor: vk::BlendFactor::ONE,
+            color_blend_op: vk::BlendOp::ADD,
+            src_alpha_blend_factor: vk::BlendFactor::ONE,
+            dst_alpha_blend_factor: vk::BlendFactor::ZERO,
+            alpha_blend_op: vk::BlendOp::ADD,
+            ..Default::default()
+        };
+
+        self.color_blend_attachments = vec![color_blend_attachment];
+
+        self
+    }
+
     pub fn build(&'a mut self) -> vk::GraphicsPipelineCreateInfo<'a> {
+        // build color_blend
         self.color_blend = self.color_blend.attachments(&self.color_blend_attachments);
 
         vk::GraphicsPipelineCreateInfo::default()
