@@ -4,7 +4,7 @@ use crate::ft_vk::{GraphicsPipelineInfoBuilder, PipelineLayout, ShaderModule};
 
 use super::{utils, Material};
 
-pub fn create_mesh_material<'a, T>(
+pub fn create_material<'a, T>(
     device: &ash::Device,
     render_pass: vk::RenderPass,
     extent: vk::Extent2D,
@@ -53,7 +53,7 @@ pub fn create_mesh_material<'a, T>(
     }
 }
 
-pub fn create_mesh_layout<T>(device: &ash::Device) -> PipelineLayout<T> {
+pub fn create_layout<T>(device: &ash::Device) -> PipelineLayout<T> {
     let push_constant_ranges = [vk::PushConstantRange {
         stage_flags: vk::ShaderStageFlags::VERTEX,
         size: std::mem::size_of::<T>() as u32,

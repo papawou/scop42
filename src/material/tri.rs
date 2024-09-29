@@ -5,7 +5,7 @@ use crate::ft_vk::{GraphicsPipelineInfoBuilder, PipelineLayout, ShaderModule};
 use super::{utils, Material};
 
 //DEFAULT
-pub fn create_tri_material<'a>(
+pub fn create_material<'a>(
     device: &ash::Device,
     render_pass: vk::RenderPass,
     extent: vk::Extent2D,
@@ -53,7 +53,7 @@ pub fn create_tri_material<'a>(
     }
 }
 
-pub fn create_default_layout(device: &ash::Device) -> PipelineLayout {
+pub fn create_layout(device: &ash::Device) -> PipelineLayout {
     let layout = unsafe {
         device
             .create_pipeline_layout(&vk::PipelineLayoutCreateInfo::default(), None)
