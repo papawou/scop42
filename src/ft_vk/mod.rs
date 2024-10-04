@@ -10,6 +10,7 @@ pub use shader_module::ShaderModule;
 mod queue_famillies;
 pub use queue_famillies::QueueFamilies;
 
+pub mod descriptor;
 mod render_pass;
 mod surface_support;
 mod swapchain;
