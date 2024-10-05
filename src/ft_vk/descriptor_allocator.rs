@@ -1,77 +1,22 @@
-use std::{collections::VecDeque, ops::Mul};
+use std::collections::VecDeque;
 
 use ash::vk;
 
-pub struct DescriptorSetLayout(vk::DescriptorSetLayout);
-
-impl DescriptorSetLayout {
-    pub fn layout(&self) -> vk::DescriptorSetLayout {
-        self.0
-    }
-}
-
-struct DescriptorSetLayoutCreateInfoBuilder<'a> {
-    stage_flags: vk::ShaderStageFlags, // binding.stage_flags |= stage_flags
-    bindings: Vec<vk::DescriptorSetLayoutBinding<'a>>,
-}
-
-impl<'a> DescriptorSetLayoutCreateInfoBuilder<'a> {
-    fn new() -> Self {
-        Self {
-            stage_flags: vk::ShaderStageFlags::empty(),
-            bindings: vec![],
-        }
-    }
-
-    fn build(&'a mut self) -> vk::DescriptorSetLayoutCreateInfo<'a> {
-        self.bindings = self
-            .bindings
-            .iter()
-            .map(|binding| binding.stage_flags(binding.stage_flags | self.stage_flags))
-            .collect();
-
-        vk::DescriptorSetLayoutCreateInfo::default().bindings(self.bindings.as_slice())
-    }
-}
-
-// DescriptorAllocator
-
-struct DescriptorAllocator {
+#[derive(Debug)]
+pub struct DescriptorAllocator {
     full_pools: VecDeque<vk::DescriptorPool>,
     ready_pools: VecDeque<vk::DescriptorPool>,
-    ratios: Vec<vk::DescriptorPoolSize>,
-    sets_per_pool: u32,
+    pool_sizes: Vec<vk::DescriptorPoolSize>,
+    max_sets: u32,
 }
 
 impl DescriptorAllocator {
-    pub fn new(max_sets: u32, pool_ratios: Vec<vk::DescriptorPoolSize>) -> Self {
+    pub fn new(max_sets: u32, pool_sizes: Vec<vk::DescriptorPoolSize>) -> Self {
         Self {
-            sets_per_pool: max_sets,
-            ratios: pool_ratios,
+            max_sets,
+            pool_sizes,
             full_pools: VecDeque::new(),
             ready_pools: VecDeque::new(),
-        }
-    }
-
-    // why this func ? ignored until further tutorial
-    pub fn init(device: &ash::Device, max_sets: u32, pool_ratios: Vec<vk::DescriptorPoolSize>) {
-        let test:vk::DescriptorSet
-
-        //why resetting the ratios ??
-        { // ratios.clear();
-
-            // for (auto r : poolRatios) {
-            //     ratios.push_back(r);
-            // }
-        }
-
-        // get_pool seems same
-        {
-            // VkDescriptorPool newPool = create_pool(device, maxSets, poolRatios);
-
-            // setsPerPool = maxSets * 1.5; //grow it next allocation
-
-            // readyPools.push_back(newPool);
         }
     }
 
@@ -107,7 +52,7 @@ impl DescriptorAllocator {
         self.full_pools.clear();
     }
 
-    pub fn allocate(
+    pub fn allocate_descriptor_set(
         &mut self,
         device: &ash::Device,
         layout: vk::DescriptorSetLayout,
@@ -154,16 +99,14 @@ impl DescriptorAllocator {
         let new_pool: vk::DescriptorPool = match self.ready_pools.pop_back() {
             Some(pool) => pool,
             None => {
-                // fn create_pool(VkDevice device, uint32_t setCount, std::span<PoolSizeRatio> poolRatios)
                 let pool = {
                     let pool_info = vk::DescriptorPoolCreateInfo::default()
                         .flags(vk::DescriptorPoolCreateFlags::empty())
-                        .max_sets(self.sets_per_pool)
-                        .pool_sizes(&self.ratios);
+                        .max_sets(self.max_sets)
+                        .pool_sizes(&self.pool_sizes);
                     unsafe { device.create_descriptor_pool(&pool_info, None).unwrap() }
                 };
-                // setsPerPool * 1.5; -- for next create_pool
-                self.sets_per_pool = (self.sets_per_pool + (self.sets_per_pool / 2));
+                self.max_sets = (self.max_sets + (self.max_sets / 2));
 
                 pool
             }
@@ -172,18 +115,3 @@ impl DescriptorAllocator {
         new_pool
     }
 }
-
-// DescriptorWriter
-
-// typedef struct VkWriteDescriptorSet {
-//     VkStructureType                  sType;
-//     const void*                      pNext;
-//     VkDescriptorSet                  dstSet;
-//     uint32_t                         dstBinding;
-//     uint32_t                         dstArrayElement;
-//     uint32_t                         descriptorCount;
-//     VkDescriptorType                 descriptorType;
-//     const VkDescriptorImageInfo*     pImageInfo;
-//     const VkDescriptorBufferInfo*    pBufferInfo;
-//     const VkBufferView*              pTexelBufferView;
-// } VkWriteDescriptorSet;

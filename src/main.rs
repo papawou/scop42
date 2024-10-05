@@ -1,7 +1,6 @@
 #![allow(warnings)]
 
 mod conf;
-mod descriptor_write;
 mod ft_vk;
 mod helpers;
 pub mod material;
@@ -256,4 +255,10 @@ fn update_mesh_constants<'a>(
         render_matrix: mesh_matrix,
         vertex_buffer: constants.vertex_buffer,
     }
+}
+
+struct GPUSceneData {
+    view: glam::Mat4,
+    proj: glam::Mat4,
+    viewproj: glam::Mat4,
 }

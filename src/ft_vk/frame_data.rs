@@ -1,5 +1,7 @@
 use ash::vk;
 
+use super::descriptor_allocator::{self, DescriptorAllocator};
+
 #[derive(Debug)]
 pub struct FrameData {
     pub command_pool: vk::CommandPool,
@@ -8,10 +10,15 @@ pub struct FrameData {
     pub fence: vk::Fence,
     pub render_semaphore: vk::Semaphore,
     pub present_semaphore: vk::Semaphore,
+    pub descriptor_allocator: DescriptorAllocator,
 }
 
 impl FrameData {
-    pub fn new(device: &ash::Device, graphics_family: u32) -> Self {
+    pub fn new(
+        device: &ash::Device,
+        graphics_family: u32,
+        descriptor_allocator: DescriptorAllocator,
+    ) -> Self {
         let command_pool_info = vk::CommandPoolCreateInfo::default()
             .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
             .queue_family_index(graphics_family);
@@ -37,10 +44,11 @@ impl FrameData {
             fence,
             render_semaphore,
             present_semaphore,
+            descriptor_allocator,
         }
     }
 
-    pub fn destroy(self, device: &ash::Device) {
+    pub fn destroy(mut self, device: &ash::Device) {
         unsafe {
             device.destroy_semaphore(self.render_semaphore, None);
             device.destroy_semaphore(self.present_semaphore, None);
@@ -48,5 +56,7 @@ impl FrameData {
             device.free_command_buffers(self.command_pool, &[self.command_buffer]);
             device.destroy_command_pool(self.command_pool, None);
         }
+
+        self.descriptor_allocator.destroy_pools(device);
     }
 }

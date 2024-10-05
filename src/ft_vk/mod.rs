@@ -4,13 +4,15 @@ mod frame_data;
 mod graphics_pipeline;
 mod pipeline_layout;
 mod shader_module;
+use descriptor_allocator::DescriptorAllocator;
 pub use graphics_pipeline::GraphicsPipelineInfoBuilder;
 pub use pipeline_layout::PipelineLayout;
 pub use shader_module::ShaderModule;
 mod queue_famillies;
 pub use queue_famillies::QueueFamilies;
 
-pub mod descriptor;
+mod descriptor_allocator;
+pub mod descriptor_set_layout;
 mod render_pass;
 mod surface_support;
 mod swapchain;
@@ -501,7 +503,15 @@ fn create_present_frames(
     let mut frames = Vec::with_capacity(count);
 
     for _ in 0..count {
-        frames.push(FrameData::new(device, graphics_family));
+        let pool_sizes: Vec<vk::DescriptorPoolSize> = vec![vk::DescriptorPoolSize::default()
+            .ty(vk::DescriptorType::STORAGE_IMAGE)
+            .descriptor_count(1)];
+
+        frames.push(FrameData::new(
+            device,
+            graphics_family,
+            DescriptorAllocator::new(0, vec![]),
+        ));
     }
 
     frames
