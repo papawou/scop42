@@ -5,6 +5,7 @@ mod ft_vk;
 mod helpers;
 pub mod material;
 mod mesh;
+mod mesh_asset;
 mod mesh_constants;
 pub mod obj_asset;
 mod renderer;
@@ -20,7 +21,8 @@ use anyhow::Ok;
 use ash::vk::{self};
 use ft_vk::Engine;
 use material::Material;
-use mesh::from_obj;
+use mesh::Mesh;
+use mesh_asset::MeshAsset;
 use mesh_constants::MeshConstants;
 use obj_asset::{ObjAssetBuilder, ObjRaw};
 use renderer::{MeshRenderer, TriRenderer};
@@ -53,12 +55,21 @@ fn main() -> anyhow::Result<()> {
     //     engine.frames[0].command_pool,
     // );
 
-    let mut mesh = {
+    let obj = {
         let obj_path = Path::new("resources/teapot2.obj");
-        let obj = ObjRaw::load_from_file(&obj_path);
-        let material_lib = obj_asset::load_materials(&obj);
-        let obj_asset = ObjAssetBuilder::new(&obj).normals_from_face(true).build();
-        let mut mesh = from_obj(&obj_asset);
+        ObjRaw::load_from_file(&obj_path)
+    };
+    let obj_asset = ObjAssetBuilder::new(&obj).normals_from_face(true).build();
+    let material_lib = obj_asset::load_materials(&obj);
+
+    let mesh_asset = MeshAsset::from_obj(&obj_asset);
+
+    let mut mesh = {
+        let mut mesh = Mesh {
+            asset: &mesh_asset,
+            index_buffer: None,
+            vertex_buffer: None,
+        };
         mesh.load(
             &engine.device,
             engine.allocator.as_mut().unwrap(),

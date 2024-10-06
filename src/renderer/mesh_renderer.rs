@@ -9,13 +9,13 @@ use crate::{
     vertex::Vertex,
 };
 
-pub struct MeshRenderer<'a, T>
+pub struct MeshRenderer<'a, TPushConstants>
 where
-    T: crate::traits::IntoOwned,
+    TPushConstants: crate::traits::IntoOwned,
 {
-    pub material: Material<'a, T>,
-    pub mesh: &'a Mesh<Vertex>,
-    pub push_constants: Option<T>,
+    pub material: &'a Material<'a, TPushConstants>,
+    pub mesh: &'a Mesh<'a, Vertex>,
+    pub push_constants: Option<TPushConstants>,
 }
 
 impl<'a, T: crate::traits::IntoOwned> Renderer for MeshRenderer<'a, T> {
@@ -73,7 +73,7 @@ impl<'a, T: crate::traits::IntoOwned> Renderer for MeshRenderer<'a, T> {
         );
         engine
             .device
-            .cmd_draw_indexed(cmd, self.mesh.indices.len() as u32, 1, 0, 0, 0);
+            .cmd_draw_indexed(cmd, self.mesh.asset.indices.len() as u32, 1, 0, 0, 0);
         engine.device.cmd_end_render_pass(cmd);
     }
 }

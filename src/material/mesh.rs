@@ -4,12 +4,12 @@ use crate::ft_vk::{GraphicsPipelineInfoBuilder, PipelineLayout, ShaderModule};
 
 use super::{utils, Material};
 
-pub fn create_material<'a, T>(
+pub fn create_material<'a, TPushConstants>(
     device: &ash::Device,
     render_pass: vk::RenderPass,
     extent: vk::Extent2D,
-    layout: &'a PipelineLayout<T>,
-) -> Material<'a, T> {
+    layout: &'a PipelineLayout<TPushConstants>,
+) -> Material<'a, TPushConstants> {
     let main_entry = std::ffi::CString::new("main").unwrap();
     let vert_module = ShaderModule::create_from_file(device, "./shaders/mesh_dba.vert.spv");
     let vert_stage = vk::PipelineShaderStageCreateInfo::default()
@@ -54,10 +54,10 @@ pub fn create_material<'a, T>(
     }
 }
 
-pub fn create_layout<T>(device: &ash::Device) -> PipelineLayout<T> {
+pub fn create_layout<TPushConstants>(device: &ash::Device) -> PipelineLayout<TPushConstants> {
     let push_constant_ranges = [vk::PushConstantRange {
         stage_flags: vk::ShaderStageFlags::VERTEX,
-        size: std::mem::size_of::<T>() as u32,
+        size: std::mem::size_of::<TPushConstants>() as u32,
         offset: 0,
     }];
     let layout = unsafe {
@@ -70,7 +70,7 @@ pub fn create_layout<T>(device: &ash::Device) -> PipelineLayout<T> {
             .unwrap()
     };
 
-    PipelineLayout::<T> {
+    PipelineLayout::<TPushConstants> {
         layout,
         _marker: std::marker::PhantomData,
     }

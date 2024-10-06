@@ -12,10 +12,16 @@ use crate::{
 };
 
 pub struct Material<'a, T> {
-    pub layout: &'a PipelineLayout<T>,
-    //pub render_pass: vk::RenderPass,
+    // struct MaterialPipeline
+    pub layout: &'a PipelineLayout<T>, // hold DescriptorSetLayout
     pub pipeline: vk::Pipeline,
+
+    //pub render_pass: vk::RenderPass,
+
+    // descriptors
+    pub descriptor_sets: Vec<vk::DescriptorSet>,
 }
+
 pub struct MaterialBuilder {
     pub material_name: String, // newmtl (Material Group Name)
 
