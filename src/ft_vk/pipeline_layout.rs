@@ -1,8 +1,8 @@
 use ash::vk;
 
-pub struct PipelineLayout<T = ()> {
+pub struct PipelineLayout<TPushConstants = ()> {
     pub layout: vk::PipelineLayout,
-    pub _marker: std::marker::PhantomData<T>,
+    pub _marker: std::marker::PhantomData<TPushConstants>,
 }
 
 impl<T> PipelineLayout<T> {

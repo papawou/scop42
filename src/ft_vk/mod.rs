@@ -1,5 +1,5 @@
 pub mod allocated_buffer;
-mod allocated_image;
+pub mod allocated_image;
 mod frame_data;
 mod graphics_pipeline;
 mod pipeline_layout;

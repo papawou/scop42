@@ -4,6 +4,7 @@ mod conf;
 mod ft_vk;
 mod helpers;
 pub mod material;
+mod material_asset;
 mod mesh;
 mod mesh_asset;
 mod mesh_constants;

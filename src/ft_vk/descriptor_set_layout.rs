@@ -15,7 +15,7 @@ impl<'a> DescriptorSetLayoutCreateInfoBuilder<'a> {
         }
     }
 
-    pub fn add_binding(&mut self, binding: vk::DescriptorSetLayoutBinding<'a>) -> &mut Self {
+    pub fn add_binding(&'a mut self, binding: vk::DescriptorSetLayoutBinding<'a>) -> &'a mut Self {
         self.bindings.push(binding);
         self
     }

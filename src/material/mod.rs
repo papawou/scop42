@@ -1,90 +1,105 @@
-pub mod mesh;
-pub mod tri;
-
 mod utils;
 
 use ash::vk::{self, Framebuffer};
 use glam::Vec3;
 
 use crate::{
-    ft_vk::{self, Engine, GraphicsPipelineInfoBuilder, PipelineLayout, ShaderModule},
+    ft_vk::{
+        self,
+        allocated_buffer::AllocatedBuffer,
+        allocated_image::{self, AllocatedImage},
+        descriptor_set_layout::DescriptorSetLayoutCreateInfoBuilder,
+        Engine, GraphicsPipelineInfoBuilder, PipelineLayout, ShaderModule,
+    },
+    material_asset::MaterialAsset,
     obj_asset::{self, MaterialLib, ObjAsset},
 };
 
-pub struct Material<'a, T> {
+pub struct Material {
     // struct MaterialPipeline
-    pub layout: &'a PipelineLayout<T>, // hold DescriptorSetLayout
-    pub pipeline: vk::Pipeline,
-
-    //pub render_pass: vk::RenderPass,
+    // pub layout: &'a PipelineLayout<TPushConstants>, // hold DescriptorSetLayout
+    // pub pipeline: vk::Pipeline,
 
     // descriptors
-    pub descriptor_sets: Vec<vk::DescriptorSet>,
+    // pub descriptor_sets: Vec<vk::DescriptorSet>,
+    // pub asset: &'a MaterialAsset,
+    pub buffer_info: Vec<vk::DescriptorBufferInfo>,
+    pub image_info: Vec<vk::DescriptorImageInfo>,
 }
 
-pub struct MaterialBuilder {
-    pub material_name: String, // newmtl (Material Group Name)
-
-    pub shininess_exponent: f32, // Ns (Shininess Exponent)
-    pub ambient: Vec3,           // Ka (Ambient RGB)
-    pub diffuse: Vec3,           // Kd (Diffuse RGB)
-    pub specular: Vec3,          // Ks (Specular RGB)
-    pub emission: Vec3,          // Ke (Emission RGB)
-    pub optical_density: f32,    // Ni (Optical Density)
-    pub dissolve: f32,           // d (Dissolve)
-    pub illumination: i32,       // illum (Illumination Model)
-
-    // Texture maps
-    pub ambient_map: Option<String>,         // map_Ka
-    pub diffuse_map: Option<String>,         // map_Kd
-    pub specular_map: Option<String>,        // map_Ks
-    pub optical_density_map: Option<String>, // map_Ns
-    pub dissolve_map: Option<String>,        // map_d
-    pub displacement_map: Option<String>,    // disp
-    pub decal_map: Option<String>,           // decal
-    pub bump_map: Option<String>,            // bump
-}
-
-impl From<obj_asset::Material> for MaterialBuilder {
-    fn from(value: obj_asset::Material) -> Self {
-        let obj_asset::Material {
-            ambient,
-            ambient_map,
-            bump_map,
-            decal_map,
-            diffuse,
-            diffuse_map,
-            displacement_map,
-            dissolve,
-            dissolve_map,
-            emission,
-            illumination,
-            material_name,
-            optical_density,
-            optical_density_map,
-            shininess_exponent,
-            specular,
-            specular_map,
-        } = value;
+impl Material {
+    pub fn new(
+        params: &AllocatedBuffer,
+        allocated_image: &AllocatedImage,
+        sampler: &vk::Sampler,
+    ) -> Self {
+        let buffer_info = vk::DescriptorBufferInfo::default().buffer(params.buffer);
+        let image_info = vk::DescriptorImageInfo::default()
+            .image_layout(vk::ImageLayout::default())
+            .image_view(allocated_image.image_view)
+            .sampler(sampler.clone());
 
         Self {
-            ambient,
-            ambient_map,
-            bump_map,
-            decal_map,
-            diffuse,
-            diffuse_map,
-            displacement_map,
-            dissolve,
-            dissolve_map,
-            emission,
-            illumination,
-            material_name,
-            optical_density,
-            optical_density_map,
-            shininess_exponent,
-            specular,
-            specular_map,
+            buffer_info: vec![buffer_info],
+            image_info: vec![image_info],
         }
     }
+
+    pub fn descriptor_set_layouts<'a>(
+        descriptor_set_layout_builder: &'a mut DescriptorSetLayoutCreateInfoBuilder<'a>,
+    ) -> &'a mut DescriptorSetLayoutCreateInfoBuilder<'a> {
+        descriptor_set_layout_builder
+            .add_binding(
+                vk::DescriptorSetLayoutBinding::default()
+                    .binding(0)
+                    .descriptor_count(1)
+                    .descriptor_type(vk::DescriptorType::STORAGE_IMAGE),
+            )
+            .add_binding(
+                vk::DescriptorSetLayoutBinding::default()
+                    .binding(1)
+                    .descriptor_count(1)
+                    .descriptor_type(vk::DescriptorType::SAMPLER)
+                    .stage_flags(vk::ShaderStageFlags::FRAGMENT),
+            )
+    }
+
+    pub fn write_descriptor_sets<'a>(
+        &'a self,
+        // descriptor_set_layout_builder: &vk::DescriptorSet,
+    ) -> Vec<vk::WriteDescriptorSet<'a>> {
+        vec![
+            vk::WriteDescriptorSet::default()
+                //.dst_set(descriptor_set.clone())
+                .dst_binding(0)
+                .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
+                .buffer_info(&self.buffer_info),
+            vk::WriteDescriptorSet::default()
+                //.dst_set(descriptor_set.clone())
+                .dst_binding(1)
+                .descriptor_type(vk::DescriptorType::SAMPLER)
+                .image_info(&self.image_info),
+        ]
+    }
 }
+
+// // should be not here, its descriptor_set_layout <-> pipeline_layout
+// // **descriptor_set_layout contains bindings related to material if configured by it
+//
+// pub fn modify_pipeline_layout(
+//     device: &ash::Device,
+//     pipeline_layout_create_info: &'a mut vk::PipelineLayoutCreateInfo,
+// ) -> vk::PipelineLayoutCreateInfo<'a> {
+//     //extract it
+//     // {
+//     //     let push_constant_ranges = [vk::PushConstantRange {
+//     //         stage_flags: vk::ShaderStageFlags::VERTEX,
+//     //         size: std::mem::size_of::<TPushConstants>() as u32,
+//     //         offset: 0,
+//     //     }];
+//     // }
+
+//     //pipeline_layout_create_info.set_layouts(set_layouts)
+
+//     pipeline_layout_create_info.set_layouts([set_layouts]))
+// }
