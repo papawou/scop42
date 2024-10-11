@@ -13,7 +13,7 @@ pub struct MeshRenderer<'a, TPushConstants>
 where
     TPushConstants: crate::traits::IntoOwned,
 {
-    pub material: &'a Material<'a, TPushConstants>,
+    pub material: &'a Material, // how render its called ?
     pub mesh: &'a Mesh<'a, Vertex>,
     pub push_constants: Option<TPushConstants>,
 }

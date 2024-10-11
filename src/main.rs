@@ -83,31 +83,6 @@ fn main() -> anyhow::Result<()> {
         mesh
     };
 
-    //MATERIAL
-    // let material_illumination
-    let material_set_layout = {
-        let material_bindings = Material::descriptor_set_layouts();
-        let layout_builder = DescriptorSetLayoutCreateInfoBuilder::new();
-        for binding in material_bindings {
-            layout_builder.add_binding(binding);
-        }
-        let layout_info = layout_builder.build();
-        unsafe {
-            engine
-                .device
-                .create_descriptor_set_layout(&layout_info, None)
-                .unwrap()
-        }
-    };
-    let material_sets = DescriptorAllocator::allocate_descriptor_set(
-        &mut self,
-        &engine.device,
-        material_set_layout,
-    );
-
-
-
-
     // pipeline
     let pipeline_layout = {
         let set_layouts = [material_set_layout];

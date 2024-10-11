@@ -58,6 +58,9 @@ pub struct Engine {
     // vkMem
     pub allocator: Option<vk_mem::Allocator>,
 
+    // descriptor allocator
+    pub descriptor_allocator: DescriptorAllocator,
+
     // Swapchain
     pub frames: Vec<FrameData>,
 
@@ -157,8 +160,9 @@ impl Engine {
         let graphics_queue = unsafe { device.get_device_queue(queue_families.graphics, 0) };
         let present_queue = unsafe { device.get_device_queue(queue_families.present, 0) };
 
-        // vk_mem Allocator
+        // Allocator
         let allocator = create_allocator(&instance, &device, physical_device);
+        let descriptor_allocator = DescriptorAllocator::new(0, vec![]);
 
         // SWAPCHAIN
 
@@ -188,6 +192,7 @@ impl Engine {
             device,
 
             allocator: Some(allocator),
+            descriptor_allocator,
 
             swapchain_loader,
             swapchain,

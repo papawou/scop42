@@ -6,7 +6,7 @@ use crate::{
 };
 
 pub struct TriRenderer<'a> {
-    pub material: Material<'a, ()>,
+    pub material: &'a Material,
 }
 
 impl<'a> Renderer for TriRenderer<'a> {

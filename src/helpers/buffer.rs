@@ -5,7 +5,22 @@ use crate::ft_vk::allocated_buffer::AllocatedBuffer;
 
 use super::{arr_to_bytes, struct_to_bytes};
 
-pub fn load_buffer<'a, T>(
+// LOADABLE
+pub trait Loadable {
+    fn as_bytes(&self) -> &[u8];
+}
+impl<T> Loadable for &T {
+    fn as_bytes(&self) -> &[u8] {
+        struct_to_bytes(*self)
+    }
+}
+impl<T> Loadable for &[T] {
+    fn as_bytes(&self) -> &[u8] {
+        arr_to_bytes(*self)
+    }
+}
+
+pub fn load_buffer(
     device: &ash::Device,
     allocator: &mut vk_mem::Allocator,
     command_pool: vk::CommandPool,
@@ -32,16 +47,22 @@ pub fn load_buffer<'a, T>(
         allocator.destroy_buffer(staging_buffer.buffer, &mut staging_buffer.allocation);
     }
 
+    // is driven by create_buffer allocation
+    let device_address = {
+        let device_address_info = vk::BufferDeviceAddressInfo::default().buffer(buffer);
+        unsafe { device.get_buffer_device_address(&device_address_info) }
+    };
+
     AllocatedBuffer {
         buffer,
-        device_address: None,
+        device_address: Some(device_address),
         buffer_size,
         allocation,
     }
 }
 
 pub fn load_staging_buffer(allocator: &vk_mem::Allocator, data: &[u8]) -> AllocatedBuffer {
-    let buffer_size = data.len() as vk::DeviceAddress;
+    let buffer_size = data.len() as vk::DeviceSize;
     let buffer_create_info = vk::BufferCreateInfo::default()
         .size(buffer_size)
         .usage(vk::BufferUsageFlags::TRANSFER_SRC);
@@ -80,25 +101,53 @@ pub fn load_staging_buffer(allocator: &vk_mem::Allocator, data: &[u8]) -> Alloca
 
 pub fn create_buffer(
     allocator: &vk_mem::Allocator,
-    buffer_size: vk::DeviceAddress,
+    buffer_size: vk::DeviceSize,
 ) -> (vk::Buffer, vk::DeviceSize, vk_mem::Allocation) {
     let buffer_info = vk::BufferCreateInfo::default()
         .size(buffer_size as vk::DeviceSize)
-        .usage(vk::BufferUsageFlags::INDEX_BUFFER | vk::BufferUsageFlags::TRANSFER_DST);
+        .usage(
+            vk::BufferUsageFlags::STORAGE_BUFFER
+                | vk::BufferUsageFlags::TRANSFER_DST
+                | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS,
+        );
+
+    let allocation_info = vk_mem::AllocationCreateInfo {
+        flags: vk_mem::AllocationCreateFlags::HOST_ACCESS_RANDOM
+            | vk_mem::AllocationCreateFlags::MAPPED,
+        usage: vk_mem::MemoryUsage::AutoPreferDevice,
+        ..Default::default()
+    };
 
     let (buffer, allocation) = unsafe {
-        let allocation_info = vk_mem::AllocationCreateInfo {
-            flags: vk_mem::AllocationCreateFlags::HOST_ACCESS_RANDOM,
-            usage: vk_mem::MemoryUsage::AutoPreferDevice,
-            ..Default::default()
-        };
-
         allocator
             .create_buffer(&buffer_info, &allocation_info)
             .unwrap()
     };
 
-    (buffer, buffer_size as vk::DeviceSize, allocation)
+    (buffer, buffer_size, allocation)
+}
+
+pub fn create_index_buffer(
+    allocator: &mut vk_mem::Allocator,
+    buffer_size: vk::DeviceSize,
+) -> (vk::Buffer, vk::DeviceSize, vk_mem::Allocation) {
+    let buffer_info = vk::BufferCreateInfo::default()
+        .size(buffer_size as vk::DeviceSize)
+        .usage(vk::BufferUsageFlags::INDEX_BUFFER | vk::BufferUsageFlags::TRANSFER_DST);
+
+    let allocation_info = vk_mem::AllocationCreateInfo {
+        flags: vk_mem::AllocationCreateFlags::HOST_ACCESS_RANDOM,
+        usage: vk_mem::MemoryUsage::AutoPreferDevice,
+        ..vk_mem::AllocationCreateInfo::default()
+    };
+
+    let (buffer, allocation) = unsafe {
+        allocator
+            .create_buffer(&buffer_info, &allocation_info)
+            .unwrap()
+    };
+
+    (buffer, buffer_size, allocation)
 }
 
 pub fn copy_buffer(
@@ -134,21 +183,4 @@ pub fn copy_buffer(
     unsafe { device.queue_wait_idle(queue) }.unwrap(); // !warn wait idle
 
     unsafe { device.free_command_buffers(command_pool, &[command_buffer]) }
-}
-
-// LOADABLE
-pub trait Loadable {
-    fn as_bytes(&self) -> &[u8];
-}
-
-impl<T> Loadable for &T {
-    fn as_bytes(&self) -> &[u8] {
-        struct_to_bytes(*self)
-    }
-}
-
-impl<T> Loadable for &[T] {
-    fn as_bytes(&self) -> &[u8] {
-        arr_to_bytes(*self)
-    }
 }

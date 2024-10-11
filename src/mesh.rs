@@ -7,14 +7,15 @@ use ash::vk::{self};
 use glam::Vec3;
 use vk_mem::Alloc;
 
-use crate::ft_vk::allocated_buffer::AllocatedBuffer;
-use crate::helpers::{print_bytes_in_hex, vec_to_bytes};
+use crate::ft_vk::allocated_buffer::{self, AllocatedBuffer};
+use crate::helpers::buffer::{copy_buffer, create_buffer, load_staging_buffer};
+use crate::helpers::{arr_to_bytes, print_bytes_in_hex};
 use crate::mesh_asset::MeshAsset;
 use crate::obj_asset::obj_raw::face::Face;
 use crate::obj_asset::{self, ObjAsset, ObjRaw};
 use crate::{
     ft_vk::Engine,
-    helpers::{copy_buffer, struct_to_bytes},
+    helpers::struct_to_bytes,
     vertex::{self, Vertex},
 };
 
@@ -31,41 +32,22 @@ impl<'a, T> Mesh<'a, T> {
             panic!("vertex buffer already allocated");
         }
 
-        let (buffer, buffer_size, allocation) = {
-            let buffer_size = self.asset.vertices.len() * std::mem::size_of::<T>();
-            let buffer_info = vk::BufferCreateInfo::default()
-                .size(buffer_size as vk::DeviceSize)
-                .usage(
-                    vk::BufferUsageFlags::STORAGE_BUFFER
-                        | vk::BufferUsageFlags::TRANSFER_DST
-                        | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS,
-                );
-            let allocation_info = vk_mem::AllocationCreateInfo {
-                flags: vk_mem::AllocationCreateFlags::HOST_ACCESS_RANDOM
-                    | vk_mem::AllocationCreateFlags::MAPPED,
-                usage: vk_mem::MemoryUsage::AutoPreferDevice,
-                ..vk_mem::AllocationCreateInfo::default()
-            };
+        let (buffer, buffer_size, allocation) = create_buffer(
+            allocator,
+            (self.asset.vertices.len() * std::mem::size_of::<T>()) as vk::DeviceSize,
+        );
 
-            let (buffer, allocation) = unsafe {
-                allocator
-                    .create_buffer(&buffer_info, &allocation_info)
-                    .unwrap()
-            };
-
-            (buffer, buffer_size, allocation)
-        };
-
+        // is driven by create_buffer allocation
         let device_address = {
             let device_address_info = vk::BufferDeviceAddressInfo::default().buffer(buffer);
             unsafe { device.get_buffer_device_address(&device_address_info) }
         };
 
         let allocated_buffer = AllocatedBuffer {
-            buffer,
-            device_address: Some(device_address),
-            buffer_size,
             allocation,
+            buffer,
+            buffer_size,
+            device_address: Some(device_address),
         };
 
         self.vertex_buffer = Some(allocated_buffer);
@@ -77,7 +59,8 @@ impl<'a, T> Mesh<'a, T> {
         }
 
         let (buffer, buffer_size, allocation) = {
-            let buffer_size = self.asset.indices.len() * std::mem::size_of::<u32>();
+            let buffer_size =
+                (self.asset.indices.len() * std::mem::size_of::<u32>()) as vk::DeviceSize;
             let buffer_info = vk::BufferCreateInfo::default()
                 .size(buffer_size as vk::DeviceSize)
                 .usage(vk::BufferUsageFlags::INDEX_BUFFER | vk::BufferUsageFlags::TRANSFER_DST);
@@ -130,24 +113,19 @@ impl<'a, T> Mesh<'a, T> {
     ) {
         // Vertex
         {
-            let data = vec_to_bytes(&self.asset.vertices);
-
-            let mut staging_buffer = crate::helpers::create_staging_buffer(
-                data,
-                data.len() as vk::DeviceSize,
-                allocator,
-            );
+            let data = arr_to_bytes(&self.asset.vertices);
+            let mut staging_buffer = load_staging_buffer(allocator, data);
 
             self.create_vertex_buffer(device, allocator);
             let vertex_buffer = self.vertex_buffer.as_ref().unwrap();
 
             copy_buffer(
                 device,
-                staging_buffer.buffer,
-                vertex_buffer.buffer,
-                vertex_buffer.buffer_size as vk::DeviceSize,
                 command_pool,
                 graphics_queue,
+                staging_buffer.buffer,
+                vertex_buffer.buffer,
+                vertex_buffer.buffer_size,
             );
 
             unsafe {
@@ -157,24 +135,19 @@ impl<'a, T> Mesh<'a, T> {
 
         // Index
         {
-            let data = vec_to_bytes(&self.asset.indices);
-
-            let mut staging_buffer = crate::helpers::create_staging_buffer(
-                data,
-                data.len() as vk::DeviceSize,
-                allocator,
-            );
+            let data = arr_to_bytes(&self.asset.indices);
+            let mut staging_buffer = load_staging_buffer(allocator, data);
 
             self.create_index_buffer(allocator);
             let index_buffer = self.index_buffer.as_ref().unwrap();
 
             copy_buffer(
                 device,
-                staging_buffer.buffer,
-                index_buffer.buffer,
-                index_buffer.buffer_size as vk::DeviceSize,
                 command_pool,
                 graphics_queue,
+                staging_buffer.buffer,
+                index_buffer.buffer,
+                index_buffer.buffer_size,
             );
 
             unsafe {
