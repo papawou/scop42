@@ -11,7 +11,7 @@ pub use shader_module::ShaderModule;
 mod queue_famillies;
 pub use queue_famillies::QueueFamilies;
 
-mod descriptor_allocator;
+pub mod descriptor_allocator;
 pub mod descriptor_set_layout;
 mod render_pass;
 mod surface_support;

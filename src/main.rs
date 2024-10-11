@@ -20,7 +20,10 @@ use std::{
 
 use anyhow::Ok;
 use ash::vk::{self};
-use ft_vk::Engine;
+use ft_vk::{
+    descriptor_allocator::DescriptorAllocator,
+    descriptor_set_layout::DescriptorSetLayoutCreateInfoBuilder, Engine,
+};
 use material::Material;
 use mesh::Mesh;
 use mesh_asset::MeshAsset;
@@ -64,7 +67,6 @@ fn main() -> anyhow::Result<()> {
     let material_lib = obj_asset::load_materials(&obj);
 
     let mesh_asset = MeshAsset::from_obj(&obj_asset);
-
     let mut mesh = {
         let mut mesh = Mesh {
             asset: &mesh_asset,
@@ -81,7 +83,54 @@ fn main() -> anyhow::Result<()> {
         mesh
     };
 
-    let layout = material::mesh::create_layout::<MeshConstants>(&engine.device);
+    //MATERIAL
+    // let material_illumination
+    let material_set_layout = {
+        let material_bindings = Material::descriptor_set_layouts();
+        let layout_builder = DescriptorSetLayoutCreateInfoBuilder::new();
+        for binding in material_bindings {
+            layout_builder.add_binding(binding);
+        }
+        let layout_info = layout_builder.build();
+        unsafe {
+            engine
+                .device
+                .create_descriptor_set_layout(&layout_info, None)
+                .unwrap()
+        }
+    };
+    let material_sets = DescriptorAllocator::allocate_descriptor_set(
+        &mut self,
+        &engine.device,
+        material_set_layout,
+    );
+
+
+
+
+    // pipeline
+    let pipeline_layout = {
+        let set_layouts = [material_set_layout];
+        let push_constant_ranges = [/* Renderer */ vk::PushConstantRange::default()
+            .stage_flags(vk::ShaderStageFlags::VERTEX)
+            .size(std::mem::size_of::<MeshConstants>() as u32)];
+        let pipeline_layout = vk::PipelineLayoutCreateInfo::default()
+            .push_constant_ranges(&push_constant_ranges)
+            .set_layouts(&set_layouts);
+        unsafe {
+            engine
+                .device
+                .create_pipeline_layout(&pipeline_layout, None)
+                .unwrap()
+        }
+    };
+    //create pipeline
+
+    // graphics_pipeline
+
+    let descriptor_sets = DescriptorAllocator::new(max_sets, pool_sizes)
+        .allocate_descriptor_set(&engine.device, material_set_layout);
+
     let mut renderer = {
         let device_address = mesh
             .vertex_buffer
@@ -92,12 +141,7 @@ fn main() -> anyhow::Result<()> {
             .unwrap();
 
         MeshRenderer {
-            material: material::mesh::create_material(
-                &engine.device,
-                engine.render_pass,
-                engine.swapchain.extent,
-                &layout,
-            ),
+            material: &material,
             mesh: &mesh,
             push_constants: Some(MeshConstants {
                 render_matrix: glam::Mat4::IDENTITY,

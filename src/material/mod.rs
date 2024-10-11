@@ -1,6 +1,6 @@
 mod utils;
 
-use ash::vk::{self, Framebuffer};
+use ash::vk::{self, DescriptorSetLayout, Framebuffer};
 use glam::Vec3;
 
 use crate::{
@@ -15,71 +15,47 @@ use crate::{
     obj_asset::{self, MaterialLib, ObjAsset},
 };
 
-pub struct Material {
-    // struct MaterialPipeline
-    // pub layout: &'a PipelineLayout<TPushConstants>, // hold DescriptorSetLayout
+pub struct Material<'a> {
     // pub pipeline: vk::Pipeline,
 
     // descriptors
-    // pub descriptor_sets: Vec<vk::DescriptorSet>,
-    // pub asset: &'a MaterialAsset,
     pub buffer_info: Vec<vk::DescriptorBufferInfo>,
-    pub image_info: Vec<vk::DescriptorImageInfo>,
+
+    // layout bindings
+    pub bindings: Vec<vk::DescriptorSetLayoutBinding<'a>>,
+
+    // descriptor set
+    pub descriptor_set: Vec<vk::DescriptorSet>,
 }
 
-impl Material {
-    pub fn new(
-        params: &AllocatedBuffer,
-        allocated_image: &AllocatedImage,
-        sampler: &vk::Sampler,
-    ) -> Self {
-        let buffer_info = vk::DescriptorBufferInfo::default().buffer(params.buffer);
-        let image_info = vk::DescriptorImageInfo::default()
-            .image_layout(vk::ImageLayout::default())
-            .image_view(allocated_image.image_view)
-            .sampler(sampler.clone());
+impl<'a> Material<'a> {
+    pub fn new(engine: &Engine) -> Self {
+        let allocated_buffer = {};
+
+        //let buffer_info = vk::DescriptorBufferInfo::default().buffer(params.buffer);
+
+        let params_buffer = {};
+        let descriptor_set_layout = {};
 
         Self {
-            buffer_info: vec![buffer_info],
-            image_info: vec![image_info],
+            //  buffer_info: vec![buffer_info],
+            bindings: vec![vk::DescriptorSetLayoutBinding::default()
+                .binding(0)
+                .descriptor_count(1)
+                .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)],
         }
     }
 
-    pub fn descriptor_set_layouts<'a>(
-        descriptor_set_layout_builder: &'a mut DescriptorSetLayoutCreateInfoBuilder<'a>,
-    ) -> &'a mut DescriptorSetLayoutCreateInfoBuilder<'a> {
-        descriptor_set_layout_builder
-            .add_binding(
-                vk::DescriptorSetLayoutBinding::default()
-                    .binding(0)
-                    .descriptor_count(1)
-                    .descriptor_type(vk::DescriptorType::STORAGE_IMAGE),
-            )
-            .add_binding(
-                vk::DescriptorSetLayoutBinding::default()
-                    .binding(1)
-                    .descriptor_count(1)
-                    .descriptor_type(vk::DescriptorType::SAMPLER)
-                    .stage_flags(vk::ShaderStageFlags::FRAGMENT),
-            )
+    pub fn write_descriptor_sets(&'a self) -> Vec<vk::WriteDescriptorSet<'a>> {
+        vec![vk::WriteDescriptorSet::default()
+            //.dst_set(descriptor_set.clone())
+            .dst_binding(0)
+            .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
+            .buffer_info(&self.buffer_info)]
     }
 
-    pub fn write_descriptor_sets<'a>(
-        &'a self,
-        // descriptor_set_layout_builder: &vk::DescriptorSet,
-    ) -> Vec<vk::WriteDescriptorSet<'a>> {
-        vec![
-            vk::WriteDescriptorSet::default()
-                //.dst_set(descriptor_set.clone())
-                .dst_binding(0)
-                .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
-                .buffer_info(&self.buffer_info),
-            vk::WriteDescriptorSet::default()
-                //.dst_set(descriptor_set.clone())
-                .dst_binding(1)
-                .descriptor_type(vk::DescriptorType::SAMPLER)
-                .image_info(&self.image_info),
-        ]
+    pub fn descriptor_set_layout(&'a self) -> vk::DescriptorSetLayoutCreateInfo<'a> {
+        vk::DescriptorSetLayoutCreateInfo::default().bindings(&self.bindings)
     }
 }
 
