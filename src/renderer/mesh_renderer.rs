@@ -3,7 +3,7 @@ use std::io::Write;
 use ash::vk;
 
 use crate::{
-    ft_vk::{Engine, Renderer},
+    ft_vk::{Engine, PipelineLayout, Renderer},
     material::Material,
     mesh::Mesh,
     vertex::Vertex,
@@ -16,6 +16,8 @@ where
     pub material: &'a Material, // how render its called ?
     pub mesh: &'a Mesh<'a, Vertex>,
     pub push_constants: Option<TPushConstants>,
+
+    pub pipeline_layout: &'a PipelineLayout, //used for bind
 }
 
 impl<'a, T: crate::traits::IntoOwned> Renderer for MeshRenderer<'a, T> {
@@ -52,7 +54,7 @@ impl<'a, T: crate::traits::IntoOwned> Renderer for MeshRenderer<'a, T> {
             let push_constants = crate::helpers::struct_to_bytes(&tmp);
             engine.device.cmd_push_constants(
                 cmd,
-                self.material.layout.as_vk(),
+                self.pipeline_layout.as_vk(),
                 vk::ShaderStageFlags::VERTEX,
                 0,
                 push_constants,

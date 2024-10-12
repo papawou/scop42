@@ -22,9 +22,11 @@ use anyhow::Ok;
 use ash::vk::{self};
 use ft_vk::{
     descriptor_allocator::DescriptorAllocator,
-    descriptor_set_layout::DescriptorSetLayoutCreateInfoBuilder, Engine,
+    descriptor_set_layout::{self, DescriptorSetLayoutCreateInfoBuilder},
+    Engine, PipelineLayout,
 };
 use material::Material;
+use material_asset::MaterialAsset;
 use mesh::Mesh;
 use mesh_asset::MeshAsset;
 use mesh_constants::MeshConstants;
@@ -59,13 +61,15 @@ fn main() -> anyhow::Result<()> {
     //     engine.frames[0].command_pool,
     // );
 
+    // assets
     let obj = {
         let obj_path = Path::new("resources/teapot2.obj");
         ObjRaw::load_from_file(&obj_path)
     };
     let obj_asset = ObjAssetBuilder::new(&obj).normals_from_face(true).build();
-    let material_lib = obj_asset::load_materials(&obj);
+    let material_libs = obj_asset::load_materials(&obj);
 
+    // mesh
     let mesh_asset = MeshAsset::from_obj(&obj_asset);
     let mut mesh = {
         let mut mesh = Mesh {
@@ -83,29 +87,39 @@ fn main() -> anyhow::Result<()> {
         mesh
     };
 
+    // material
+    let material_asset: MaterialAsset = material_libs
+        .values()
+        .flat_map(|mat_lib| mat_lib.materials.values())
+        .next()
+        .unwrap()
+        .clone()
+        .into();
+    let material_set_layout = material::descriptor_set_layout(&engine.device);
+
     // pipeline
-    let pipeline_layout = {
-        let set_layouts = [material_set_layout];
-        let push_constant_ranges = [/* Renderer */ vk::PushConstantRange::default()
+    let push_constant_ranges = [
+        // scene constants (render_matrix / mesh_buffer_address)
+        vk::PushConstantRange::default()
             .stage_flags(vk::ShaderStageFlags::VERTEX)
-            .size(std::mem::size_of::<MeshConstants>() as u32)];
-        let pipeline_layout = vk::PipelineLayoutCreateInfo::default()
+            .size(std::mem::size_of::<MeshConstants>() as u32),
+    ];
+
+    let pipeline_layout = PipelineLayout {
+         layout: { let info = vk::PipelineLayoutCreateInfo::default()
             .push_constant_ranges(&push_constant_ranges)
-            .set_layouts(&set_layouts);
-        unsafe {
-            engine
-                .device
-                .create_pipeline_layout(&pipeline_layout, None)
-                .unwrap()
-        }
-    };
-    //create pipeline
+            .set_layouts(&[material_set_layout]);
+        unsafe { engine.device.create_pipeline_layout(&info, None).unwrap() }
+    },
+_marker: std::marker::PhantomData::default()
+};
 
-    // graphics_pipeline
+    let material = Material::new(&mut engine, &material_asset, material_set_layout);
 
-    let descriptor_sets = DescriptorAllocator::new(max_sets, pool_sizes)
-        .allocate_descriptor_set(&engine.device, material_set_layout);
+    let pipeline =
+        material::create_pipeline(&engine.device, engine.render_pass, extent, pipeline_layout);
 
+    // renderer
     let mut renderer = {
         let device_address = mesh
             .vertex_buffer
@@ -122,17 +136,19 @@ fn main() -> anyhow::Result<()> {
                 render_matrix: glam::Mat4::IDENTITY,
                 vertex_buffer: device_address,
             }),
+            pipeline_layout
         }
     };
-    let mut require_resize = false;
 
+    // camera
     let mut camera_pos = glam::Vec3 {
         z: 2.0f32,
         ..glam::Vec3::ZERO
     };
 
+    // loop logic
+    let mut require_resize = false;
     let mut last_update = std::time::Instant::now();
-
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
     event_loop
         .run(
@@ -162,11 +178,12 @@ fn main() -> anyhow::Result<()> {
 
                                 unsafe { engine.handle_resize((new_size.width, new_size.height)) };
 
-                                renderer.material = material::mesh::create_material(
+                                // recreate material graphics pipeline
+                                renderer.material. = (
                                     &engine.device,
                                     engine.render_pass,
                                     engine.swapchain.extent,
-                                    &layout,
+                                    &pipeline_layout,
                                 );
                             }
 
@@ -249,7 +266,7 @@ fn main() -> anyhow::Result<()> {
     if let Some(allocator) = &engine.allocator {
         mesh.unload(&allocator);
     }
-    unsafe { engine.device.destroy_pipeline_layout(layout.as_vk(), None) };
+    unsafe { engine.device.destroy_pipeline_layout(pipeline_layout, None) };
     unsafe { engine.destroy() };
 
     Ok(())
