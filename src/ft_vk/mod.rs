@@ -331,7 +331,7 @@ impl Engine {
         self.instance.destroy_instance(None);
     }
 
-    pub unsafe fn handle_resize(&mut self, physical_size: (u32, u32)) -> bool {
+    pub unsafe fn handle_resize(&mut self, physical_size: (u32, u32)) {
         let new_swapchain = {
             //swapchain
             let surface_support =
@@ -368,8 +368,6 @@ impl Engine {
         self.framebuffers = self
             .swapchain
             .get_framebuffers(&self.device, self.render_pass);
-
-        return false;
     }
 }
 

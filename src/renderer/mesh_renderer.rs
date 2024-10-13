@@ -9,18 +9,20 @@ use crate::{
     vertex::Vertex,
 };
 
-pub struct MeshRenderer<'a, TPushConstants>
+pub struct MeshRenderer<'a, TPushConstants, TMaterial>
 where
     TPushConstants: crate::traits::IntoOwned,
 {
-    pub material: &'a Material, // how render its called ?
+    pub material: &'a Material<TMaterial>, // how render its called ?
     pub mesh: &'a Mesh<'a, Vertex>,
     pub push_constants: Option<TPushConstants>,
 
-    pub pipeline_layout: &'a PipelineLayout, //used for bind
+    pub pipeline_layout: &'a PipelineLayout<TPushConstants>, //used for bind
 }
 
-impl<'a, T: crate::traits::IntoOwned> Renderer for MeshRenderer<'a, T> {
+impl<'a, TPushConstants: crate::traits::IntoOwned> Renderer
+    for MeshRenderer<'a, TPushConstants, crate::material::Pipeline>
+{
     unsafe fn render(&self, engine: &Engine, framebuffer: vk::Framebuffer, cmd: vk::CommandBuffer) {
         let color_clear_value = vk::ClearValue {
             color: vk::ClearColorValue {
@@ -71,7 +73,7 @@ impl<'a, T: crate::traits::IntoOwned> Renderer for MeshRenderer<'a, T> {
         engine.device.cmd_bind_pipeline(
             cmd,
             vk::PipelineBindPoint::GRAPHICS,
-            self.material.pipeline,
+            self.material.pipeline.0,
         );
         engine
             .device

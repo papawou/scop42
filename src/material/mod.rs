@@ -17,12 +17,13 @@ use crate::{
     obj_asset::{self, MaterialLib, ObjAsset},
 };
 
-pub struct Material {
-    pub descriptor_set: vk::DescriptorSet,
+pub struct Material<TPipeline = NoPipeline> {
+    descriptor_set: vk::DescriptorSet,
     params: AllocatedBuffer,
+    pub pipeline: TPipeline,
 }
 
-impl Material {
+impl Material<NoPipeline> {
     pub fn new(
         engine: &mut Engine,
         asset: &MaterialAsset,
@@ -69,15 +70,17 @@ impl Material {
         Self {
             params,
             descriptor_set,
+            pipeline: NoPipeline,
         }
     }
 
-    fn load_pipeline<'a, TPushConstants>(
+    pub fn load_pipeline<'a, TPushConstants>(
+        self,
         device: &ash::Device,
         render_pass: vk::RenderPass,
         extent: vk::Extent2D,
         layout: &'a PipelineLayout<TPushConstants>,
-    ) -> vk::Pipeline {
+    ) -> Material<Pipeline> {
         let main_entry = std::ffi::CString::new("main").unwrap();
         let vert_module = ShaderModule::create_from_file(device, "./shaders/mesh_dba.vert.spv");
         let vert_stage = vk::PipelineShaderStageCreateInfo::default()
@@ -116,7 +119,34 @@ impl Material {
         unsafe { device.destroy_shader_module(frag_module, None) };
         unsafe { device.destroy_shader_module(vert_module, None) };
 
-        pipelines[0]
+        Material {
+            descriptor_set: self.descriptor_set,
+            params: self.params,
+            pipeline: Pipeline(pipelines[0]),
+        }
+    }
+}
+
+impl Material<Pipeline> {
+    pub fn unload_pipeline(self, device: &ash::Device) -> Material<NoPipeline> {
+        unsafe {
+            device.destroy_pipeline(self.pipeline.0, None);
+        }
+
+        Material {
+            descriptor_set: self.descriptor_set,
+            params: self.params,
+            pipeline: NoPipeline,
+        }
+    }
+}
+
+// Material.pipeline states
+pub struct NoPipeline; // no pipeline
+pub struct Pipeline(pub vk::Pipeline); // pipeline is loaded in vk
+impl Pipeline {
+    pub fn as_vk(&self) -> vk::Pipeline {
+        self.0
     }
 }
 
