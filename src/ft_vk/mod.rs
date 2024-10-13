@@ -162,7 +162,13 @@ impl Engine {
 
         // Allocator
         let allocator = create_allocator(&instance, &device, physical_device);
-        let descriptor_allocator = DescriptorAllocator::new(0, vec![]);
+
+        let descriptor_allocator = DescriptorAllocator::new(
+            1,
+            vec![vk::DescriptorPoolSize::default()
+                .ty(vk::DescriptorType::STORAGE_BUFFER)
+                .descriptor_count(1)],
+        );
 
         // SWAPCHAIN
 

@@ -60,8 +60,10 @@ impl Material<NoPipeline> {
                     vk::WriteDescriptorSet::default()
                         .dst_set(descriptor_set)
                         .dst_binding(0)
-                        .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
-                        .buffer_info(&[vk::DescriptorBufferInfo::default().buffer(params.buffer)]),
+                        .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+                        .buffer_info(&[vk::DescriptorBufferInfo::default()
+                            .buffer(params.buffer)
+                            .range(vk::WHOLE_SIZE)]),
                 ],
                 &[],
             )
@@ -156,7 +158,7 @@ pub fn descriptor_set_layout(device: &ash::Device) -> vk::DescriptorSetLayout {
         vk::DescriptorSetLayoutBinding::default()
             .binding(0)
             .descriptor_count(1)
-            .descriptor_type(vk::DescriptorType::STORAGE_IMAGE),
+            .descriptor_type(vk::DescriptorType::STORAGE_BUFFER),
     ];
 
     let info = vk::DescriptorSetLayoutCreateInfo::default().bindings(&bindings);
