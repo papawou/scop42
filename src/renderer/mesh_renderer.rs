@@ -51,17 +51,28 @@ impl<'a, TPushConstants: crate::traits::IntoOwned> Renderer
             .device
             .cmd_begin_render_pass(cmd, &renderpass_info, vk::SubpassContents::INLINE);
 
-        if let Some(constants) = &self.push_constants {
-            let tmp = constants.into_owned();
-            let push_constants = crate::helpers::struct_to_bytes(&tmp);
-            engine.device.cmd_push_constants(
+        // pipeline_layout
+        {
+            if let Some(constants) = &self.push_constants {
+                let tmp = constants.into_owned();
+                let push_constants = crate::helpers::struct_to_bytes(&tmp);
+                engine.device.cmd_push_constants(
+                    cmd,
+                    self.pipeline_layout.as_vk(),
+                    vk::ShaderStageFlags::VERTEX,
+                    0,
+                    push_constants,
+                )
+            };
+            engine.device.cmd_bind_descriptor_sets(
                 cmd,
+                vk::PipelineBindPoint::GRAPHICS,
                 self.pipeline_layout.as_vk(),
-                vk::ShaderStageFlags::VERTEX,
                 0,
-                push_constants,
-            )
-        };
+                &[self.material.descriptor_set],
+                &[],
+            );
+        }
 
         engine.device.cmd_bind_index_buffer(
             cmd,

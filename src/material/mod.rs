@@ -18,7 +18,7 @@ use crate::{
 };
 
 pub struct Material<TPipeline = NoPipeline> {
-    descriptor_set: vk::DescriptorSet,
+    pub descriptor_set: vk::DescriptorSet,
     params: AllocatedBuffer,
     pub pipeline: TPipeline,
 }
