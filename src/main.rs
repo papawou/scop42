@@ -64,7 +64,7 @@ fn main() -> anyhow::Result<()> {
 
     // assets
     let obj = {
-        let obj_path = Path::new("resources/teapot2.obj");
+        let obj_path = Path::new("resources/42.obj");
         ObjRaw::load_from_file(&obj_path)
     };
     let obj_asset = ObjAssetBuilder::new(&obj).normals_from_face(true).build();
@@ -99,7 +99,7 @@ fn main() -> anyhow::Result<()> {
     // descriptor_set_layout
     let material_set_layout = material::descriptor_set_layout(&engine.device);
 
-    // pipeline
+    // pipeline_layout
     let push_constant_ranges = [
         // scene constants (render_matrix / mesh_buffer_address)
         vk::PushConstantRange::default()
@@ -277,6 +277,9 @@ fn main() -> anyhow::Result<()> {
             .device
             .destroy_pipeline_layout(pipeline_layout.as_vk(), None)
     };
+
+    // destroy material
+
     unsafe { engine.destroy() };
 
     Ok(())

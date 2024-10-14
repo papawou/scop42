@@ -7,23 +7,20 @@ use crate::material_asset::MaterialAsset;
  * data is intended to be use with Vulkan directly
  * _pad for glsl interpreting a Vec3 as Vec4
  */
-#[derive(Default, Debug)]
-struct MaterialParams {
-    pub shininess_exponent: f32,
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct Params {
     pub ambient: Vec3,
-    _pad_1: f32,
+    pub shininess_exponent: f32,
     pub diffuse: Vec3,
-    _pad_2: f32,
-    pub specular: Vec3,
-    _pad_3: f32,
-    pub emission: Vec3,
-    _pad_4: f32,
     pub optical_density: f32,
+    pub specular: Vec3,
     pub dissolve: f32,
+    pub emission: Vec3,
     pub illumination: i32,
 }
 
-impl From<&MaterialAsset> for MaterialParams {
+impl From<&MaterialAsset> for Params {
     fn from(
         &MaterialAsset {
             ambient,

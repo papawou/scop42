@@ -32,6 +32,7 @@ impl Material<NoPipeline> {
         let device = &engine.device;
 
         let params = {
+            let params: material_params::Params = asset.into();
             let allocator = engine.allocator.as_mut().unwrap();
             let command_pool = engine.frames[0].command_pool;
             let command_buffer = engine.frames[0].command_buffer;
@@ -43,7 +44,7 @@ impl Material<NoPipeline> {
                 command_pool,
                 command_buffer,
                 engine.graphics_queue,
-                asset,
+                &params,
             )
         };
 
@@ -158,7 +159,8 @@ pub fn descriptor_set_layout(device: &ash::Device) -> vk::DescriptorSetLayout {
         vk::DescriptorSetLayoutBinding::default()
             .binding(0)
             .descriptor_count(1)
-            .descriptor_type(vk::DescriptorType::STORAGE_BUFFER),
+            .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+            .stage_flags(vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT),
     ];
 
     let info = vk::DescriptorSetLayoutCreateInfo::default().bindings(&bindings);

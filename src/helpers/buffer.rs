@@ -3,7 +3,7 @@ use vk_mem::Alloc;
 
 use crate::ft_vk::allocated_buffer::AllocatedBuffer;
 
-use super::{arr_to_bytes, struct_to_bytes};
+use super::{arr_to_bytes, print_bytes_in_hex, struct_to_bytes};
 
 // LOADABLE
 pub trait Loadable {

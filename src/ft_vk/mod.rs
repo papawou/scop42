@@ -306,11 +306,8 @@ impl Engine {
     }
 
     pub unsafe fn destroy(mut self) {
-        for frame in &self.frames {
-            self.device.destroy_semaphore(frame.present_semaphore, None);
-            self.device.destroy_semaphore(frame.render_semaphore, None);
-            self.device.destroy_fence(frame.fence, None);
-            self.device.destroy_command_pool(frame.command_pool, None)
+        for frame in self.frames {
+            frame.destroy(&self.device);
         }
 
         for &framebuffer in &self.framebuffers {
@@ -326,6 +323,7 @@ impl Engine {
             &self.swapchain_loader,
         );
 
+        self.descriptor_allocator.destroy_pools(&self.device);
         self.allocator = None; //vmaDestroyAllocator(_allocator);
 
         self.device.destroy_device(None);
