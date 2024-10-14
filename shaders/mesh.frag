@@ -21,9 +21,11 @@ layout(set = 0, binding = 0) buffer MaterialParams {
 void main() {
     // Lighting
 	vec3 lightColor = vec3(1.0f,1.0f,1.0f); // white
-	vec3 lightSource = vec3(0.0f, 0.0f, 1.0f); // light pos
+	vec3 lightDir = vec3(0.0f, -1.0f, -1.0f); // world space (aka "light to frag")
 
-	float diffuseStrength = max(0.0, dot(lightSource, fragNormal)); // dot - should interl per frag
+
+    lightDir *= -1; // frag space frag to light
+	float diffuseStrength = max(0.0, dot(lightDir, fragNormal)); // dot
 	vec3 diffuse = diffuseStrength * lightColor; // diffuse color
 
 	vec3 lighting = materials_params.ambient;

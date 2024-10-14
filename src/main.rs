@@ -64,7 +64,7 @@ fn main() -> anyhow::Result<()> {
 
     // assets
     let obj = {
-        let obj_path = Path::new("resources/42.obj");
+        let obj_path = Path::new("resources/tri.obj");
         ObjRaw::load_from_file(&obj_path)
     };
     let obj_asset = ObjAssetBuilder::new(&obj).normals_from_face(true).build();
