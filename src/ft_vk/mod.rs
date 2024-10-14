@@ -510,15 +510,7 @@ fn create_present_frames(
     let mut frames = Vec::with_capacity(count);
 
     for _ in 0..count {
-        let pool_sizes: Vec<vk::DescriptorPoolSize> = vec![vk::DescriptorPoolSize::default()
-            .ty(vk::DescriptorType::STORAGE_IMAGE)
-            .descriptor_count(1)];
-
-        frames.push(FrameData::new(
-            device,
-            graphics_family,
-            DescriptorAllocator::new(0, vec![]),
-        ));
+        frames.push(FrameData::new(device, graphics_family));
     }
 
     frames

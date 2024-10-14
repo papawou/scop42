@@ -14,11 +14,9 @@ pub struct FrameData {
 }
 
 impl FrameData {
-    pub fn new(
-        device: &ash::Device,
-        graphics_family: u32,
-        descriptor_allocator: DescriptorAllocator,
-    ) -> Self {
+    pub fn new(device: &ash::Device, graphics_family: u32) -> Self {
+        let descriptor_allocator = DescriptorAllocator::new(0, vec![]);
+
         let command_pool_info = vk::CommandPoolCreateInfo::default()
             .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
             .queue_family_index(graphics_family);
