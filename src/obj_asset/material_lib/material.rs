@@ -4,7 +4,7 @@ use glam::Vec3;
 
 use crate::obj_asset::utils;
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Material {
     pub material_name: String, // newmtl (Material Group Name)
 

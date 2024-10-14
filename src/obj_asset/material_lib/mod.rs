@@ -11,7 +11,7 @@ pub mod material;
 
 pub struct MaterialLib {
     filepath: PathBuf,
-    materials: HashMap<String, Material>,
+    pub materials: HashMap<String, Material>,
 }
 
 impl MaterialLib {

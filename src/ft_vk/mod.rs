@@ -1,15 +1,18 @@
 pub mod allocated_buffer;
-mod allocated_image;
+pub mod allocated_image;
 mod frame_data;
 mod graphics_pipeline;
 mod pipeline_layout;
 mod shader_module;
+use descriptor_allocator::DescriptorAllocator;
 pub use graphics_pipeline::GraphicsPipelineInfoBuilder;
 pub use pipeline_layout::PipelineLayout;
 pub use shader_module::ShaderModule;
 mod queue_famillies;
 pub use queue_famillies::QueueFamilies;
 
+pub mod descriptor_allocator;
+pub mod descriptor_set_layout;
 mod render_pass;
 mod surface_support;
 mod swapchain;
@@ -54,6 +57,9 @@ pub struct Engine {
 
     // vkMem
     pub allocator: Option<vk_mem::Allocator>,
+
+    // descriptor allocator
+    pub descriptor_allocator: DescriptorAllocator,
 
     // Swapchain
     pub frames: Vec<FrameData>,
@@ -154,8 +160,15 @@ impl Engine {
         let graphics_queue = unsafe { device.get_device_queue(queue_families.graphics, 0) };
         let present_queue = unsafe { device.get_device_queue(queue_families.present, 0) };
 
-        // vk_mem Allocator
+        // Allocator
         let allocator = create_allocator(&instance, &device, physical_device);
+
+        let descriptor_allocator = DescriptorAllocator::new(
+            1,
+            vec![vk::DescriptorPoolSize::default()
+                .ty(vk::DescriptorType::STORAGE_BUFFER)
+                .descriptor_count(1)],
+        );
 
         // SWAPCHAIN
 
@@ -185,6 +198,7 @@ impl Engine {
             device,
 
             allocator: Some(allocator),
+            descriptor_allocator,
 
             swapchain_loader,
             swapchain,
@@ -292,11 +306,8 @@ impl Engine {
     }
 
     pub unsafe fn destroy(mut self) {
-        for frame in &self.frames {
-            self.device.destroy_semaphore(frame.present_semaphore, None);
-            self.device.destroy_semaphore(frame.render_semaphore, None);
-            self.device.destroy_fence(frame.fence, None);
-            self.device.destroy_command_pool(frame.command_pool, None)
+        for frame in self.frames {
+            frame.destroy(&self.device);
         }
 
         for &framebuffer in &self.framebuffers {
@@ -312,6 +323,7 @@ impl Engine {
             &self.swapchain_loader,
         );
 
+        self.descriptor_allocator.destroy_pools(&self.device);
         self.allocator = None; //vmaDestroyAllocator(_allocator);
 
         self.device.destroy_device(None);
@@ -323,7 +335,7 @@ impl Engine {
         self.instance.destroy_instance(None);
     }
 
-    pub unsafe fn handle_resize(&mut self, physical_size: (u32, u32)) -> bool {
+    pub unsafe fn handle_resize(&mut self, physical_size: (u32, u32)) {
         let new_swapchain = {
             //swapchain
             let surface_support =
@@ -360,8 +372,6 @@ impl Engine {
         self.framebuffers = self
             .swapchain
             .get_framebuffers(&self.device, self.render_pass);
-
-        return false;
     }
 }
 

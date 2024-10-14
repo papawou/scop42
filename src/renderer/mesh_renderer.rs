@@ -3,22 +3,26 @@ use std::io::Write;
 use ash::vk;
 
 use crate::{
-    ft_vk::{Engine, Renderer},
+    ft_vk::{Engine, PipelineLayout, Renderer},
     material::Material,
     mesh::Mesh,
     vertex::Vertex,
 };
 
-pub struct MeshRenderer<'a, T>
+pub struct MeshRenderer<'a, TPushConstants, TMaterial>
 where
-    T: crate::traits::IntoOwned,
+    TPushConstants: crate::traits::IntoOwned,
 {
-    pub material: Material<'a, T>,
-    pub mesh: &'a Mesh<Vertex>,
-    pub push_constants: Option<T>,
+    pub material: &'a Material<TMaterial>, // how render its called ?
+    pub mesh: &'a Mesh<'a, Vertex>,
+    pub push_constants: Option<TPushConstants>,
+
+    pub pipeline_layout: &'a PipelineLayout<TPushConstants>, //used for bind
 }
 
-impl<'a, T: crate::traits::IntoOwned> Renderer for MeshRenderer<'a, T> {
+impl<'a, TPushConstants: crate::traits::IntoOwned> Renderer
+    for MeshRenderer<'a, TPushConstants, crate::material::Pipeline>
+{
     unsafe fn render(&self, engine: &Engine, framebuffer: vk::Framebuffer, cmd: vk::CommandBuffer) {
         let color_clear_value = vk::ClearValue {
             color: vk::ClearColorValue {
@@ -47,17 +51,28 @@ impl<'a, T: crate::traits::IntoOwned> Renderer for MeshRenderer<'a, T> {
             .device
             .cmd_begin_render_pass(cmd, &renderpass_info, vk::SubpassContents::INLINE);
 
-        if let Some(constants) = &self.push_constants {
-            let tmp = constants.into_owned();
-            let push_constants = crate::helpers::struct_to_bytes(&tmp);
-            engine.device.cmd_push_constants(
+        // pipeline_layout
+        {
+            if let Some(constants) = &self.push_constants {
+                let tmp = constants.into_owned();
+                let push_constants = crate::helpers::struct_to_bytes(&tmp);
+                engine.device.cmd_push_constants(
+                    cmd,
+                    self.pipeline_layout.as_vk(),
+                    vk::ShaderStageFlags::VERTEX,
+                    0,
+                    push_constants,
+                )
+            };
+            engine.device.cmd_bind_descriptor_sets(
                 cmd,
-                self.material.layout.as_vk(),
-                vk::ShaderStageFlags::VERTEX,
+                vk::PipelineBindPoint::GRAPHICS,
+                self.pipeline_layout.as_vk(),
                 0,
-                push_constants,
-            )
-        };
+                &[self.material.descriptor_set],
+                &[],
+            );
+        }
 
         engine.device.cmd_bind_index_buffer(
             cmd,
@@ -69,11 +84,11 @@ impl<'a, T: crate::traits::IntoOwned> Renderer for MeshRenderer<'a, T> {
         engine.device.cmd_bind_pipeline(
             cmd,
             vk::PipelineBindPoint::GRAPHICS,
-            self.material.pipeline,
+            self.material.pipeline.0,
         );
         engine
             .device
-            .cmd_draw_indexed(cmd, self.mesh.indices.len() as u32, 1, 0, 0, 0);
+            .cmd_draw_indexed(cmd, self.mesh.asset.indices.len() as u32, 1, 0, 0, 0);
         engine.device.cmd_end_render_pass(cmd);
     }
 }
