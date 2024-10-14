@@ -67,10 +67,7 @@ impl DescriptorAllocator {
         let (pool, descriptor_sets) = match unsafe {
             device.allocate_descriptor_sets(&descriptor_set_info)
         } {
-            Ok(destriptor_sets) => {
-                self.ready_pools.push_back(pool);
-                (pool, destriptor_sets)
-            }
+            Ok(destriptor_sets) => (pool, destriptor_sets),
             Err(error) => {
                 println!(
                         "Descriptor.allocate: can't allocate descriptor_sets error=`{}`, retrying by creating a new pool...",

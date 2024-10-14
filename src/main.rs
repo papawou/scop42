@@ -267,7 +267,18 @@ fn main() -> anyhow::Result<()> {
                 },
             )
             .unwrap();
+
+        material
+            .unwrap()
+            .unload_pipeline(&engine.device)
+            .destroy(engine.allocator.as_ref().unwrap());
     }
+
+    unsafe {
+        engine
+            .device
+            .destroy_descriptor_set_layout(material_set_layout, None)
+    };
 
     if let Some(allocator) = &engine.allocator {
         mesh.unload(&allocator);
@@ -277,8 +288,6 @@ fn main() -> anyhow::Result<()> {
             .device
             .destroy_pipeline_layout(pipeline_layout.as_vk(), None)
     };
-
-    // destroy material
 
     unsafe { engine.destroy() };
 

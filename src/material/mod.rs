@@ -128,6 +128,10 @@ impl Material<NoPipeline> {
             pipeline: Pipeline(pipelines[0]),
         }
     }
+
+    pub fn destroy(mut self, allocator: &vk_mem::Allocator) {
+        unsafe { allocator.destroy_buffer(self.params.buffer, &mut self.params.allocation) };
+    }
 }
 
 impl Material<Pipeline> {
