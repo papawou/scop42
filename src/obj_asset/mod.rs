@@ -24,14 +24,10 @@ impl ObjAsset {
 
 pub struct ObjAssetBuilder<'a> {
     obj_raw: &'a ObjRaw,
-    normals_from_face: bool,
 }
 impl<'a> ObjAssetBuilder<'a> {
     pub fn new(raw: &'a ObjRaw) -> Self {
-        Self {
-            obj_raw: raw,
-            normals_from_face: false,
-        }
+        Self { obj_raw: raw }
     }
 
     pub fn obj_raw(self, raw: &'a ObjRaw) -> Self {
@@ -41,25 +37,19 @@ impl<'a> ObjAssetBuilder<'a> {
         }
     }
 
-    pub fn normals_from_face(self, normals_from_face: bool) -> Self {
-        Self {
-            normals_from_face,
-            ..self
-        }
-    }
-
-    pub fn build(self) -> ObjAsset {
+    pub fn build(&self) -> ObjAsset {
         let face_tris: Vec<(&Face, Vec<([&VertexAttribute; 3], Vec3)>)> = self.triangulate_faces();
 
-        let mut hash_smooth: HashMap<(u32, u32), Vec3> = HashMap::new(); //(smoothing_group, vertex_index)
+        let mut hash_smooth: HashMap<(u32, u32), Vec3> = HashMap::new(); //(smoothing_group, vertex_index), acc_vertex_normal
 
+        // populate hash_smooth
         for (face, tris) in &face_tris {
             match face.smoothing_group {
                 SmoothingGroup::On(smoothing_group_id) => {
                     for (tri, normal) in tris {
                         tri.iter().for_each(|vertex_attribute| {
                             let vertex_normal =
-                                self.vertex(vertex_attribute).normal.unwrap_or(*normal);
+                                self.vertex(vertex_attribute).normal.unwrap_or(*normal); // default to tri_normal
                             hash_smooth
                                 .entry((smoothing_group_id, vertex_attribute.vertex_index))
                                 .and_modify(|entry| {
@@ -87,6 +77,7 @@ impl<'a> ObjAssetBuilder<'a> {
                                         .unwrap()
                                         .normalize(),
                                     SmoothingGroup::Off => {
+                                        // default to tri_normal
                                         self.vertex(vertex_attribute).normal.unwrap_or(*normal)
                                     }
                                 };
@@ -145,23 +136,26 @@ impl<'a> ObjAssetBuilder<'a> {
         }
     }
 
+    // fan triangulation (todo! incompatible with concave gon)
     fn triangulate_faces(&self) -> Vec<(&Face, Vec<([&VertexAttribute; 3], Vec3)>)> {
         self.obj_raw
             .faces
             .iter()
             .map(|face| {
-                // gather tris face
-                let face_tris = face
-                    .vertex_attributes
-                    .windows(3)
+                let mut vertices = face.vertex_attributes.iter();
+                let fan_origin = vertices.next().unwrap();
+                let fan_vertices: Vec<&VertexAttribute> = vertices.collect();
+
+                let face_tris: Vec<([&VertexAttribute; 3], Vec3)> = fan_vertices
+                    .windows(2)
                     .filter_map(|window| {
-                        if let [a, b, c] = window {
+                        if let [b, c] = window {
                             let normal = calculate_tri_normal(
-                                self.vertex(a).position.truncate(),
+                                self.vertex(fan_origin).position.truncate(),
                                 self.vertex(b).position.truncate(),
                                 self.vertex(c).position.truncate(),
                             );
-                            Some(([a, b, c], normal))
+                            Some(([fan_origin, b, c], normal))
                         } else {
                             None
                         }

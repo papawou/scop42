@@ -2,6 +2,7 @@ use glam::Vec3;
 
 use super::SmoothingGroup;
 
+#[derive(Clone)]
 pub struct Face {
     pub material_name: Option<String>,
     pub smoothing_group: SmoothingGroup,
@@ -36,6 +37,7 @@ impl Face {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct VertexAttribute {
     pub vertex_index: u32,
     pub vertex_texture_index: Option<u32>,

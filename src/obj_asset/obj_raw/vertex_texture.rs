@@ -1,7 +1,7 @@
 use glam::Vec3;
 
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct VertexTexture(Vec3);
 
 impl VertexTexture {

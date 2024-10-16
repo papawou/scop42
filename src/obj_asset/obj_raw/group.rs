@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub struct Group(String);
 
 impl Group {

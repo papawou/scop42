@@ -29,8 +29,8 @@ void main() {
 	vec3 diffuse = diffuseStrength * lightColor; // diffuse color
 
 	vec3 lighting = materials_params.ambient;
-	lighting = materials_params.ambient * 0.0 + diffuse; // apply changes
+	lighting = materials_params.ambient + diffuse; // apply changes
 
 
-    outColor = fragColor * lighting;
+    outColor = fragNormal * lighting;
 }

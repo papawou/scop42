@@ -64,10 +64,10 @@ fn main() -> anyhow::Result<()> {
 
     // assets
     let obj = {
-        let obj_path = Path::new("resources/tri.obj");
-        ObjRaw::load_from_file(&obj_path)
+        let obj_path = Path::new("resources/teapot2.obj");
+        ObjRaw::load_from_file(&obj_path).optimise_positions()
     };
-    let obj_asset = ObjAssetBuilder::new(&obj).normals_from_face(true).build();
+    let obj_asset = ObjAssetBuilder::new(&obj).build();
     let material_libs = obj_asset::load_materials(&obj);
 
     // mesh
@@ -92,7 +92,7 @@ fn main() -> anyhow::Result<()> {
         .values()
         .flat_map(|mat_lib| mat_lib.materials.values())
         .next()
-        .unwrap()
+        .unwrap() //thrown when no material is defined in obj file, should be fallback to a default material (ambient 1.0)
         .clone()
         .into();
 

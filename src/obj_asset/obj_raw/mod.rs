@@ -12,12 +12,15 @@ use vertex_normal::VertexNormal;
 use vertex_position::VertexPosition;
 use vertex_texture::VertexTexture;
 
+use crate::vertex;
+
 pub mod face;
 mod group;
 pub mod vertex_normal;
 pub mod vertex_position;
 pub mod vertex_texture;
 
+#[derive(Clone)]
 pub struct ObjRaw {
     pub filepath: PathBuf,
 
@@ -35,7 +38,7 @@ impl ObjRaw {
         let lines = data.lines().filter(|line| !line.trim().is_empty());
 
         let mut group: Option<Group> = None;
-        let mut materials_lib = HashSet::<String>::new();
+        let mut material_libs = HashSet::<String>::new();
 
         let mut positions: Vec<VertexPosition> = vec![];
         let mut normals: Vec<VertexNormal> = vec![];
@@ -57,7 +60,12 @@ impl ObjRaw {
                     "vt" => textures.push(VertexTexture::parse(line)),
                     "mtllib" => {
                         for word in words.next() {
-                            materials_lib.insert(word.to_string());
+                            match word {
+                                "None" => {} // ignore mtllib None
+                                _ => {
+                                    material_libs.insert(word.to_string());
+                                }
+                            };
                         }
                     }
                     "s" => match words.next() {
@@ -88,7 +96,7 @@ impl ObjRaw {
             textures,
             normals,
             group,
-            material_libs: materials_lib,
+            material_libs,
         }
     }
 
@@ -100,6 +108,47 @@ impl ObjRaw {
 
         Self::parse(filepath, &data)
     }
+
+    // /**
+    //  * If some vertex_position are duplicated, vertex_attributes use the same vertex_index
+    //  *
+    //  * tothink! use a generic read method ? (object will stay same, only the way we read it change it)
+    //  */
+    pub fn optimise_positions(&self) -> Self {
+        let find_first_vertex_pos = |vertex_index| -> u32 {
+            let initial_pos = self.positions.get(vertex_index as usize).unwrap();
+
+            self.positions
+                .iter()
+                .position(|pos| pos.position() == initial_pos.position())
+                .unwrap() as u32
+        };
+
+        let faces: Vec<Face> = self
+            .faces
+            .iter()
+            .map(|face| {
+                let vertex_attributes = face
+                    .vertex_attributes
+                    .iter()
+                    .map(|vertex_attribute| VertexAttribute {
+                        vertex_index: find_first_vertex_pos(vertex_attribute.vertex_index),
+                        ..(*vertex_attribute).clone()
+                    })
+                    .collect();
+                Face {
+                    vertex_attributes,
+                    ..(*face).clone()
+                }
+            })
+            .collect();
+        Self {
+            faces,
+            ..(*self).clone()
+        }
+    }
+
+    pub fn find_first_position_index() {}
 }
 
 #[derive(Debug, Clone, Copy)]

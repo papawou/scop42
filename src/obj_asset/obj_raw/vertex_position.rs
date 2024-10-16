@@ -1,5 +1,6 @@
 use glam::Vec4;
 
+#[derive(Clone)]
 pub struct VertexPosition(Vec4);
 
 impl VertexPosition {

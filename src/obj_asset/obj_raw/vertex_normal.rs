@@ -1,5 +1,6 @@
 use glam::Vec3;
 
+#[derive(Clone)]
 pub struct VertexNormal(Vec3);
 
 impl VertexNormal {
