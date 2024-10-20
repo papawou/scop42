@@ -1,6 +1,8 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 
 use winit;
+
+// Input(key, state, timestamp)
 
 pub struct Input {
     pressed: HashSet<winit::keyboard::Key>,
