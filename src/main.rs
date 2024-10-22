@@ -28,6 +28,7 @@ use ft_vk::{
     Engine, PipelineLayout,
 };
 use glam::{Mat4, Quat, Vec3};
+use input::InputManager;
 use material::Material;
 use material_asset::MaterialAsset;
 use mesh::Mesh;
@@ -138,7 +139,7 @@ fn main() -> anyhow::Result<()> {
         ..glam::Vec3::ZERO
     };
 
-    // let mut input = Input::new();
+    let mut input = InputManager::new();
 
     let sensibility: f32 = 1.0f32; // needed because cursor_motion's units is platform-specific
     let cursor_motion: glam::Vec3 = glam::Vec3::ONE;
@@ -235,19 +236,21 @@ fn main() -> anyhow::Result<()> {
                             winit::event::WindowEvent::Resized(_) => require_resize = true,
                             winit::event::WindowEvent::CloseRequested => elwt.exit(),
 
+                            // MOUSE CONTROLS
+                            winit::event::WindowEvent::MouseInput {
+                                device_id,
+                                state,
+                                button,
+                            } => {}
                             // KEYBOARD CONTROLS
                             winit::event::WindowEvent::KeyboardInput { event, .. } => {
                                 // input.handle_key_event(event);
-
-                                last_update = std::time::Instant::now();
-                                let time_elapsed = last_update
-                                    .duration_since(engine.start_instant)
-                                    .min(Duration::from_millis(30));
                                 let physical_key = event.physical_key;
                                 match physical_key {
                                     winit::keyboard::PhysicalKey::Code(
                                         winit::keyboard::KeyCode::KeyW,
                                     ) => {
+                                        input.press(key_event.logical_key);
                                         camera_pos.z += -1.0f32 * time_elapsed.as_secs_f32();
                                     }
                                     winit::keyboard::PhysicalKey::Code(
