@@ -250,7 +250,7 @@ fn main() -> anyhow::Result<()> {
                                     winit::keyboard::PhysicalKey::Code(
                                         winit::keyboard::KeyCode::KeyW,
                                     ) => {
-                                        input.press(key_event.logical_key);
+                                        //input.press(key_event.logical_key);
                                         camera_pos.z += -1.0f32 * time_elapsed.as_secs_f32();
                                     }
                                     winit::keyboard::PhysicalKey::Code(

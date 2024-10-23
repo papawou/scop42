@@ -4,119 +4,88 @@ use std::{
     time::Instant,
 };
 
-mod winit;
-
-// Input(key, state, timestamp)
-
-// use std::{
-//     collections::{HashSet, VecDeque},
-//     hash::Hash,
-// };
-// pub struct Input<TInput>  {
-//     pressed: HashSet<TInput>,
-//     just_pressed: HashSet<TInput>,
-//     just_released: HashSet<TInput>,
-
-//     // events: VecDeque<TEvent>,
-// }
-
-// impl<TInput> Input<TInput> {
-//     pub fn new() -> Self {
-//         Self {
-//             pressed: HashSet::new(),
-//             just_pressed: HashSet::new(),
-//             just_released: HashSet::new(),
-//         }
-//     }
-
-//     pub fn add<T>(&mut self, key_event: T)
-//     where
-//         TEvent: From<T>,
-//     {
-//         self.events.push_back(key_event.into());
-//     }
-
-//     pub fn press<T>(&mut self, key_event: T)
-//     where
-//         TInput: From<T>,
-//     {
-//         self.pressed()
-//     }
-
-//     pub fn is_pressed<T>(&self, key: T)
-//     where
-//         TInput: From<T> + Eq + Hash,
-//     {
-//         self.pressed.(&key.into()).is_some();
-//     }
-// }
-
-trait InputHandler<T> {
-    fn press(&mut self, input: T);
-    fn release(&mut self, input: T);
-    fn hold(&mut self, input: T);
-    fn is_press(&mut self, input: &T) -> bool;
-    fn is_release(&mut self, input: &T) -> bool; // returns !is_press
-}
+use event::Event;
+use input::{DeviceInput, Input};
+mod event;
+mod input;
 
 pub enum State {
     Pressed(Instant),
     Released(Instant),
 }
 
-pub struct InputManager<T, E> {
-    keys: HashMap<T, State>,
-    queue: VecDeque<E>,
+pub struct WinitInputManager {
+    keys: HashMap<DeviceInput, State>,
+    queue: VecDeque<Event>,
 }
-
-impl<T, E> InputManager<T, E> {
+impl WinitInputManager {
     pub fn new() -> Self {
         Self {
             keys: HashMap::new(),
             queue: VecDeque::new(),
         }
     }
-}
 
-impl<T, E> InputManager<T, E> {
-    pub fn enqueue(&mut self, event: E) {
-        self.queue.push_back(event);
+    fn press(&mut self, input: DeviceInput) {
+        self.keys
+            .insert(input, State::Pressed(std::time::Instant::now()));
     }
 
-    pub fn poll(&mut self) -> Option<E> {
-        self.queue.pop_front()
+    fn release(&mut self, input: DeviceInput) {
+        self.keys
+            .insert(input, State::Released(std::time::Instant::now()));
     }
 
-    pub fn clear(&mut self) {
-        self.queue.clear();
-    }
-}
-
-impl<T, E> InputHandler<T> for InputManager<T, E>
-where
-    T: Eq + Hash,
-{
-    fn press(&mut self, input: T) {
-        self.keys.insert(input, State::Pressed(Instant::now()));
-    }
-
-    fn release(&mut self, input: T) {
-        self.keys.insert(input, State::Released(Instant::now()));
-    }
-
-    // how long is press to be considered as hold ?
-    fn hold(&mut self, input: T) {
+    fn hold(&mut self, input: DeviceInput) {
         todo!()
     }
 
-    fn is_press(&mut self, input: &T) -> bool {
-        match self.keys.get(input) {
+    fn is_press(&mut self, input: &DeviceInput) -> bool {
+        match self.keys.get(&input) {
             Some(State::Pressed(_)) => true,
             _ => false,
         }
     }
 
-    fn is_release(&mut self, input: &T) -> bool {
-        !self.is_press(input)
+    fn is_release(&mut self, input: &DeviceInput) -> bool {
+        match self.keys.get(&input) {
+            Some(State::Released(_)) => true,
+            _ => false,
+        }
+    }
+
+    fn push_event(&mut self, event: Event) {
+        match &event {
+            Event::Key(key_event) => {
+                let device_id = DeviceInput(
+                    Some(key_event.device_id),
+                    Input::Key(key_event.event.logical_key.clone()),
+                );
+                match key_event.event.state {
+                    winit::event::ElementState::Pressed => {
+                        self.press(device_id);
+                    }
+                    winit::event::ElementState::Released => {
+                        self.release(device_id);
+                    }
+                }
+            }
+            Event::Mouse(mouse_event) => {
+                let device_id = DeviceInput(
+                    Some(mouse_event.device_id),
+                    Input::Mouse(mouse_event.button),
+                );
+                match mouse_event.state {
+                    winit::event::ElementState::Pressed => {
+                        self.press(device_id);
+                    }
+                    winit::event::ElementState::Released => {
+                        self.release(device_id);
+                    }
+                }
+            }
+        };
+
+        self.queue.push_back(event);
     }
 }
