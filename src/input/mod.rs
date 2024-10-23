@@ -14,11 +14,11 @@ pub enum State {
     Released(Instant),
 }
 
-pub struct WinitInputManager {
+pub struct InputManager {
     keys: HashMap<DeviceInput, State>,
     queue: VecDeque<Event>,
 }
-impl WinitInputManager {
+impl InputManager {
     pub fn new() -> Self {
         Self {
             keys: HashMap::new(),
@@ -54,7 +54,7 @@ impl WinitInputManager {
         }
     }
 
-    fn push_event(&mut self, event: Event) {
+    pub fn push_event(&mut self, event: Event) {
         match &event {
             Event::Key(key_event) => {
                 let device_id = DeviceInput(
