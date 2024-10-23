@@ -244,8 +244,10 @@ fn main() -> anyhow::Result<()> {
                             } => {}
                             // KEYBOARD CONTROLS
                             winit::event::WindowEvent::KeyboardInput { .. } => {
+                                let test: input::Event = event.try_into().unwrap();
+                                input::EventHandler::handle_event(&mut input, test);
                                 // todo! from windowevent to engineevent ?
-                                input.push_event(event);
+                                //input.push_event(event);
                                 // let physical_key = event.physical_key;
                                 // match physical_key {
                                 //     winit::keyboard::PhysicalKey::Code(
@@ -262,7 +264,7 @@ fn main() -> anyhow::Result<()> {
                                 //     winit::keyboard::PhysicalKey::Code(
                                 //         winit::keyboard::KeyCode::KeyA,
                                 //     ) => {
-                                //         camera_pos.x += -1.0f32 * time_elapsed.as_secs_f32();
+                                //         camera_pos.x event.try_into().unwrap()+= -1.0f32 * time_elapsed.as_secs_f32();
                                 //     }
                                 //     winit::keyboard::PhysicalKey::Code(
                                 //         winit::keyboard::KeyCode::KeyD,
