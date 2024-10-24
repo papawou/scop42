@@ -28,7 +28,7 @@ use ft_vk::{
     Engine, PipelineLayout,
 };
 use glam::{Mat4, Quat, Vec3};
-use input::InputManager;
+use input::Manager;
 use material::Material;
 use material_asset::MaterialAsset;
 use mesh::Mesh;
@@ -139,7 +139,7 @@ fn main() -> anyhow::Result<()> {
         ..glam::Vec3::ZERO
     };
 
-    let mut input = InputManager::new();
+    let mut input = input::winit::WinitInputManager::new();
 
     let sensibility: f32 = 1.0f32; // needed because cursor_motion's units is platform-specific
     let cursor_motion: glam::Vec3 = glam::Vec3::ONE;
@@ -160,6 +160,11 @@ fn main() -> anyhow::Result<()> {
             .run(
                 |event: winit::event::Event<_>,
                  elwt: &winit::event_loop::EventLoopWindowTarget<_>| {
+                    // handle inputs
+
+                    //  input.is_press(DeviceInput(winit::event::DeviceId, Input::Key(winit::keyboard::Key::A)))
+                    //  input.is_press(winit::event::KeyEvent::A)
+
                     match event {
                         winit::event::Event::LoopExiting => {
                             unsafe { engine.device.device_wait_idle() }.unwrap();
@@ -168,7 +173,7 @@ fn main() -> anyhow::Result<()> {
                         // MOUSE CONTROLS
                         winit::event::Event::DeviceEvent { event, .. } => match event {
                             winit::event::DeviceEvent::MouseMotion { delta } => {
-                                dbg!("{:?}", delta);
+                                //dbg!("{:?}", delta);
 
                                 // if  input.is_pressed(winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode:));{}
 
@@ -236,60 +241,15 @@ fn main() -> anyhow::Result<()> {
                             winit::event::WindowEvent::Resized(_) => require_resize = true,
                             winit::event::WindowEvent::CloseRequested => elwt.exit(),
 
-                            // MOUSE CONTROLS
-                            winit::event::WindowEvent::MouseInput {
-                                device_id,
-                                state,
-                                button,
-                            } => {}
-                            // KEYBOARD CONTROLS
-                            winit::event::WindowEvent::KeyboardInput { .. } => {
-                                let test: input::Event = event.try_into().unwrap();
-                                input::EventHandler::handle_event(&mut input, test);
-                                // todo! from windowevent to engineevent ?
-                                //input.push_event(event);
-                                // let physical_key = event.physical_key;
-                                // match physical_key {
-                                //     winit::keyboard::PhysicalKey::Code(
-                                //         winit::keyboard::KeyCode::KeyW,
-                                //     ) => {
-                                //         //input.press(key_event.logical_key);
-                                //         camera_pos.z += -1.0f32 * time_elapsed.as_secs_f32();
-                                //     }
-                                //     winit::keyboard::PhysicalKey::Code(
-                                //         winit::keyboard::KeyCode::KeyS,
-                                //     ) => {
-                                //         camera_pos.z += 1.0f32 * time_elapsed.as_secs_f32();
-                                //     }
-                                //     winit::keyboard::PhysicalKey::Code(
-                                //         winit::keyboard::KeyCode::KeyA,
-                                //     ) => {
-                                //         camera_pos.x event.try_into().unwrap()+= -1.0f32 * time_elapsed.as_secs_f32();
-                                //     }
-                                //     winit::keyboard::PhysicalKey::Code(
-                                //         winit::keyboard::KeyCode::KeyD,
-                                //     ) => {
-                                //         camera_pos.x += 1.0f32 * time_elapsed.as_secs_f32();
-                                //     }
-                                //     winit::keyboard::PhysicalKey::Code(
-                                //         winit::keyboard::KeyCode::Space,
-                                //     ) => {
-                                //         camera_pos.y += 1.0f32 * time_elapsed.as_secs_f32();
-                                //     }
-                                //     winit::keyboard::PhysicalKey::Code(
-                                //         winit::keyboard::KeyCode::ControlLeft,
-                                //     ) => {
-                                //         camera_pos.y += -1.0f32 * time_elapsed.as_secs_f32();
-                                //     }
-                                //     _ => {}
-                                // }
-
-                                window.request_redraw();
+                            // CONTROLS
+                            winit::event::WindowEvent::MouseInput { .. }
+                            | winit::event::WindowEvent::KeyboardInput { .. } => {
+                                input.handle_event(&event);
                             }
                             _ => {}
                         },
                         _ => {}
-                    }
+                    };
                 },
             )
             .unwrap();
@@ -347,3 +307,41 @@ struct GPUSceneData {
     proj: glam::Mat4,
     viewproj: glam::Mat4,
 }
+
+// todo! from windowevent to engineevent ?
+//input.push_event(event);
+// let physical_key = event.physical_key;
+// match physical_key {
+//     winit::keyboard::PhysicalKey::Code(
+//         winit::keyboard::KeyCode::KeyW,
+//     ) => {
+//         //input.press(key_event.logical_key);
+//         camera_pos.z += -1.0f32 * time_elapsed.as_secs_f32();
+//     }
+//     winit::keyboard::PhysicalKey::Code(
+//         winit::keyboard::KeyCode::KeyS,
+//     ) => {
+//         camera_pos.z += 1.0f32 * time_elapsed.as_secs_f32();
+//     }
+//     winit::keyboard::PhysicalKey::Code(
+//         winit::keyboard::KeyCode::KeyA,
+//     ) => {
+//         camera_pos.x event.try_into().unwrap()+= -1.0f32 * time_elapsed.as_secs_f32();
+//     }
+//     winit::keyboard::PhysicalKey::Code(
+//         winit::keyboard::KeyCode::KeyD,
+//     ) => {
+//         camera_pos.x += 1.0f32 * time_elapsed.as_secs_f32();
+//     }
+//     winit::keyboard::PhysicalKey::Code(
+//         winit::keyboard::KeyCode::Space,
+//     ) => {
+//         camera_pos.y += 1.0f32 * time_elapsed.as_secs_f32();
+//     }
+//     winit::keyboard::PhysicalKey::Code(
+//         winit::keyboard::KeyCode::ControlLeft,
+//     ) => {
+//         camera_pos.y += -1.0f32 * time_elapsed.as_secs_f32();
+//     }
+//     _ => {}
+// }
