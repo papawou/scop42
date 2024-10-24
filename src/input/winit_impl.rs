@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{collections::hash_map, time::Instant};
 
 use super::{DeviceInput, InputManager, Manager, State};
 
@@ -15,31 +15,48 @@ pub type WinitDeviceInput = DeviceInput<Option<winit::event::DeviceId>, Input>;
 pub type WinitInputManager = InputManager<WinitDeviceInput>;
 
 impl Manager<WinitDeviceInput> for WinitInputManager {
-    fn is_press(&mut self, input: WinitDeviceInput) -> bool {
-        match self.keys.get(&input) {
-            Some(State::Pressed(_)) => true,
-            _ => false,
+    fn is_press(&mut self, input: WinitDeviceInput) -> Option<Instant> {
+        self.keys.get(&input).and_then(|state| match state {
+            State::Pressed(instant) => Some(instant.clone()),
+            _ => None,
+        })
+    }
+
+    fn is_release(&mut self, input: WinitDeviceInput) -> Option<Instant> {
+        self.keys.get(&input).and_then(|state| match state {
+            State::Released(instant) => Some(instant.clone()),
+            _ => None,
+        })
+    }
+
+    // dont refresh press timer
+    fn try_press(&mut self, input: WinitDeviceInput) -> Option<State> {
+        match self.keys.entry(input.clone()) {
+            hash_map::Entry::Occupied(o) => match o.get() {
+                State::Pressed(instant) => Some(State::Pressed(*instant)),
+                _ => self.press(input.clone()),
+            },
+            hash_map::Entry::Vacant(v) => self.press(input.clone()),
         }
     }
 
-    fn is_release(&mut self, input: &WinitDeviceInput) -> bool {
-        match self.keys.get(&input) {
-            Some(State::Released(_)) => true,
-            _ => false,
+    // dont refresh release timer
+    fn try_release(&mut self, input: WinitDeviceInput) -> Option<State> {
+        match self.keys.entry(input.clone()) {
+            hash_map::Entry::Occupied(o) => match o.get() {
+                State::Released(instant) => Some(State::Released(*instant)),
+                _ => self.release(input.clone()),
+            },
+            hash_map::Entry::Vacant(v) => self.release(input.clone()),
         }
     }
 
-    fn press(&mut self, input: &WinitDeviceInput) -> bool {
-        dbg!("{:?}", input);
-        self.keys
-            .insert(input.clone(), State::Pressed(Instant::now()))
-            .is_none()
+    fn press(&mut self, input: WinitDeviceInput) -> Option<State> {
+        self.keys.insert(input, State::Pressed(Instant::now()))
     }
 
-    fn release(&mut self, input: &WinitDeviceInput) -> bool {
-        self.keys
-            .insert(input.clone(), State::Released(Instant::now()))
-            .is_none()
+    fn release(&mut self, input: WinitDeviceInput) -> Option<State> {
+        self.keys.insert(input, State::Released(Instant::now()))
     }
 }
 
@@ -75,10 +92,10 @@ impl WinitInputManager {
                 // process input
                 match state {
                     winit::event::ElementState::Pressed => {
-                        self.press(&device_input);
+                        self.try_press(device_input);
                     }
                     winit::event::ElementState::Released => {
-                        self.release(&device_input);
+                        self.try_release(device_input);
                     }
                 },
                 _ => {}

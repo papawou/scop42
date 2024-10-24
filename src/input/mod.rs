@@ -9,10 +9,17 @@ pub mod winit_impl;
 pub use winit_impl as winit;
 
 pub trait Manager<T> {
-    fn is_press(&mut self, input: T) -> bool;
-    fn is_release(&mut self, input: &T) -> bool;
-    fn press(&mut self, input: &T) -> bool;
-    fn release(&mut self, input: &T) -> bool;
+    // query
+    fn is_press(&mut self, input: T) -> Option<Instant>;
+    fn is_release(&mut self, input: T) -> Option<Instant>;
+
+    // returns prev value ?
+    fn try_press(&mut self, input: T) -> Option<State>;
+    fn try_release(&mut self, input: T) -> Option<State>;
+
+    // returns prev value ?
+    fn press(&mut self, input: T) -> Option<State>; // override
+    fn release(&mut self, input: T) -> Option<State>; // override
 }
 
 pub enum State {
@@ -32,11 +39,6 @@ impl<T> InputManager<T> {
         }
     }
 }
-
-// enum Test<T> {
-//     Bot(bool),
-//     Winit(WinitDeviceInput),
-// }
 
 // Default impl
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
