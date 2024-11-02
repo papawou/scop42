@@ -1,0 +1,208 @@
+{
+  "main": {
+    "id": "aa047d019f503660",
+    "type": "split",
+    "children": [
+      {
+        "id": "5d70630f6b1d8283",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "36bce0b68844c6ee",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "src/Key/key.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "key"
+            }
+          },
+          {
+            "id": "f095c40606d9ab2f",
+            "type": "leaf",
+            "state": {
+              "type": "canvas",
+              "state": {
+                "file": "src/API.canvas",
+                "viewState": {
+                  "x": 517.6343408216887,
+                  "y": -1305.0159346118328,
+                  "zoom": -0.9233787183970878
+                }
+              },
+              "icon": "lucide-layout-dashboard",
+              "title": "API"
+            }
+          }
+        ],
+        "currentTab": 1
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "e53f1b6f7a74f13e",
+    "type": "split",
+    "children": [
+      {
+        "id": "6f3e8d8f252aac0d",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "f2b9bb0b474af35c",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "0592ed80be2e995f",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "eeb1eaaceb1cddee",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 490.5
+  },
+  "right": {
+    "id": "7923c5d4678c0706",
+    "type": "split",
+    "children": [
+      {
+        "id": "d18770bee647f132",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "c21868e279a0fd02",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "API.canvas",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for API"
+            }
+          },
+          {
+            "id": "a26017e490a0e652",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "API.canvas",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from API"
+            }
+          },
+          {
+            "id": "421627ecac4e028d",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "c15d8cd0a27ad443",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "src/API.canvas"
+              },
+              "icon": "lucide-list",
+              "title": "Outline of API"
+            }
+          }
+        ],
+        "currentTab": 3
+      }
+    ],
+    "direction": "horizontal",
+    "width": 200
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "obsidian-excalidraw-plugin:Create new drawing": false
+    }
+  },
+  "active": "f095c40606d9ab2f",
+  "lastOpenFiles": [
+    "src/Key/Pressed.md",
+    "src/Key/key.md",
+    "Excalidraw/Drawing 2024-10-31 17.55.53.excalidraw.md",
+    "Excalidraw/Drawing 2024-10-31 17.14.28.excalidraw.md",
+    "src/API.canvas",
+    "src/Key/Releasable.md",
+    "src/Key/Pressable.md",
+    "src/Key/Released.md",
+    "src/Untitled.md",
+    "specs/index.canvas",
+    "specs/User wants to press and release a button.md",
+    "Excalidraw/Drawing 2024-10-31 17.12.15.excalidraw.md",
+    "Excalidraw",
+    "specs",
+    "Key/Key.md",
+    "src/Key",
+    "src",
+    "Key",
+    "Test.md",
+    "create a link.md",
+    "Welcome.md"
+  ]
+}
