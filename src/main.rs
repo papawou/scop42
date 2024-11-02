@@ -1,5 +1,6 @@
 #![allow(warnings)]
 
+mod camera;
 mod conf;
 mod ft_vk;
 mod helpers;
@@ -22,13 +23,14 @@ use std::{
 
 use anyhow::Ok;
 use ash::vk::{self};
+use camera::Camera;
 use ft_vk::{
     descriptor_allocator::DescriptorAllocator,
     descriptor_set_layout::{self, DescriptorSetLayoutCreateInfoBuilder},
     Engine, PipelineLayout,
 };
 use glam::{Mat4, Quat, Vec3};
-use input::Manager;
+use input::StateAPI;
 use material::Material;
 use material_asset::MaterialAsset;
 use mesh::Mesh;
@@ -64,6 +66,8 @@ fn main() -> anyhow::Result<()> {
     //     engine.frames[0].command_buffer,
     //     engine.frames[0].command_pool,
     // );
+
+    let button = Button(Released);
 
     // assets
     let obj = {
@@ -134,18 +138,18 @@ fn main() -> anyhow::Result<()> {
         material: Option<Material<material::Pipeline>>,
     };
 
-    let mut camera_pos = glam::Vec3 {
-        z: 2.0f32,
-        ..glam::Vec3::ZERO
-    };
-
     let mut input = input::winit::WinitInputManager::new();
 
-    let sensibility: f32 = 1.0f32; // needed because cursor_motion's units is platform-specific
-    let cursor_motion: glam::Vec3 = glam::Vec3::ONE;
+    let mut camera = Camera::new(glam::Vec3 {
+        z: 2.0f32,
+        ..glam::Vec3::ZERO
+    });
 
-    let cursor_vel: glam::Vec3 = glam::Vec3::ONE;
-    let cursor_rot: glam::Quat = Quat::IDENTITY; // perpendicular axis to cursor_vel (direction is defined by cursor_vel's positivity)
+    // let sensibility: f32 = 1.0f32; // needed because cursor_motion's units is platform-specific
+    // let cursor_motion: glam::Vec3 = glam::Vec3::ONE;
+
+    // let cursor_vel: glam::Vec3 = glam::Vec3::ONE;
+    // let cursor_rot: glam::Quat = Quat::IDENTITY; // perpendicular axis to cursor_vel (direction is defined by cursor_vel's positivity)
 
     {
         // closure data
@@ -223,7 +227,7 @@ fn main() -> anyhow::Result<()> {
                                     pipeline_layout: &pipeline_layout,
                                     push_constants: {
                                         Some(MeshConstants {
-                                            render_matrix: update_camera(&engine, camera_pos),
+                                            render_matrix: update_camera(&engine, camera.position),
                                             vertex_buffer: mesh
                                                 .vertex_buffer
                                                 .as_ref()
