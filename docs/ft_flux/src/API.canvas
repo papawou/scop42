@@ -1,0 +1,344 @@
+{
+  "nodes": [
+    {
+      "id": "54584166e6e38bf6",
+      "type": "group",
+      "styleAttributes": {},
+      "x": -180,
+      "y": -2080,
+      "width": 1260,
+      "height": 633,
+      "label": "Realism view"
+    },
+    {
+      "id": "c9580570926e4d3a",
+      "type": "group",
+      "styleAttributes": {},
+      "x": -140,
+      "y": -2022,
+      "width": 560,
+      "height": 535,
+      "label": "Key"
+    },
+    {
+      "id": "abb9783979721f0b",
+      "type": "group",
+      "styleAttributes": {},
+      "x": 140,
+      "y": -780,
+      "width": 440,
+      "height": 600,
+      "color": "1",
+      "label": "Key"
+    },
+    {
+      "id": "3a467d323ac5efdc",
+      "type": "group",
+      "styleAttributes": {},
+      "x": -120,
+      "y": -1972,
+      "width": 500,
+      "height": 455,
+      "label": "State"
+    },
+    {
+      "id": "e6d775ac5cb26be5",
+      "type": "group",
+      "styleAttributes": {},
+      "x": 660,
+      "y": -1882,
+      "width": 380,
+      "height": 275,
+      "label": "Human"
+    },
+    {
+      "id": "7327b3fa6b979f2e",
+      "type": "group",
+      "styleAttributes": {},
+      "x": -400,
+      "y": -690,
+      "width": 300,
+      "height": 270,
+      "color": "1",
+      "label": "Input"
+    },
+    {
+      "id": "86559eaeae9cbfad",
+      "type": "group",
+      "styleAttributes": {},
+      "x": -90,
+      "y": -1689,
+      "width": 430,
+      "height": 128,
+      "label": "DOWN"
+    },
+    {
+      "id": "1d0c3f85b5130b30",
+      "type": "group",
+      "styleAttributes": {},
+      "x": -90,
+      "y": -1909,
+      "width": 430,
+      "height": 120,
+      "label": "UP"
+    },
+    {
+      "id": "7c8c263db23236c8",
+      "type": "group",
+      "styleAttributes": {},
+      "x": 160,
+      "y": -720,
+      "width": 260,
+      "height": 160,
+      "color": "4",
+      "label": "Pressable"
+    },
+    {
+      "id": "d961cbaeddf94579",
+      "type": "group",
+      "styleAttributes": {},
+      "x": 160,
+      "y": -460,
+      "width": 260,
+      "height": 160,
+      "color": "4",
+      "label": "Releasable"
+    },
+    {
+      "id": "05ef0e4cd6664974",
+      "type": "text",
+      "text": "A State give actions\nAction give State",
+      "styleAttributes": {},
+      "x": -2660,
+      "y": -700,
+      "width": 238,
+      "height": 74
+    },
+    {
+      "id": "05eec40d2b73417d",
+      "type": "text",
+      "text": "press()",
+      "styleAttributes": {},
+      "x": -64,
+      "y": -1879,
+      "width": 250,
+      "height": 60
+    },
+    {
+      "id": "a7824f2e2c0d2dca",
+      "type": "text",
+      "text": "press",
+      "styleAttributes": {},
+      "x": 700,
+      "y": -1714,
+      "width": 250,
+      "height": 60
+    },
+    {
+      "id": "3b2824a7dd28aa73",
+      "type": "text",
+      "text": "do nothing",
+      "styleAttributes": {},
+      "x": 700,
+      "y": -1830,
+      "width": 250,
+      "height": 60
+    },
+    {
+      "id": "d7ef9875eec01013",
+      "type": "text",
+      "text": "release()",
+      "styleAttributes": {},
+      "x": -64,
+      "y": -1659,
+      "width": 250,
+      "height": 60
+    },
+    {
+      "id": "1d31e36b1fc6be37",
+      "type": "text",
+      "text": "pub trait StateAPI {\n\n    type Input;\n\n    type Output;\n\n  \n\n    // query\n\n    fn is_press(&self, input: Self::Input) -> Self::Output;\n\n    fn is_release(&self, input: Self::Input) -> Self::Output;\n\n  \n\n    // no override == dont refresh timer\n\n    // fn try_press(&mut self, input: Self::Input) -> Self::Output;\n\n    // fn try_release(&mut self, input: Self::Input) -> Self::Output;\n\n  \n\n    // override == refresh timer\n\n    fn press(&mut self, input: Self::Input) -> Self::Output;\n\n    fn release(&mut self, input: Self::Input) -> Self::Output;\n\n}",
+      "styleAttributes": {},
+      "x": -2660,
+      "y": -540,
+      "width": 700,
+      "height": 560
+    },
+    {
+      "id": "63ce7c55901c2dea",
+      "type": "text",
+      "text": "press()",
+      "styleAttributes": {},
+      "x": 160,
+      "y": -720,
+      "width": 260,
+      "height": 60,
+      "color": "5"
+    },
+    {
+      "id": "443854a477aa1e9d",
+      "type": "text",
+      "text": "_state_: UP | DOWN",
+      "styleAttributes": {},
+      "x": 160,
+      "y": -260,
+      "width": 400,
+      "height": 60
+    },
+    {
+      "id": "46461da107b2d549",
+      "type": "text",
+      "text": "release()",
+      "styleAttributes": {},
+      "x": 160,
+      "y": -460,
+      "width": 260,
+      "height": 60,
+      "color": "5"
+    },
+    {
+      "id": "c7c0975eee9a27cb",
+      "type": "text",
+      "text": "_state_: UP",
+      "styleAttributes": {},
+      "x": 180,
+      "y": -640,
+      "width": 220,
+      "height": 60
+    },
+    {
+      "id": "6c7ea36719ec812c",
+      "type": "text",
+      "text": "_state_: DOWN",
+      "styleAttributes": {},
+      "x": 180,
+      "y": -380,
+      "width": 230,
+      "height": 60
+    },
+    {
+      "id": "0cd1296b5f72a70c",
+      "type": "text",
+      "text": "key: Key",
+      "styleAttributes": {},
+      "x": -380,
+      "y": -500,
+      "width": 260,
+      "height": 60,
+      "color": "1"
+    },
+    {
+      "id": "cfd4fe8509482d1d",
+      "type": "text",
+      "text": "use",
+      "styleAttributes": {
+        "shape": "parallelogram"
+      },
+      "x": -660,
+      "y": -500,
+      "width": 100,
+      "height": 60
+    },
+    {
+      "id": "ac37f1d238f24d59",
+      "type": "text",
+      "text": "at: Instant",
+      "styleAttributes": {},
+      "x": -380,
+      "y": -660,
+      "width": 260,
+      "height": 60
+    },
+    {
+      "id": "974c4ab959fac745",
+      "type": "text",
+      "text": "Client",
+      "styleAttributes": {},
+      "x": -1060,
+      "y": -500,
+      "width": 260,
+      "height": 60
+    }
+  ],
+  "edges": [
+    {
+      "id": "a5d162c1553eed31",
+      "fromNode": "05eec40d2b73417d",
+      "fromSide": "right",
+      "toNode": "86559eaeae9cbfad",
+      "toSide": "top"
+    },
+    {
+      "id": "d4e961685af11b58",
+      "fromNode": "d7ef9875eec01013",
+      "fromSide": "right",
+      "toNode": "1d0c3f85b5130b30",
+      "toSide": "bottom"
+    },
+    {
+      "id": "4eb2848208412db6",
+      "fromNode": "3a467d323ac5efdc",
+      "fromSide": "right",
+      "toNode": "e6d775ac5cb26be5",
+      "toSide": "left",
+      "label": "can see"
+    },
+    {
+      "id": "e7c3549c6ba8986b",
+      "styleAttributes": {},
+      "fromNode": "63ce7c55901c2dea",
+      "fromSide": "right",
+      "toNode": "d961cbaeddf94579",
+      "toSide": "right"
+    },
+    {
+      "id": "d58ed7dbbcd60607",
+      "styleAttributes": {},
+      "fromNode": "46461da107b2d549",
+      "fromSide": "right",
+      "toNode": "7c8c263db23236c8",
+      "toSide": "right"
+    },
+    {
+      "id": "0be6f54dac64bacc",
+      "styleAttributes": {
+        "arrow": "triangle-outline"
+      },
+      "fromNode": "abb9783979721f0b",
+      "fromSide": "left",
+      "toNode": "0cd1296b5f72a70c",
+      "toSide": "right"
+    },
+    {
+      "id": "5b1bd3c37929dcf7",
+      "styleAttributes": {
+        "path": "long-dashed"
+      },
+      "fromNode": "974c4ab959fac745",
+      "fromSide": "right",
+      "toNode": "cfd4fe8509482d1d",
+      "toSide": "left",
+      "toEnd": "none"
+    },
+    {
+      "id": "79dcb2b6255a8782",
+      "styleAttributes": {
+        "path": "long-dashed"
+      },
+      "fromNode": "cfd4fe8509482d1d",
+      "fromSide": "right",
+      "toNode": "0cd1296b5f72a70c",
+      "toSide": "left"
+    },
+    {
+      "id": "a77e51bc45c7deb5",
+      "styleAttributes": {},
+      "fromNode": "cfd4fe8509482d1d",
+      "fromSide": "top",
+      "toNode": "ac37f1d238f24d59",
+      "toSide": "left",
+      "label": "_at"
+    }
+  ],
+  "metadata": {}
+}

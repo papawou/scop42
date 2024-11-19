@@ -4,28 +4,31 @@ use std::{
     time::Instant,
 };
 
-use button::{ButtonPressed, ButtonReleased};
+use button::{Button, Down, Up};
+
+pub mod traits;
+
 pub mod button;
 
 pub mod winit_impl;
 
-enum Button {
-    Pressed(ButtonPressed),
-    Released(ButtonReleased),
+struct InputState<State> {
+    at: Instant, // when the state trait change (action property?) (second business rule ? first will be Button: Pressable+Releasable)
+    state: Button<State>,
+}
+
+enum Input {
+    Pressed(InputState<Down>),
+    Released(InputState<Up>),
 }
 
 // // Default manager with HashMap
 pub struct Keys<K, V>(HashMap<K, V>);
 
-impl Keys<Instant, Button> {
+impl Keys<Instant, Input> {
     fn press(&mut self, key: Instant) {
-        self.0.insert(key, Button::Pressed);
+        self.0.insert(key, ButtonState::Pressed());
     }
-}
-
-struct Input {
-    at: Instant, // when the state trait change (action property?) (second business rule ? first will be Button: Pressable+Releasable)
-    state: Button,
 }
 
 // pub trait StateAPI {

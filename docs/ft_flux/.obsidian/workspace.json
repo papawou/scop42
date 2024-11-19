@@ -4,42 +4,27 @@
     "type": "split",
     "children": [
       {
-        "id": "5d70630f6b1d8283",
+        "id": "a50d00c418a52cb5",
         "type": "tabs",
         "children": [
           {
-            "id": "36bce0b68844c6ee",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "src/Key/key.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "key"
-            }
-          },
-          {
-            "id": "f095c40606d9ab2f",
+            "id": "1a60626558869e47",
             "type": "leaf",
             "state": {
               "type": "canvas",
               "state": {
                 "file": "src/API.canvas",
                 "viewState": {
-                  "x": 517.6343408216887,
-                  "y": -1305.0159346118328,
-                  "zoom": -0.9233787183970878
+                  "x": -349.8497600311807,
+                  "y": -494.0923011146536,
+                  "zoom": -0.3333333333333334
                 }
               },
               "icon": "lucide-layout-dashboard",
               "title": "API"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "vertical"
@@ -95,7 +80,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 490.5
+    "width": 200
   },
   "right": {
     "id": "7923c5d4678c0706",
@@ -181,19 +166,19 @@
       "obsidian-excalidraw-plugin:Create new drawing": false
     }
   },
-  "active": "f095c40606d9ab2f",
+  "active": "1a60626558869e47",
   "lastOpenFiles": [
-    "src/Key/Pressed.md",
+    "src/API.canvas",
+    "specs/index.canvas",
     "src/Key/key.md",
+    "specs/User wants to press and release a button.md",
     "Excalidraw/Drawing 2024-10-31 17.55.53.excalidraw.md",
     "Excalidraw/Drawing 2024-10-31 17.14.28.excalidraw.md",
-    "src/API.canvas",
+    "src/Key/Pressed.md",
     "src/Key/Releasable.md",
     "src/Key/Pressable.md",
     "src/Key/Released.md",
     "src/Untitled.md",
-    "specs/index.canvas",
-    "specs/User wants to press and release a button.md",
     "Excalidraw/Drawing 2024-10-31 17.12.15.excalidraw.md",
     "Excalidraw",
     "specs",

@@ -1,0 +1,89 @@
+{
+  "nodes": [
+    {
+      "id": "076626351d2b8256",
+      "type": "group",
+      "styleAttributes": {},
+      "x": -560,
+      "y": 19,
+      "width": 680,
+      "height": 381,
+      "label": "Button"
+    },
+    {
+      "id": "1e8b47e04258776d",
+      "type": "file",
+      "file": "specs/User wants to press and release a button.md",
+      "styleAttributes": {},
+      "x": -220,
+      "y": -360,
+      "width": 380,
+      "height": 240
+    },
+    {
+      "id": "c5bb427148a60bea",
+      "type": "text",
+      "text": "User",
+      "styleAttributes": {},
+      "x": 340,
+      "y": -21,
+      "width": 250,
+      "height": 60
+    },
+    {
+      "id": "269fdd397a92bdd7",
+      "type": "text",
+      "text": "#Button\n\n",
+      "styleAttributes": {},
+      "x": -320,
+      "y": 60,
+      "width": 250,
+      "height": 142
+    },
+    {
+      "id": "2ea9e64bda5e2e5b",
+      "type": "text",
+      "text": "UP",
+      "styleAttributes": {},
+      "x": -180,
+      "y": 300,
+      "width": 250,
+      "height": 60
+    },
+    {
+      "id": "c4543014a60a7f2d",
+      "type": "text",
+      "text": "DOWN",
+      "styleAttributes": {},
+      "x": -480,
+      "y": 300,
+      "width": 250,
+      "height": 60
+    }
+  ],
+  "edges": [
+    {
+      "id": "71e8ba63d618c753",
+      "fromNode": "c5bb427148a60bea",
+      "fromSide": "left",
+      "toNode": "269fdd397a92bdd7",
+      "toSide": "right",
+      "label": "is_interacting"
+    },
+    {
+      "id": "8ed724fc3d8424c3",
+      "fromNode": "269fdd397a92bdd7",
+      "fromSide": "bottom",
+      "toNode": "c4543014a60a7f2d",
+      "toSide": "top"
+    },
+    {
+      "id": "06733377b9b42373",
+      "fromNode": "269fdd397a92bdd7",
+      "fromSide": "bottom",
+      "toNode": "2ea9e64bda5e2e5b",
+      "toSide": "top"
+    }
+  ],
+  "metadata": {}
+}

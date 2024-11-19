@@ -1,23 +1,15 @@
 use std::time::Instant;
 
-// # Traits - make sense to have codependent traits ?
-pub trait Pressable {
-    type Pressed: Releasable;
-    fn press(self) -> Self::Pressed;
-}
-pub trait Releasable {
-    type Released: Pressable;
-    fn release(self) -> Self::Released;
-}
+use super::traits::{Pressable, Releasable};
 
 // # Button
-struct Button<S> {
+pub struct Button<S> {
     marker_state: std::marker::PhantomData<S>,
 }
 
 // ## Button states
-struct Down; // type ButtonPressed = Button<Pressed>; ?
-struct Up; // Button<Released>; ?
+pub struct Down; // type ButtonPressed = Button<Pressed>; ?
+pub struct Up; // Button<Released>; ?
 
 // impl Button
 impl Pressable for Button<Up> {
@@ -40,6 +32,3 @@ impl Releasable for Button<Down> {
         }
     }
 }
-
-pub type ButtonPressed = Button<Down>;
-pub type ButtonReleased = Button<Up>;
