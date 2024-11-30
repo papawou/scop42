@@ -37,28 +37,28 @@ impl CameraControls for Camera {
     }
 }
 
-impl Camera {
-    fn process_input(&mut self, input: &input::winit_impl::WinitInputManager) {
-        if input.is_press(winit::keyboard::KeyCode::KeyW).is_some() {
-            self.move_forward(0.1);
-        }
-        if input
-            .is_press(winit::keyboard::Key::Character("S"))
-            .is_some()
-        {
-            self.move_backward(0.1);
-        }
-        if input
-            .is_press(winit::keyboard::Key::Character("A"))
-            .is_some()
-        {
-            self.move_left(0.1);
-        }
-        if input
-            .is_press(winit::keyboard::Key::Character("D"))
-            .is_some()
-        {
-            self.move_right(0.1);
-        }
-    }
-}
+// impl Camera {
+//     fn process_input(&mut self, input: &input::winit_impl::WinitInputManager) {
+//         if input.is_press(winit::keyboard::KeyCode::KeyW).is_some() {
+//             self.move_forward(0.1);
+//         }
+//         if input
+//             .is_press(winit::keyboard::Key::Character("S"))
+//             .is_some()
+//         {
+//             self.move_backward(0.1);
+//         }
+//         if input
+//             .is_press(winit::keyboard::Key::Character("A"))
+//             .is_some()
+//         {
+//             self.move_left(0.1);
+//         }
+//         if input
+//             .is_press(winit::keyboard::Key::Character("D"))
+//             .is_some()
+//         {
+//             self.move_right(0.1);
+//         }
+//     }
+// }

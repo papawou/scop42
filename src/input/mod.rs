@@ -4,30 +4,84 @@ use std::{
     time::Instant,
 };
 
-use button::{Button, Down, Up};
+use button::Button;
+use traits::{Down, Pressable, Releasable, Up};
+use winit::keyboard::KeyCode;
 
 pub mod traits;
 
 pub mod button;
-
 pub mod winit_impl;
 
-struct InputState<State> {
-    at: Instant, // when the state trait change (action property?) (second business rule ? first will be Button: Pressable+Releasable)
-    state: Button<State>,
+// Button -> Input -> InputEnum
+type Manager = HashMap<KeyCode, InputEnum>;
+impl InputManager for Manager {
+    fn press(&mut self, keycode: KeyCode) -> &Input<Down> {
+        match self.get_mut(&keycode) {
+            Some(InputEnum::Up(input)) => input.press(),
+            Some(InputEnum::Down(input)) => None,
+            None => self.insert(keycode, InputEnum<Down>::default()),
+        }
+    }
+
+    fn release(&mut self, keycode: KeyCode) {
+        match self.get_mut(&keycode) {
+            Some(InputEnum::Up(input)) => None,
+            Some(InputEnum::Down(input)) => input.release(),
+            None => self.insert(keycode, InputEnum<Down>::default()),
+        }
+    }
 }
 
-enum Input {
-    Pressed(InputState<Down>),
-    Released(InputState<Up>),
+enum InputEnum {
+    Down(Input<Down>),
+    Up(Input<Up>),
 }
 
-// // Default manager with HashMap
-pub struct Keys<K, V>(HashMap<K, V>);
+impl<T> Default for InputEnum<Down> {
+    fn default() -> Self {
+        Self::Down(Input::default())
+    }
+}
 
-impl Keys<Instant, Input> {
-    fn press(&mut self, key: Instant) {
-        self.0.insert(key, ButtonState::Pressed());
+impl Default for InputEnum<Up> {
+    fn default() -> Self {
+        Self::Up(Input::default())
+    }
+}
+
+pub struct Input<State> {
+    pub at: Instant, // when the state trait change (action property?) (second business rule ? first will be Button: Pressable+Releasable)
+    pub button: Button<State>,
+}
+
+impl<T> Default for Input<T> {
+    fn default() -> Self {
+        Self {
+            at:Instant::now(), button: Button::default()
+        }
+    }
+}
+
+impl Pressable for Input<Up> {
+    type Pressed = Input<Down>;
+
+    fn press(self) -> Self::Pressed {
+        Input {
+            at: Instant::now(),
+            button: self.button.press(),
+        }
+    }
+}
+
+impl Releasable for Input<Down> {
+    type Released = Input<Up>;
+
+    fn release(self) -> Self::Released {
+        Input {
+            at: Instant::now(),
+            button: self.button.release(),
+        }
     }
 }
 

@@ -6,6 +6,7 @@
       {
         "id": "a50d00c418a52cb5",
         "type": "tabs",
+        "dimension": 76.30173564753005,
         "children": [
           {
             "id": "1a60626558869e47",
@@ -13,15 +14,36 @@
             "state": {
               "type": "canvas",
               "state": {
-                "file": "src/API.canvas",
+                "file": "src/API - Rust.canvas",
                 "viewState": {
-                  "x": -349.8497600311807,
-                  "y": -494.0923011146536,
-                  "zoom": -0.3333333333333334
+                  "x": 742.0387044482862,
+                  "y": 690.791586674756,
+                  "zoom": -0.8354900379702488
                 }
               },
               "icon": "lucide-layout-dashboard",
-              "title": "API"
+              "title": "API - Rust"
+            }
+          }
+        ]
+      },
+      {
+        "id": "dc811b0457753d77",
+        "type": "tabs",
+        "dimension": 23.698264352469963,
+        "children": [
+          {
+            "id": "4f6d4bcb7490a240",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "src/mindmap.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "mindmap"
             }
           }
         ]
@@ -142,10 +164,10 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "src/API.canvas"
+                "file": "src/API - Rust.canvas"
               },
               "icon": "lucide-list",
-              "title": "Outline of API"
+              "title": "Outline of API - Rust"
             }
           }
         ],
@@ -168,22 +190,27 @@
   },
   "active": "1a60626558869e47",
   "lastOpenFiles": [
-    "src/API.canvas",
+    "src/mindmap.md",
+    "src/API - Rust.canvas",
+    "src/mindmap.canvas",
+    "src/Key/key.canvas",
+    "src/Key",
+    "src/_old",
+    "src/key/Untitled.md",
+    "src/_old/key/key.md",
+    "src/_old/key/Pressable.md",
+    "src/_old/key/Pressed.md",
+    "src/_old/key/Releasable.md",
+    "src/_old/key/Released.md",
     "specs/index.canvas",
-    "src/Key/key.md",
     "specs/User wants to press and release a button.md",
     "Excalidraw/Drawing 2024-10-31 17.55.53.excalidraw.md",
     "Excalidraw/Drawing 2024-10-31 17.14.28.excalidraw.md",
-    "src/Key/Pressed.md",
-    "src/Key/Releasable.md",
-    "src/Key/Pressable.md",
-    "src/Key/Released.md",
-    "src/Untitled.md",
     "Excalidraw/Drawing 2024-10-31 17.12.15.excalidraw.md",
     "Excalidraw",
     "specs",
     "Key/Key.md",
-    "src/Key",
+    "src/_old/key",
     "src",
     "Key",
     "Test.md",

@@ -30,7 +30,6 @@ use ft_vk::{
     Engine, PipelineLayout,
 };
 use glam::{Mat4, Quat, Vec3};
-use input::StateAPI;
 use material::Material;
 use material_asset::MaterialAsset;
 use mesh::Mesh;
@@ -66,8 +65,6 @@ fn main() -> anyhow::Result<()> {
     //     engine.frames[0].command_buffer,
     //     engine.frames[0].command_pool,
     // );
-
-    let button = Button(Released);
 
     // assets
     let obj = {
@@ -138,7 +135,7 @@ fn main() -> anyhow::Result<()> {
         material: Option<Material<material::Pipeline>>,
     };
 
-    let mut input = input::winit::WinitInputManager::new();
+    //let mut input = input::winit::WinitInputManager::new();
 
     let mut camera = Camera::new(glam::Vec3 {
         z: 2.0f32,
@@ -248,7 +245,7 @@ fn main() -> anyhow::Result<()> {
                             // CONTROLS
                             winit::event::WindowEvent::MouseInput { .. }
                             | winit::event::WindowEvent::KeyboardInput { .. } => {
-                                input.handle_event(&event);
+                                //input.handle_event(&event);
                             }
                             _ => {}
                         },
