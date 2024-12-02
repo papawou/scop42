@@ -1,0 +1,20 @@
+{
+  "nodes": [
+    {
+      "id": "7722e81e111518c6",
+      "type": "text",
+      "text": "",
+      "styleAttributes": {
+        "shape": "circle",
+        "textAlign": "center"
+      },
+      "lockedHeight": true,
+      "x": -30,
+      "y": -30,
+      "width": 60,
+      "height": 60
+    }
+  ],
+  "edges": [],
+  "metadata": {}
+}

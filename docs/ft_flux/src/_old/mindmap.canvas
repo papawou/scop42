@@ -279,37 +279,6 @@
       "label": "Button"
     },
     {
-      "id": "f08acfc17b3c47f2",
-      "type": "text",
-      "text": "A State give actions\nAction give State",
-      "styleAttributes": {},
-      "x": -940,
-      "y": -20,
-      "width": 238,
-      "height": 74
-    },
-    {
-      "id": "284ad05543632c11",
-      "type": "text",
-      "text": "pub trait StateAPI {\n\n    type Input;\n\n    type Output;\n\n  \n\n    // query\n\n    fn is_press(&self, input: Self::Input) -> Self::Output;\n\n    fn is_release(&self, input: Self::Input) -> Self::Output;\n\n  \n\n    // no override == dont refresh timer\n\n    // fn try_press(&mut self, input: Self::Input) -> Self::Output;\n\n    // fn try_release(&mut self, input: Self::Input) -> Self::Output;\n\n  \n\n    // override == refresh timer\n\n    fn press(&mut self, input: Self::Input) -> Self::Output;\n\n    fn release(&mut self, input: Self::Input) -> Self::Output;\n\n}",
-      "styleAttributes": {},
-      "x": -940,
-      "y": 140,
-      "width": 700,
-      "height": 560
-    },
-    {
-      "id": "0dac0c1cda6bd1e3",
-      "type": "text",
-      "text": "press()",
-      "styleAttributes": {},
-      "x": 1980,
-      "y": 850,
-      "width": 240,
-      "height": 60,
-      "color": "3"
-    },
-    {
       "id": "b838a71cadbcf686",
       "type": "text",
       "text": "DOWN",
@@ -319,46 +288,6 @@
       "width": 240,
       "height": 60,
       "color": "1"
-    },
-    {
-      "id": "bbffb912aed146e3",
-      "type": "text",
-      "text": "press()",
-      "styleAttributes": {},
-      "x": -204,
-      "y": -499,
-      "width": 250,
-      "height": 60
-    },
-    {
-      "id": "736379e65fe0546d",
-      "type": "text",
-      "text": "do nothing",
-      "styleAttributes": {},
-      "x": 560,
-      "y": -450,
-      "width": 250,
-      "height": 60
-    },
-    {
-      "id": "904c2d35d51e9215",
-      "type": "text",
-      "text": "press",
-      "styleAttributes": {},
-      "x": 560,
-      "y": -334,
-      "width": 250,
-      "height": 60
-    },
-    {
-      "id": "78bbfcce537f365c",
-      "type": "text",
-      "text": "release()",
-      "styleAttributes": {},
-      "x": -204,
-      "y": -279,
-      "width": 250,
-      "height": 60
     },
     {
       "id": "f50f51377d8b6016",
@@ -378,83 +307,6 @@
       "styleAttributes": {},
       "x": 2900,
       "y": 1000,
-      "width": 240,
-      "height": 60,
-      "color": "1"
-    },
-    {
-      "id": "07febf76529691c0",
-      "type": "text",
-      "text": "press()",
-      "styleAttributes": {},
-      "x": 2640,
-      "y": 950,
-      "width": 240,
-      "height": 60,
-      "color": "3"
-    },
-    {
-      "id": "e419af03641e0fd9",
-      "type": "text",
-      "text": "UP",
-      "styleAttributes": {},
-      "x": 1560,
-      "y": 960,
-      "width": 260,
-      "height": 60,
-      "color": "1"
-    },
-    {
-      "id": "119df30c7a6ad126",
-      "type": "text",
-      "text": "DOWN",
-      "styleAttributes": {},
-      "x": 1560,
-      "y": 1040,
-      "width": 260,
-      "height": 60,
-      "color": "1"
-    },
-    {
-      "id": "5ba5b66dfd281b27",
-      "type": "text",
-      "text": "press()",
-      "styleAttributes": {},
-      "x": 1880,
-      "y": 1180,
-      "width": 240,
-      "height": 60,
-      "color": "3"
-    },
-    {
-      "id": "6f0e2d32b234acff",
-      "type": "text",
-      "text": "release()",
-      "styleAttributes": {},
-      "x": 1880,
-      "y": 1260,
-      "width": 240,
-      "height": 60,
-      "color": "3"
-    },
-    {
-      "id": "3e691ee252f016a2",
-      "type": "text",
-      "text": "release()",
-      "styleAttributes": {},
-      "x": 1980,
-      "y": 1010,
-      "width": 240,
-      "height": 60,
-      "color": "3"
-    },
-    {
-      "id": "cdc01018b0530faa",
-      "type": "text",
-      "text": "DOWN",
-      "styleAttributes": {},
-      "x": 3560,
-      "y": 1060,
       "width": 240,
       "height": 60,
       "color": "1"
@@ -493,6 +345,28 @@
       "color": "1"
     },
     {
+      "id": "15dd3f09ac50d6e4",
+      "type": "text",
+      "text": "release()",
+      "styleAttributes": {},
+      "x": 4740,
+      "y": 1080,
+      "width": 240,
+      "height": 60,
+      "color": "3"
+    },
+    {
+      "id": "3e691ee252f016a2",
+      "type": "text",
+      "text": "release()",
+      "styleAttributes": {},
+      "x": 1980,
+      "y": 1010,
+      "width": 240,
+      "height": 60,
+      "color": "3"
+    },
+    {
       "id": "75cec0b9c54f7954",
       "type": "text",
       "text": "UP",
@@ -526,17 +400,6 @@
       "color": "3"
     },
     {
-      "id": "15dd3f09ac50d6e4",
-      "type": "text",
-      "text": "release()",
-      "styleAttributes": {},
-      "x": 4740,
-      "y": 1080,
-      "width": 240,
-      "height": 60,
-      "color": "3"
-    },
-    {
       "id": "9317de1cfafb0fc1",
       "type": "text",
       "text": "DOWN",
@@ -559,56 +422,97 @@
       "color": "1"
     },
     {
-      "id": "edede2491bd2cb49",
+      "id": "0dac0c1cda6bd1e3",
       "type": "text",
       "text": "press()",
       "styleAttributes": {},
-      "x": 1650,
-      "y": 1908,
-      "width": 260,
+      "x": 1980,
+      "y": 850,
+      "width": 240,
       "height": 60,
-      "color": "5"
+      "color": "3"
     },
     {
-      "id": "98f0fe12c0e58c53",
+      "id": "07febf76529691c0",
+      "type": "text",
+      "text": "press()",
+      "styleAttributes": {},
+      "x": 2640,
+      "y": 950,
+      "width": 240,
+      "height": 60,
+      "color": "3"
+    },
+    {
+      "id": "e419af03641e0fd9",
+      "type": "text",
+      "text": "UP",
+      "styleAttributes": {},
+      "x": 1560,
+      "y": 960,
+      "width": 260,
+      "height": 60,
+      "color": "1"
+    },
+    {
+      "id": "bbffb912aed146e3",
+      "type": "text",
+      "text": "press()",
+      "styleAttributes": {},
+      "x": -204,
+      "y": -499,
+      "width": 250,
+      "height": 60
+    },
+    {
+      "id": "f08acfc17b3c47f2",
+      "type": "text",
+      "text": "A State give actions\nAction give State",
+      "styleAttributes": {},
+      "x": -940,
+      "y": -20,
+      "width": 238,
+      "height": 74
+    },
+    {
+      "id": "736379e65fe0546d",
+      "type": "text",
+      "text": "do nothing",
+      "styleAttributes": {},
+      "x": 560,
+      "y": -450,
+      "width": 250,
+      "height": 60
+    },
+    {
+      "id": "904c2d35d51e9215",
+      "type": "text",
+      "text": "press",
+      "styleAttributes": {},
+      "x": 560,
+      "y": -334,
+      "width": 250,
+      "height": 60
+    },
+    {
+      "id": "78bbfcce537f365c",
       "type": "text",
       "text": "release()",
       "styleAttributes": {},
-      "x": 1650,
-      "y": 2073,
-      "width": 260,
-      "height": 60,
-      "color": "5"
-    },
-    {
-      "id": "d2f53bd976fce699",
-      "type": "text",
-      "text": "KeyCode",
-      "styleAttributes": {},
-      "x": 900,
-      "y": 2096,
-      "width": 260,
+      "x": -204,
+      "y": -279,
+      "width": 250,
       "height": 60
     },
     {
-      "id": "715dbd5b3ad2963d",
+      "id": "284ad05543632c11",
       "type": "text",
-      "text": "at: Instant",
+      "text": "pub trait StateAPI {\n\n    type Input;\n\n    type Output;\n\n  \n\n    // query\n\n    fn is_press(&self, input: Self::Input) -> Self::Output;\n\n    fn is_release(&self, input: Self::Input) -> Self::Output;\n\n  \n\n    // no override == dont refresh timer\n\n    // fn try_press(&mut self, input: Self::Input) -> Self::Output;\n\n    // fn try_release(&mut self, input: Self::Input) -> Self::Output;\n\n  \n\n    // override == refresh timer\n\n    fn press(&mut self, input: Self::Input) -> Self::Output;\n\n    fn release(&mut self, input: Self::Input) -> Self::Output;\n\n}",
       "styleAttributes": {},
-      "x": 900,
-      "y": 2190,
-      "width": 260,
-      "height": 60
-    },
-    {
-      "id": "4eed0da54e3f1d7e",
-      "type": "text",
-      "text": "button: Button",
-      "styleAttributes": {},
-      "x": 900,
-      "y": 2280,
-      "width": 260,
-      "height": 60
+      "x": -940,
+      "y": 140,
+      "width": 700,
+      "height": 560
     },
     {
       "id": "ec3e60506eaf641e",
@@ -620,102 +524,6 @@
       "width": 260,
       "height": 60,
       "color": "1"
-    },
-    {
-      "id": "2bb5ef2f71f9932f",
-      "type": "text",
-      "text": "press()",
-      "styleAttributes": {},
-      "x": 2079,
-      "y": 2523,
-      "width": 260,
-      "height": 60,
-      "color": "5"
-    },
-    {
-      "id": "c54047a86fe437fa",
-      "type": "text",
-      "text": "at: Instant",
-      "styleAttributes": {},
-      "x": 1314,
-      "y": 2601,
-      "width": 260,
-      "height": 60
-    },
-    {
-      "id": "1c07fa743a31d805",
-      "type": "text",
-      "text": "marker_state",
-      "styleAttributes": {},
-      "x": 1754,
-      "y": 2601,
-      "width": 160,
-      "height": 60
-    },
-    {
-      "id": "c8aac556e38331f2",
-      "type": "text",
-      "text": "release()",
-      "styleAttributes": {},
-      "x": 4460,
-      "y": 2552,
-      "width": 260,
-      "height": 60,
-      "color": "5"
-    },
-    {
-      "id": "c43887fd5da6cf71",
-      "type": "text",
-      "text": "UP",
-      "styleAttributes": {},
-      "x": 5050,
-      "y": 2392,
-      "width": 140,
-      "height": 60,
-      "color": "2"
-    },
-    {
-      "id": "874933e9077b0158",
-      "type": "text",
-      "text": "DOWN",
-      "styleAttributes": {},
-      "x": 5050,
-      "y": 2492,
-      "width": 140,
-      "height": 60,
-      "color": "2"
-    },
-    {
-      "id": "b3c060ae154557f3",
-      "type": "text",
-      "text": "at: Instant",
-      "styleAttributes": {},
-      "x": 3980,
-      "y": 2257,
-      "width": 260,
-      "height": 60
-    },
-    {
-      "id": "155e8f55dd675981",
-      "type": "text",
-      "text": "key: Key",
-      "styleAttributes": {},
-      "x": 3980,
-      "y": 2432,
-      "width": 260,
-      "height": 60,
-      "color": "2"
-    },
-    {
-      "id": "4952f44a5d744358",
-      "type": "text",
-      "text": "press()",
-      "styleAttributes": {},
-      "x": 4460,
-      "y": 2292,
-      "width": 260,
-      "height": 60,
-      "color": "5"
     },
     {
       "id": "b13bd191df5c295f",
@@ -759,6 +567,198 @@
       "y": 1974,
       "width": 160,
       "height": 60
+    },
+    {
+      "id": "c54047a86fe437fa",
+      "type": "text",
+      "text": "at: Instant",
+      "styleAttributes": {},
+      "x": 1314,
+      "y": 2601,
+      "width": 260,
+      "height": 60
+    },
+    {
+      "id": "c8aac556e38331f2",
+      "type": "text",
+      "text": "release()",
+      "styleAttributes": {},
+      "x": 4460,
+      "y": 2552,
+      "width": 260,
+      "height": 60,
+      "color": "5"
+    },
+    {
+      "id": "c43887fd5da6cf71",
+      "type": "text",
+      "text": "UP",
+      "styleAttributes": {},
+      "x": 5050,
+      "y": 2392,
+      "width": 140,
+      "height": 60,
+      "color": "2"
+    },
+    {
+      "id": "874933e9077b0158",
+      "type": "text",
+      "text": "DOWN",
+      "styleAttributes": {},
+      "x": 5050,
+      "y": 2492,
+      "width": 140,
+      "height": 60,
+      "color": "2"
+    },
+    {
+      "id": "4952f44a5d744358",
+      "type": "text",
+      "text": "press()",
+      "styleAttributes": {},
+      "x": 4460,
+      "y": 2292,
+      "width": 260,
+      "height": 60,
+      "color": "5"
+    },
+    {
+      "id": "2bb5ef2f71f9932f",
+      "type": "text",
+      "text": "press()",
+      "styleAttributes": {},
+      "x": 2079,
+      "y": 2523,
+      "width": 260,
+      "height": 60,
+      "color": "5"
+    },
+    {
+      "id": "b3c060ae154557f3",
+      "type": "text",
+      "text": "at: Instant",
+      "styleAttributes": {},
+      "x": 3980,
+      "y": 2257,
+      "width": 260,
+      "height": 60
+    },
+    {
+      "id": "155e8f55dd675981",
+      "type": "text",
+      "text": "key: Key",
+      "styleAttributes": {},
+      "x": 3980,
+      "y": 2432,
+      "width": 260,
+      "height": 60,
+      "color": "2"
+    },
+    {
+      "id": "1c07fa743a31d805",
+      "type": "text",
+      "text": "marker_state",
+      "styleAttributes": {},
+      "x": 1754,
+      "y": 2601,
+      "width": 160,
+      "height": 60
+    },
+    {
+      "id": "edede2491bd2cb49",
+      "type": "text",
+      "text": "press()",
+      "styleAttributes": {},
+      "x": 1650,
+      "y": 1908,
+      "width": 260,
+      "height": 60,
+      "color": "5"
+    },
+    {
+      "id": "98f0fe12c0e58c53",
+      "type": "text",
+      "text": "release()",
+      "styleAttributes": {},
+      "x": 1650,
+      "y": 2073,
+      "width": 260,
+      "height": 60,
+      "color": "5"
+    },
+    {
+      "id": "cdc01018b0530faa",
+      "type": "text",
+      "text": "DOWN",
+      "styleAttributes": {},
+      "x": 3560,
+      "y": 1060,
+      "width": 240,
+      "height": 60,
+      "color": "1"
+    },
+    {
+      "id": "119df30c7a6ad126",
+      "type": "text",
+      "text": "DOWN",
+      "styleAttributes": {},
+      "x": 1560,
+      "y": 1040,
+      "width": 260,
+      "height": 60,
+      "color": "1"
+    },
+    {
+      "id": "4eed0da54e3f1d7e",
+      "type": "text",
+      "text": "button: Button",
+      "styleAttributes": {},
+      "x": 900,
+      "y": 2280,
+      "width": 260,
+      "height": 60
+    },
+    {
+      "id": "d2f53bd976fce699",
+      "type": "text",
+      "text": "KeyCode",
+      "styleAttributes": {},
+      "x": 900,
+      "y": 2096,
+      "width": 260,
+      "height": 60
+    },
+    {
+      "id": "715dbd5b3ad2963d",
+      "type": "text",
+      "text": "at: Instant",
+      "styleAttributes": {},
+      "x": 900,
+      "y": 2190,
+      "width": 260,
+      "height": 60
+    },
+    {
+      "id": "5ba5b66dfd281b27",
+      "type": "text",
+      "text": "press()",
+      "styleAttributes": {},
+      "x": 1880,
+      "y": 1180,
+      "width": 240,
+      "height": 60,
+      "color": "3"
+    },
+    {
+      "id": "6f0e2d32b234acff",
+      "type": "text",
+      "text": "release()",
+      "styleAttributes": {},
+      "x": 1880,
+      "y": 1260,
+      "width": 240,
+      "height": 60,
+      "color": "3"
     }
   ],
   "edges": [

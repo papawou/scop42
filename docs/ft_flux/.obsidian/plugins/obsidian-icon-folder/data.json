@@ -6,7 +6,11 @@
     "emojiStyle": "native",
     "iconColor": null,
     "recentlyUsedIcons": [
-      "LiCode"
+      "LiSun",
+      "LiCircleDashed",
+      "LiCircle",
+      "🟡",
+      "LiCircleDot"
     ],
     "recentlyUsedIconsSize": 5,
     "rules": [],
@@ -29,5 +33,13 @@
     "lucideIconPackType": "native",
     "debugMode": false
   },
-  "src": "LiCode"
+  "src": "LiCode",
+  "src/action.canvas": "LiCircleDot",
+  "src/node.canvas": "LiCircle",
+  "src/traits.canvas": "LiCircleDashed",
+  "src/boolean/and.canvas": "LiCircleDot",
+  "src/boolean/not.canvas": "LiCircleDot",
+  "src/boolean/or.canvas": "LiCircleDot",
+  "src/boolean/_.canvas": "LiSun",
+  "src/boolean/xor.canvas": "LiCircleDot"
 }

@@ -4,49 +4,106 @@
     "type": "split",
     "children": [
       {
-        "id": "a50d00c418a52cb5",
+        "id": "1e40fb1ca1091c8d",
         "type": "tabs",
-        "dimension": 76.30173564753005,
+        "dimension": 48.98580121703854,
         "children": [
           {
-            "id": "1a60626558869e47",
+            "id": "2377c8c01e2d5497",
             "type": "leaf",
             "state": {
               "type": "canvas",
               "state": {
-                "file": "src/API - Rust.canvas",
+                "file": "src/boolean/_.canvas",
                 "viewState": {
-                  "x": 742.0387044482862,
-                  "y": 690.791586674756,
-                  "zoom": -0.8354900379702488
+                  "x": 2540.5845613464485,
+                  "y": 1583.080317314903,
+                  "zoom": -0.3333333333333332
                 }
               },
               "icon": "lucide-layout-dashboard",
-              "title": "API - Rust"
+              "title": "_"
             }
           }
         ]
       },
       {
-        "id": "dc811b0457753d77",
+        "id": "4ffb6609e10c5b8e",
         "type": "tabs",
-        "dimension": 23.698264352469963,
+        "dimension": 17.680865449628133,
         "children": [
           {
-            "id": "4f6d4bcb7490a240",
+            "id": "c4aa6aa7e5eadab2",
             "type": "leaf",
             "state": {
-              "type": "markdown",
+              "type": "canvas",
               "state": {
-                "file": "src/mindmap.md",
-                "mode": "source",
-                "source": false
+                "file": "src/boolean/not.canvas",
+                "viewState": {
+                  "x": -101.48128933184512,
+                  "y": -30.701228876405793,
+                  "zoom": 0.3333333333333333
+                }
               },
-              "icon": "lucide-file",
-              "title": "mindmap"
+              "icon": "lucide-layout-dashboard",
+              "title": "not"
             }
           }
         ]
+      },
+      {
+        "id": "0889e7c3f214ebc5",
+        "type": "split",
+        "dimension": 33.333333333333336,
+        "children": [
+          {
+            "id": "9ccc188a3cd085e0",
+            "type": "tabs",
+            "children": [
+              {
+                "id": "58088adfbfe79972",
+                "type": "leaf",
+                "state": {
+                  "type": "canvas",
+                  "state": {
+                    "file": "src/boolean/and.canvas",
+                    "viewState": {
+                      "x": 584.294052884693,
+                      "y": 4.260909853377434,
+                      "zoom": 0.3333333333333332
+                    }
+                  },
+                  "icon": "lucide-layout-dashboard",
+                  "title": "and"
+                }
+              }
+            ]
+          },
+          {
+            "id": "49efae376af3eed2",
+            "type": "tabs",
+            "children": [
+              {
+                "id": "fdc5832e154c1020",
+                "type": "leaf",
+                "state": {
+                  "type": "canvas",
+                  "state": {
+                    "file": "src/boolean/xor.canvas",
+                    "viewState": {
+                      "x": 314.6796254989493,
+                      "y": 93.00423442432049,
+                      "zoom": -0.21442750040047803
+                    }
+                  },
+                  "icon": "lucide-layout-dashboard",
+                  "title": "xor"
+                }
+              }
+            ]
+          }
+        ],
+        "direction": "horizontal"
       }
     ],
     "direction": "vertical"
@@ -102,7 +159,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 200
+    "width": 238.5
   },
   "right": {
     "id": "7923c5d4678c0706",
@@ -164,10 +221,10 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "src/API - Rust.canvas"
+                "file": "src/boolean/_.canvas"
               },
               "icon": "lucide-list",
-              "title": "Outline of API - Rust"
+              "title": "Outline of _"
             }
           }
         ],
@@ -188,13 +245,31 @@
       "obsidian-excalidraw-plugin:Create new drawing": false
     }
   },
-  "active": "1a60626558869e47",
+  "active": "2377c8c01e2d5497",
   "lastOpenFiles": [
-    "src/mindmap.md",
-    "src/API - Rust.canvas",
-    "src/mindmap.canvas",
-    "src/Key/key.canvas",
-    "src/Key",
+    "src/boolean/xor.canvas",
+    "src/boolean/and.canvas",
+    "src/boolean/_.canvas",
+    "src/boolean/not.canvas",
+    "src/boolean/or.canvas",
+    "src/action.canvas",
+    "src/node.canvas",
+    "src/traits.canvas",
+    "src/math/_.canvas",
+    "src/_.canvas",
+    "docs/mindmap.md",
+    "src/math/Untitled.md",
+    "src/math",
+    "src/boolean",
+    "src/node",
+    "src/Untitled.md",
+    "src/Untitled 1.md",
+    "src/traits/Untitled 1.md",
+    "src/traits/Untitled.md",
+    "src/traits",
+    "docs",
+    "build",
+    "src/_old/Key 1",
     "src/_old",
     "src/key/Untitled.md",
     "src/_old/key/key.md",
@@ -202,17 +277,13 @@
     "src/_old/key/Pressed.md",
     "src/_old/key/Releasable.md",
     "src/_old/key/Released.md",
-    "specs/index.canvas",
-    "specs/User wants to press and release a button.md",
+    "docs/specs/User wants to press and release a button.md",
     "Excalidraw/Drawing 2024-10-31 17.55.53.excalidraw.md",
     "Excalidraw/Drawing 2024-10-31 17.14.28.excalidraw.md",
     "Excalidraw/Drawing 2024-10-31 17.12.15.excalidraw.md",
     "Excalidraw",
-    "specs",
+    "docs/specs",
     "Key/Key.md",
-    "src/_old/key",
-    "src",
-    "Key",
     "Test.md",
     "create a link.md",
     "Welcome.md"
