@@ -1,0 +1,89 @@
+{
+  "nodes": [
+    {
+      "id": "fe98b04806b5b91f",
+      "type": "text",
+      "text": "UP | DOWN",
+      "styleAttributes": {},
+      "x": -1420,
+      "y": 120,
+      "width": 260,
+      "height": 60,
+      "color": "4"
+    },
+    {
+      "id": "21b8c120a5d07a50",
+      "type": "text",
+      "text": "KeyCode",
+      "styleAttributes": {},
+      "x": -1420,
+      "y": 60,
+      "width": 260,
+      "height": 60,
+      "color": "1"
+    },
+    {
+      "id": "e460e453ea97833a",
+      "type": "text",
+      "text": "UP",
+      "styleAttributes": {
+        "shape": "circle",
+        "textAlign": "center",
+        "border": null
+      },
+      "lockedHeight": true,
+      "x": -1020,
+      "y": 220,
+      "width": 60,
+      "height": 60,
+      "color": "4"
+    },
+    {
+      "id": "30c577cfab92b2f8",
+      "type": "text",
+      "text": "DOWN",
+      "styleAttributes": {
+        "shape": "circle",
+        "textAlign": "center",
+        "border": null
+      },
+      "lockedHeight": true,
+      "x": -880,
+      "y": 220,
+      "width": 60,
+      "height": 60,
+      "color": "4"
+    },
+    {
+      "id": "4d2cc164e02b1bb9",
+      "type": "text",
+      "text": "state_at",
+      "styleAttributes": {},
+      "x": -1420,
+      "y": 180,
+      "width": 240,
+      "height": 60
+    }
+  ],
+  "edges": [
+    {
+      "id": "7f7ad235a2c75448",
+      "styleAttributes": {},
+      "fromNode": "e460e453ea97833a",
+      "fromSide": "top",
+      "toNode": "30c577cfab92b2f8",
+      "toSide": "top",
+      "label": "press"
+    },
+    {
+      "id": "df50ce3cbbd1c2a3",
+      "styleAttributes": {},
+      "fromNode": "30c577cfab92b2f8",
+      "fromSide": "bottom",
+      "toNode": "e460e453ea97833a",
+      "toSide": "bottom",
+      "label": "release"
+    }
+  ],
+  "metadata": {}
+}

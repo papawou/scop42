@@ -4,21 +4,37 @@
     "type": "split",
     "children": [
       {
-        "id": "1e40fb1ca1091c8d",
+        "id": "ec9ca93e6a991562",
         "type": "tabs",
-        "dimension": 48.98580121703854,
         "children": [
           {
-            "id": "2377c8c01e2d5497",
+            "id": "0ab69f24f66af1ff",
             "type": "leaf",
             "state": {
               "type": "canvas",
               "state": {
-                "file": "src/boolean/_.canvas",
+                "file": "std/math/_.canvas",
                 "viewState": {
-                  "x": 2540.5845613464485,
-                  "y": 1583.080317314903,
-                  "zoom": -0.3333333333333332
+                  "x": 118.74908204175516,
+                  "y": 1262.5922865454534,
+                  "zoom": -0.6853584528869499
+                }
+              },
+              "icon": "lucide-layout-dashboard",
+              "title": "_"
+            }
+          },
+          {
+            "id": "f097bf815c40bab3",
+            "type": "leaf",
+            "state": {
+              "type": "canvas",
+              "state": {
+                "file": "std/boolean/_.canvas",
+                "viewState": {
+                  "x": -1111.0565516408215,
+                  "y": 598.6915105568363,
+                  "zoom": -0.9732725621857754
                 }
               },
               "icon": "lucide-layout-dashboard",
@@ -26,84 +42,6 @@
             }
           }
         ]
-      },
-      {
-        "id": "4ffb6609e10c5b8e",
-        "type": "tabs",
-        "dimension": 17.680865449628133,
-        "children": [
-          {
-            "id": "c4aa6aa7e5eadab2",
-            "type": "leaf",
-            "state": {
-              "type": "canvas",
-              "state": {
-                "file": "src/boolean/not.canvas",
-                "viewState": {
-                  "x": -101.48128933184512,
-                  "y": -30.701228876405793,
-                  "zoom": 0.3333333333333333
-                }
-              },
-              "icon": "lucide-layout-dashboard",
-              "title": "not"
-            }
-          }
-        ]
-      },
-      {
-        "id": "0889e7c3f214ebc5",
-        "type": "split",
-        "dimension": 33.333333333333336,
-        "children": [
-          {
-            "id": "9ccc188a3cd085e0",
-            "type": "tabs",
-            "children": [
-              {
-                "id": "58088adfbfe79972",
-                "type": "leaf",
-                "state": {
-                  "type": "canvas",
-                  "state": {
-                    "file": "src/boolean/and.canvas",
-                    "viewState": {
-                      "x": 584.294052884693,
-                      "y": 4.260909853377434,
-                      "zoom": 0.3333333333333332
-                    }
-                  },
-                  "icon": "lucide-layout-dashboard",
-                  "title": "and"
-                }
-              }
-            ]
-          },
-          {
-            "id": "49efae376af3eed2",
-            "type": "tabs",
-            "children": [
-              {
-                "id": "fdc5832e154c1020",
-                "type": "leaf",
-                "state": {
-                  "type": "canvas",
-                  "state": {
-                    "file": "src/boolean/xor.canvas",
-                    "viewState": {
-                      "x": 314.6796254989493,
-                      "y": 93.00423442432049,
-                      "zoom": -0.21442750040047803
-                    }
-                  },
-                  "icon": "lucide-layout-dashboard",
-                  "title": "xor"
-                }
-              }
-            ]
-          }
-        ],
-        "direction": "horizontal"
       }
     ],
     "direction": "vertical"
@@ -159,7 +97,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 238.5
+    "width": 201.5
   },
   "right": {
     "id": "7923c5d4678c0706",
@@ -221,7 +159,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "src/boolean/_.canvas"
+                "file": "std/math/_.canvas"
               },
               "icon": "lucide-list",
               "title": "Outline of _"
@@ -232,7 +170,8 @@
       }
     ],
     "direction": "horizontal",
-    "width": 200
+    "width": 200,
+    "collapsed": true
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -245,47 +184,53 @@
       "obsidian-excalidraw-plugin:Create new drawing": false
     }
   },
-  "active": "2377c8c01e2d5497",
+  "active": "0ab69f24f66af1ff",
   "lastOpenFiles": [
-    "src/boolean/xor.canvas",
-    "src/boolean/and.canvas",
-    "src/boolean/_.canvas",
-    "src/boolean/not.canvas",
-    "src/boolean/or.canvas",
-    "src/action.canvas",
-    "src/node.canvas",
-    "src/traits.canvas",
-    "src/math/_.canvas",
-    "src/_.canvas",
-    "docs/mindmap.md",
+    "scop42/src/input.canvas",
+    "scop42/specs/specs.canvas",
+    "docs/mindmap/mindmap.canvas",
+    "std/math/_.canvas",
+    "std/boolean/_.canvas",
+    "std/math/pow.canvas",
+    "std/boolean/not.canvas",
+    "std/boolean/xor.canvas",
+    "std/boolean/or.canvas",
+    "std/boolean/and.canvas",
+    "docs/mindmap/mindmap.md",
+    "std/utils/match.canvas",
+    "std/utils",
+    "std/logic",
+    "scop42/src",
+    "scop42/specs/User wants to press and release a button.md",
+    "scop42",
+    "scop42/specs",
+    "docs/prompts/wasm for graph editor.md",
+    "docs/prompts/How generate rust code.md",
+    "docs/specs/architecture/wasm.md",
+    "docs/specs/architecture/rust.md",
+    "docs/specs/architecture/webgpu.md",
+    "docs/specs/architecture",
+    "docs/mindmap",
+    "docs/slint.md",
+    "src/input/Untitled.md",
+    "scop42/src/input",
+    "src/memory/Untitled.md",
+    "std/memory",
     "src/math/Untitled.md",
-    "src/math",
-    "src/boolean",
-    "src/node",
+    "std/math",
     "src/Untitled.md",
     "src/Untitled 1.md",
     "src/traits/Untitled 1.md",
     "src/traits/Untitled.md",
-    "src/traits",
-    "docs",
-    "build",
-    "src/_old/Key 1",
-    "src/_old",
     "src/key/Untitled.md",
-    "src/_old/key/key.md",
-    "src/_old/key/Pressable.md",
-    "src/_old/key/Pressed.md",
-    "src/_old/key/Releasable.md",
-    "src/_old/key/Released.md",
-    "docs/specs/User wants to press and release a button.md",
+    "std/_old/key/key.md",
+    "std/_old/key/Pressable.md",
+    "std/_old/key/Pressed.md",
+    "std/_old/key/Releasable.md",
+    "std/_old/key/Released.md",
     "Excalidraw/Drawing 2024-10-31 17.55.53.excalidraw.md",
     "Excalidraw/Drawing 2024-10-31 17.14.28.excalidraw.md",
     "Excalidraw/Drawing 2024-10-31 17.12.15.excalidraw.md",
-    "Excalidraw",
-    "docs/specs",
-    "Key/Key.md",
-    "Test.md",
-    "create a link.md",
-    "Welcome.md"
+    "Key/Key.md"
   ]
 }
