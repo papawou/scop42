@@ -38,7 +38,7 @@ use mesh_constants::MeshConstants;
 use obj_asset::{ObjAssetBuilder, ObjRaw};
 use renderer::MeshRenderer;
 use vertex::Vertex;
-use winit::event_loop::EventLoop;
+use winit::{event_loop::EventLoop, platform::wayland::WindowBuilderExtWayland};
 
 fn main() -> anyhow::Result<()> {
     std::env::set_var("RUST_BACKTRACE", "full");
@@ -161,11 +161,6 @@ fn main() -> anyhow::Result<()> {
             .run(
                 |event: winit::event::Event<_>,
                  elwt: &winit::event_loop::EventLoopWindowTarget<_>| {
-                    // handle inputs
-
-                    //  input.is_press(DeviceInput(winit::event::DeviceId, Input::Key(winit::keyboard::Key::A)))
-                    //  input.is_press(winit::event::KeyEvent::A)
-
                     match event {
                         winit::event::Event::LoopExiting => {
                             unsafe { engine.device.device_wait_idle() }.unwrap();

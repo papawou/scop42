@@ -121,30 +121,43 @@ impl Engine {
             use winit::raw_window_handle::HasDisplayHandle;
             use winit::raw_window_handle::HasWindowHandle;
 
-            let (window_handle, display_handle) = {
-                let window_handle = window.window_handle().unwrap().as_raw();
-                let display_handle = window.display_handle().unwrap().as_raw();
-                match (window_handle, display_handle) {
-                    (
-                        winit::raw_window_handle::RawWindowHandle::Xlib(window_handle),
-                        winit::raw_window_handle::RawDisplayHandle::Xlib(display_handle),
-                    ) => (
-                        window_handle.window,
-                        display_handle
-                            .display
-                            .map(|d| d.as_ptr())
-                            .unwrap_or(std::ptr::null_mut()),
-                    ),
-                    _ => panic!("Unsupported platform!"),
+            let window_handle = window.window_handle().unwrap().as_raw();
+            let display_handle = window.display_handle().unwrap().as_raw();
+            match (window_handle, display_handle) {
+                // Xlib
+                (
+                    winit::raw_window_handle::RawWindowHandle::Xlib(window_handle),
+                    winit::raw_window_handle::RawDisplayHandle::Xlib(display_handle),
+                ) => {
+                    let window = window_handle.window;
+                    let display = display_handle
+                        .display
+                        .map(|d| d.as_ptr())
+                        .unwrap_or(std::ptr::null_mut());
+
+                    let window_info = vk::XlibSurfaceCreateInfoKHR::default()
+                        .window(window)
+                        .dpy(display);
+                    let surface_loader = ash::khr::xlib_surface::Instance::new(&entry, &instance);
+                    unsafe { surface_loader.create_xlib_surface(&window_info, None) }.unwrap()
                 }
-            };
+                // Wayland
+                (
+                    winit::raw_window_handle::RawWindowHandle::Wayland(window_handle),
+                    winit::raw_window_handle::RawDisplayHandle::Wayland(display_handle),
+                ) => {
+                    let surface = window_handle.surface.as_ptr();
+                    let display = display_handle.display.as_ptr();
 
-            let window_info = vk::XlibSurfaceCreateInfoKHR::default()
-                .window(window_handle)
-                .dpy(display_handle);
-
-            let xlib_surface_loader = ash::khr::xlib_surface::Instance::new(&entry, &instance);
-            unsafe { xlib_surface_loader.create_xlib_surface(&window_info, None) }.unwrap()
+                    let window_info = vk::WaylandSurfaceCreateInfoKHR::default()
+                        .surface(surface)
+                        .display(display);
+                    let surface_loader =
+                        ash::khr::wayland_surface::Instance::new(&entry, &instance);
+                    unsafe { surface_loader.create_wayland_surface(&window_info, None) }.unwrap()
+                }
+                _ => panic!("Unsupported platform!"),
+            }
         };
 
         // Surface
@@ -170,8 +183,7 @@ impl Engine {
                 .descriptor_count(1)],
         );
 
-        // SWAPCHAIN
-
+        // Swapchain
         let swapchain_loader = ash::khr::swapchain::Device::new(&instance, &device);
         let swapchain = Swapchain::new(
             &swapchain_loader,
