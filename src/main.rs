@@ -183,11 +183,6 @@ fn main() -> anyhow::Result<()> {
                         winit::event::Event::WindowEvent { event, .. } => match event {
                             // WINDOW
                             winit::event::WindowEvent::RedrawRequested => {
-                                match window.is_minimized() {
-                                    Some(false) => (),
-                                    _ => return,
-                                }
-
                                 if require_resize {
                                     let new_size = window.inner_size();
 
@@ -238,9 +233,54 @@ fn main() -> anyhow::Result<()> {
                             winit::event::WindowEvent::CloseRequested => elwt.exit(),
 
                             // CONTROLS
-                            winit::event::WindowEvent::MouseInput { .. }
-                            | winit::event::WindowEvent::KeyboardInput { .. } => {
-                                //input.handle_event(&event);
+                            winit::event::WindowEvent::KeyboardInput {
+                                event:
+                                    winit::event::KeyEvent {
+                                        physical_key,
+                                        state: winit::event::ElementState::Pressed,
+                                        ..
+                                    },
+                                ..
+                            } => {
+                                last_update = std::time::Instant::now();
+                                let time_elapsed = last_update
+                                    .duration_since(engine.start_instant)
+                                    .min(Duration::from_millis(30));
+
+                                match physical_key {
+                                    winit::keyboard::PhysicalKey::Code(
+                                        winit::keyboard::KeyCode::KeyW,
+                                    ) => {
+                                        camera.position.z += -1.0f32 * time_elapsed.as_secs_f32();
+                                    }
+                                    winit::keyboard::PhysicalKey::Code(
+                                        winit::keyboard::KeyCode::KeyS,
+                                    ) => {
+                                        camera.position.z += 1.0f32 * time_elapsed.as_secs_f32();
+                                    }
+                                    winit::keyboard::PhysicalKey::Code(
+                                        winit::keyboard::KeyCode::KeyA,
+                                    ) => {
+                                        camera.position.x += -1.0f32 * time_elapsed.as_secs_f32();
+                                    }
+                                    winit::keyboard::PhysicalKey::Code(
+                                        winit::keyboard::KeyCode::KeyD,
+                                    ) => {
+                                        camera.position.x += 1.0f32 * time_elapsed.as_secs_f32();
+                                    }
+                                    winit::keyboard::PhysicalKey::Code(
+                                        winit::keyboard::KeyCode::Space,
+                                    ) => {
+                                        camera.position.y += 1.0f32 * time_elapsed.as_secs_f32();
+                                    }
+                                    winit::keyboard::PhysicalKey::Code(
+                                        winit::keyboard::KeyCode::ControlLeft,
+                                    ) => {
+                                        camera.position.y += -1.0f32 * time_elapsed.as_secs_f32();
+                                    }
+                                    _ => {}
+                                }
+                                window.request_redraw();
                             }
                             _ => {}
                         },
