@@ -18,7 +18,7 @@ mod vertex;
 
 use std::{
     path::{self, Path},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use anyhow::Ok;
@@ -30,6 +30,10 @@ use ft_vk::{
     Engine, PipelineLayout,
 };
 use glam::{Mat4, Quat, Vec3};
+use input::{
+    pattern::{InputEvent, InputPattern, InputRecorder, InputSequence},
+    Manager,
+};
 use material::Material;
 use material_asset::MaterialAsset;
 use mesh::Mesh;
@@ -38,7 +42,7 @@ use mesh_constants::MeshConstants;
 use obj_asset::{ObjAssetBuilder, ObjRaw};
 use renderer::MeshRenderer;
 use vertex::Vertex;
-use winit::{event_loop::EventLoop, platform::wayland::WindowBuilderExtWayland};
+use winit::{event_loop::EventLoop, keyboard::KeyCode, platform::wayland::WindowBuilderExtWayland};
 
 fn main() -> anyhow::Result<()> {
     std::env::set_var("RUST_BACKTRACE", "full");
@@ -58,7 +62,7 @@ fn main() -> anyhow::Result<()> {
     let mut engine = ft_vk::Engine::new(entry, &window);
 
     //MESH RENDERER
-    // let mut test = mesh::load_default_mesh(
+    // let mut test = me sh::load_default_mesh(
     //     &engine.device,
     //     engine.allocator.as_mut().unwrap(),
     //     engine.graphics_queue,
@@ -148,6 +152,8 @@ fn main() -> anyhow::Result<()> {
     // let cursor_vel: glam::Vec3 = glam::Vec3::ONE;
     // let cursor_rot: glam::Quat = Quat::IDENTITY; // perpendicular axis to cursor_vel (direction is defined by cursor_vel's positivity)
 
+    let mut manager = Manager::new();
+    let mut recorder = InputRecorder::new();
     {
         // closure data
         let mut material = Some(material);
@@ -183,11 +189,6 @@ fn main() -> anyhow::Result<()> {
                         winit::event::Event::WindowEvent { event, .. } => match event {
                             // WINDOW
                             winit::event::WindowEvent::RedrawRequested => {
-                                match window.is_minimized() {
-                                    Some(false) => (),
-                                    _ => return,
-                                }
-
                                 if require_resize {
                                     let new_size = window.inner_size();
 
@@ -238,9 +239,24 @@ fn main() -> anyhow::Result<()> {
                             winit::event::WindowEvent::CloseRequested => elwt.exit(),
 
                             // CONTROLS
-                            winit::event::WindowEvent::MouseInput { .. }
-                            | winit::event::WindowEvent::KeyboardInput { .. } => {
-                                //input.handle_event(&event);
+                            winit::event::WindowEvent::KeyboardInput {
+                                event:
+                                    winit::event::KeyEvent {
+                                        physical_key: winit::keyboard::PhysicalKey::Code(code),
+                                        state,
+                                        ..
+                                    },
+                                ..
+                            } => {
+                                match state {
+                                    winit::event::ElementState::Pressed => {
+                                        recorder.press(code, Instant::now());
+                                    }
+                                    winit::event::ElementState::Released => {
+                                        recorder.release(code, Instant::now());
+                                    }
+                                };
+                                window.request_redraw();
                             }
                             _ => {}
                         },
@@ -297,47 +313,3 @@ fn update_camera<'a>(engine: &Engine, camera_pos: glam::Vec3) -> Mat4 {
     };
     projection * fix_upside * view
 }
-
-struct GPUSceneData {
-    view: glam::Mat4,
-    proj: glam::Mat4,
-    viewproj: glam::Mat4,
-}
-
-// todo! from windowevent to engineevent ?
-//input.push_event(event);
-// let physical_key = event.physical_key;
-// match physical_key {
-//     winit::keyboard::PhysicalKey::Code(
-//         winit::keyboard::KeyCode::KeyW,
-//     ) => {
-//         //input.press(key_event.logical_key);
-//         camera_pos.z += -1.0f32 * time_elapsed.as_secs_f32();
-//     }
-//     winit::keyboard::PhysicalKey::Code(
-//         winit::keyboard::KeyCode::KeyS,
-//     ) => {
-//         camera_pos.z += 1.0f32 * time_elapsed.as_secs_f32();
-//     }
-//     winit::keyboard::PhysicalKey::Code(
-//         winit::keyboard::KeyCode::KeyA,
-//     ) => {
-//         camera_pos.x event.try_into().unwrap()+= -1.0f32 * time_elapsed.as_secs_f32();
-//     }
-//     winit::keyboard::PhysicalKey::Code(
-//         winit::keyboard::KeyCode::KeyD,
-//     ) => {
-//         camera_pos.x += 1.0f32 * time_elapsed.as_secs_f32();
-//     }
-//     winit::keyboard::PhysicalKey::Code(
-//         winit::keyboard::KeyCode::Space,
-//     ) => {
-//         camera_pos.y += 1.0f32 * time_elapsed.as_secs_f32();
-//     }
-//     winit::keyboard::PhysicalKey::Code(
-//         winit::keyboard::KeyCode::ControlLeft,
-//     ) => {
-//         camera_pos.y += -1.0f32 * time_elapsed.as_secs_f32();
-//     }
-//     _ => {}
-// }
