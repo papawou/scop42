@@ -6,15 +6,19 @@ use std::{
 use winit::keyboard::KeyCode;
 
 pub enum InputState {
-    UP,
-    DOWN,
-    VOID,
+    UP,   // +
+    DOWN, // -
+    VOID, // o
 }
+
+// A +---ooo+-+
+// B ++---oo--
 
 pub struct InputEvent {
     state: InputState,
     duration: Duration,
 }
+
 impl InputEvent {
     pub fn new() -> Self {
         InputEvent {
@@ -84,11 +88,13 @@ impl InputEvent {
 pub struct InputPattern {
     events: Vec<InputEvent>,
 }
+
 impl Default for InputPattern {
     fn default() -> Self {
         Self { events: vec![] }
     }
 }
+
 impl InputPattern {
     pub fn new(events: Vec<InputEvent>) -> Self {
         Self { events }
@@ -165,58 +171,3 @@ impl InputPattern {
 }
 
 pub type InputSequence = HashMap<KeyCode, InputPattern>;
-
-//  Recorder
-pub struct InputInstant {
-    state: InputState,
-    instant: Instant,
-}
-
-pub struct InputRecorder(HashMap<KeyCode, Vec<InputInstant>>);
-impl InputRecorder {
-    pub fn new() -> Self {
-        Self { 0: HashMap::new() }
-    }
-
-    pub fn press(&mut self, code: KeyCode, instant: Instant) {
-        self.0
-            .entry(code)
-            .and_modify(|stack| match stack.last() {
-                Some(InputInstant {
-                    state: InputState::UP,
-                    ..
-                }) => {
-                    stack.push(InputInstant {
-                        instant,
-                        state: InputState::DOWN,
-                    });
-                }
-                _ => unreachable!(),
-            })
-            .or_insert(vec![InputInstant {
-                state: InputState::DOWN,
-                instant,
-            }]);
-    }
-
-    pub fn release(&mut self, code: KeyCode, instant: Instant) {
-        self.0
-            .entry(code)
-            .and_modify(|stack| match stack.last() {
-                Some(InputInstant {
-                    state: InputState::DOWN,
-                    ..
-                }) => {
-                    stack.push(InputInstant {
-                        state: InputState::UP,
-                        instant,
-                    });
-                }
-                _ => unreachable!(),
-            })
-            .or_insert(vec![InputInstant {
-                state: InputState::UP,
-                instant,
-            }]);
-    }
-}

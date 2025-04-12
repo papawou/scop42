@@ -30,10 +30,7 @@ use ft_vk::{
     Engine, PipelineLayout,
 };
 use glam::{Mat4, Quat, Vec3};
-use input::{
-    pattern::{InputEvent, InputPattern, InputRecorder, InputSequence},
-    Manager,
-};
+use input::recorder::InputRecorder;
 use material::Material;
 use material_asset::MaterialAsset;
 use mesh::Mesh;
@@ -152,7 +149,6 @@ fn main() -> anyhow::Result<()> {
     // let cursor_vel: glam::Vec3 = glam::Vec3::ONE;
     // let cursor_rot: glam::Quat = Quat::IDENTITY; // perpendicular axis to cursor_vel (direction is defined by cursor_vel's positivity)
 
-    let mut manager = Manager::new();
     let mut recorder = InputRecorder::new();
     {
         // closure data
