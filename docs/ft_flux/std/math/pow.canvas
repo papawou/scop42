@@ -4,8 +4,8 @@
       "id": "a292e981c0f2cc3b",
       "type": "group",
       "styleAttributes": {},
-      "x": -280,
-      "y": 520,
+      "x": -500,
+      "y": 160,
       "width": 860,
       "height": 480,
       "label": "if"
@@ -131,16 +131,6 @@
       "color": "4"
     },
     {
-      "id": "ed077a0816d2ee34",
-      "type": "file",
-      "file": "std/boolean/_.canvas",
-      "styleAttributes": {},
-      "x": -280,
-      "y": 570,
-      "width": 400,
-      "height": 400
-    },
-    {
       "id": "f2189b28a4795b27",
       "type": "text",
       "text": "1",
@@ -151,6 +141,48 @@
       },
       "lockedHeight": true,
       "x": -70,
+      "y": 0,
+      "width": 60,
+      "height": 60,
+      "color": "6"
+    },
+    {
+      "id": "ed077a0816d2ee34",
+      "type": "file",
+      "file": "std/boolean/_.canvas",
+      "styleAttributes": {},
+      "x": -500,
+      "y": 210,
+      "width": 400,
+      "height": 400
+    },
+    {
+      "id": "66f18d0941160b90",
+      "type": "text",
+      "text": "len",
+      "styleAttributes": {
+        "shape": "circle",
+        "textAlign": "center",
+        "border": null
+      },
+      "lockedHeight": true,
+      "x": 210,
+      "y": -300,
+      "width": 60,
+      "height": 60,
+      "color": "4"
+    },
+    {
+      "id": "94738b261b6ad963",
+      "type": "text",
+      "text": "",
+      "styleAttributes": {
+        "shape": "circle",
+        "textAlign": "center",
+        "border": null
+      },
+      "lockedHeight": true,
+      "x": 210,
       "y": 0,
       "width": 60,
       "height": 60,
@@ -172,68 +204,6 @@
       "height": 60
     },
     {
-      "id": "37ecb8e2751ed96b",
-      "type": "text",
-      "text": "1",
-      "styleAttributes": {
-        "shape": "circle",
-        "textAlign": "center",
-        "border": null
-      },
-      "lockedHeight": true,
-      "x": 200,
-      "y": 680,
-      "width": 60,
-      "height": 60,
-      "color": "6"
-    },
-    {
-      "id": "4de357672426e8cb",
-      "type": "text",
-      "text": "0",
-      "styleAttributes": {
-        "shape": "circle",
-        "textAlign": "center",
-        "border": null
-      },
-      "lockedHeight": true,
-      "x": 200,
-      "y": 800,
-      "width": 60,
-      "height": 60,
-      "color": "6"
-    },
-    {
-      "id": "47649e9d0b187109",
-      "type": "text",
-      "text": "then",
-      "styleAttributes": {
-        "shape": "circle",
-        "textAlign": "center",
-        "border": "dashed"
-      },
-      "lockedHeight": true,
-      "x": 360,
-      "y": 680,
-      "width": 60,
-      "height": 60
-    },
-    {
-      "id": "61a741f775ad31ae",
-      "type": "text",
-      "text": "",
-      "styleAttributes": {
-        "shape": "circle",
-        "textAlign": "center",
-        "border": null
-      },
-      "lockedHeight": true,
-      "x": 500,
-      "y": 740,
-      "width": 60,
-      "height": 60
-    },
-    {
       "id": "d6278b5f64c697fe",
       "type": "text",
       "text": "'-'",
@@ -250,6 +220,38 @@
       "color": "4"
     },
     {
+      "id": "29adaf9d452347fb",
+      "type": "text",
+      "text": "'-'",
+      "styleAttributes": {
+        "shape": "circle",
+        "textAlign": "center",
+        "border": null
+      },
+      "lockedHeight": true,
+      "x": 70,
+      "y": -60,
+      "width": 60,
+      "height": 60,
+      "color": "3"
+    },
+    {
+      "id": "be9ba2d2145bfce7",
+      "type": "text",
+      "text": "'*'",
+      "styleAttributes": {
+        "shape": "circle",
+        "border": null,
+        "textAlign": "center"
+      },
+      "lockedHeight": true,
+      "x": 70,
+      "y": -120,
+      "width": 60,
+      "height": 60,
+      "color": "3"
+    },
+    {
       "id": "6bf9f0a99413f4a3",
       "type": "text",
       "text": "null",
@@ -263,47 +265,6 @@
       "y": -230,
       "width": 60,
       "height": 60
-    },
-    {
-      "id": "055f5e6cf69c8bbf",
-      "type": "text",
-      "text": "then",
-      "styleAttributes": {
-        "shape": "circle",
-        "textAlign": "center",
-        "border": "dashed"
-      },
-      "lockedHeight": true,
-      "x": 360,
-      "y": 800,
-      "width": 60,
-      "height": 60
-    },
-    {
-      "id": "5fea704f792415f9",
-      "type": "file",
-      "file": "std/math/_.canvas",
-      "styleAttributes": {},
-      "x": 620,
-      "y": 540,
-      "width": 400,
-      "height": 400
-    },
-    {
-      "id": "66f18d0941160b90",
-      "type": "text",
-      "text": "len",
-      "styleAttributes": {
-        "shape": "circle",
-        "textAlign": "center",
-        "border": null
-      },
-      "lockedHeight": true,
-      "x": 210,
-      "y": -300,
-      "width": 60,
-      "height": 60,
-      "color": "4"
     },
     {
       "id": "7cb1b8503132f8c7",
@@ -338,38 +299,6 @@
       "color": "4"
     },
     {
-      "id": "29adaf9d452347fb",
-      "type": "text",
-      "text": "'-'",
-      "styleAttributes": {
-        "shape": "circle",
-        "textAlign": "center",
-        "border": null
-      },
-      "lockedHeight": true,
-      "x": 70,
-      "y": -60,
-      "width": 60,
-      "height": 60,
-      "color": "3"
-    },
-    {
-      "id": "94738b261b6ad963",
-      "type": "text",
-      "text": "",
-      "styleAttributes": {
-        "shape": "circle",
-        "textAlign": "center",
-        "border": null
-      },
-      "lockedHeight": true,
-      "x": 210,
-      "y": 0,
-      "width": 60,
-      "height": 60,
-      "color": "6"
-    },
-    {
       "id": "684c7b132c998b95",
       "type": "text",
       "text": "0",
@@ -386,20 +315,19 @@
       "color": "6"
     },
     {
-      "id": "be9ba2d2145bfce7",
+      "id": "4e80f0799764bf84",
       "type": "text",
-      "text": "'*'",
+      "text": "",
       "styleAttributes": {
         "shape": "circle",
-        "border": null,
-        "textAlign": "center"
+        "textAlign": "center",
+        "border": null
       },
       "lockedHeight": true,
-      "x": 70,
-      "y": -120,
+      "x": 308,
+      "y": 10,
       "width": 60,
-      "height": 60,
-      "color": "3"
+      "height": 60
     },
     {
       "id": "2ea31ef4a542fd4d",
@@ -417,7 +345,54 @@
       "height": 60
     },
     {
-      "id": "4e80f0799764bf84",
+      "id": "37ecb8e2751ed96b",
+      "type": "text",
+      "text": "1",
+      "styleAttributes": {
+        "shape": "circle",
+        "textAlign": "center",
+        "border": null
+      },
+      "lockedHeight": true,
+      "x": -20,
+      "y": 320,
+      "width": 60,
+      "height": 60,
+      "color": "6"
+    },
+    {
+      "id": "4de357672426e8cb",
+      "type": "text",
+      "text": "0",
+      "styleAttributes": {
+        "shape": "circle",
+        "textAlign": "center",
+        "border": null
+      },
+      "lockedHeight": true,
+      "x": -20,
+      "y": 440,
+      "width": 60,
+      "height": 60,
+      "color": "6"
+    },
+    {
+      "id": "47649e9d0b187109",
+      "type": "text",
+      "text": "then",
+      "styleAttributes": {
+        "shape": "circle",
+        "textAlign": "center",
+        "border": "dashed"
+      },
+      "lockedHeight": true,
+      "x": 140,
+      "y": 320,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "id": "61a741f775ad31ae",
       "type": "text",
       "text": "",
       "styleAttributes": {
@@ -426,10 +401,35 @@
         "border": null
       },
       "lockedHeight": true,
-      "x": 308,
-      "y": 10,
+      "x": 280,
+      "y": 380,
       "width": 60,
       "height": 60
+    },
+    {
+      "id": "055f5e6cf69c8bbf",
+      "type": "text",
+      "text": "then",
+      "styleAttributes": {
+        "shape": "circle",
+        "textAlign": "center",
+        "border": "dashed"
+      },
+      "lockedHeight": true,
+      "x": 140,
+      "y": 440,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "id": "5fea704f792415f9",
+      "type": "file",
+      "file": "std/math/_.canvas",
+      "styleAttributes": {},
+      "x": 400,
+      "y": 180,
+      "width": 400,
+      "height": 400
     }
   ],
   "edges": [

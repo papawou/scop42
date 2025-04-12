@@ -1,0 +1,38 @@
+{
+  "nodes": [
+    {
+      "id": "5c4ec183f51c89b7",
+      "type": "text",
+      "text": "1",
+      "styleAttributes": {
+        "shape": "circle",
+        "textAlign": "center",
+        "border": null
+      },
+      "lockedHeight": true,
+      "x": -30,
+      "y": 30,
+      "width": 60,
+      "height": 60,
+      "color": "6"
+    },
+    {
+      "id": "2638633974652074",
+      "type": "text",
+      "text": "0",
+      "styleAttributes": {
+        "shape": "circle",
+        "textAlign": "center",
+        "border": null
+      },
+      "lockedHeight": true,
+      "x": -30,
+      "y": -90,
+      "width": 60,
+      "height": 60,
+      "color": "6"
+    }
+  ],
+  "edges": [],
+  "metadata": {}
+}

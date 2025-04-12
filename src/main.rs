@@ -38,7 +38,7 @@ use mesh_constants::MeshConstants;
 use obj_asset::{ObjAssetBuilder, ObjRaw};
 use renderer::MeshRenderer;
 use vertex::Vertex;
-use winit::{event_loop::EventLoop, platform::wayland::WindowBuilderExtWayland};
+use winit::event_loop::EventLoop;
 
 fn main() -> anyhow::Result<()> {
     std::env::set_var("RUST_BACKTRACE", "full");

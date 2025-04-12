@@ -4,37 +4,20 @@
     "type": "split",
     "children": [
       {
-        "id": "ec9ca93e6a991562",
+        "id": "3a13cf8516a97cf2",
         "type": "tabs",
         "children": [
           {
-            "id": "0ab69f24f66af1ff",
+            "id": "aebe7288b5b09703",
             "type": "leaf",
             "state": {
               "type": "canvas",
               "state": {
                 "file": "std/math/_.canvas",
                 "viewState": {
-                  "x": 118.74908204175516,
-                  "y": 1262.5922865454534,
-                  "zoom": -0.6853584528869499
-                }
-              },
-              "icon": "lucide-layout-dashboard",
-              "title": "_"
-            }
-          },
-          {
-            "id": "f097bf815c40bab3",
-            "type": "leaf",
-            "state": {
-              "type": "canvas",
-              "state": {
-                "file": "std/boolean/_.canvas",
-                "viewState": {
-                  "x": -1111.0565516408215,
-                  "y": 598.6915105568363,
-                  "zoom": -0.9732725621857754
+                  "x": 627.867517472793,
+                  "y": 981.47870080156,
+                  "zoom": -0.3333333333333332
                 }
               },
               "icon": "lucide-layout-dashboard",
@@ -60,7 +43,8 @@
             "state": {
               "type": "file-explorer",
               "state": {
-                "sortOrder": "alphabetical"
+                "sortOrder": "alphabetical",
+                "autoReveal": false
               },
               "icon": "lucide-folder-closed",
               "title": "Files"
@@ -159,7 +143,10 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "std/math/_.canvas"
+                "file": "std/math/_.canvas",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
               },
               "icon": "lucide-list",
               "title": "Outline of _"
@@ -184,28 +171,32 @@
       "obsidian-excalidraw-plugin:Create new drawing": false
     }
   },
-  "active": "0ab69f24f66af1ff",
+  "active": "aebe7288b5b09703",
   "lastOpenFiles": [
-    "scop42/src/input.canvas",
-    "scop42/specs/specs.canvas",
-    "docs/mindmap/mindmap.canvas",
-    "std/math/_.canvas",
     "std/boolean/_.canvas",
+    "std/boolean/Bool.canvas",
+    "std/boolean/Untitled.md",
+    "std/math/_.canvas",
+    "std/math/-.canvas",
+    "std/math/Untitled.md",
     "std/math/pow.canvas",
-    "std/boolean/not.canvas",
-    "std/boolean/xor.canvas",
-    "std/boolean/or.canvas",
     "std/boolean/and.canvas",
+    "std/boolean/not.canvas",
+    "std/boolean/or.canvas",
+    "std/boolean/xor.canvas",
+    "std/std.canvas",
+    "std/node.canvas",
+    "std/_old/key/Pressable.md",
+    "std/_old/key/key.md",
+    "docs/prompts/How generate rust code.md",
+    "docs/prompts/wasm for graph editor.md",
     "docs/mindmap/mindmap.md",
-    "std/utils/match.canvas",
     "std/utils",
     "std/logic",
     "scop42/src",
     "scop42/specs/User wants to press and release a button.md",
     "scop42",
     "scop42/specs",
-    "docs/prompts/wasm for graph editor.md",
-    "docs/prompts/How generate rust code.md",
     "docs/specs/architecture/wasm.md",
     "docs/specs/architecture/rust.md",
     "docs/specs/architecture/webgpu.md",
@@ -223,14 +214,10 @@
     "src/traits/Untitled 1.md",
     "src/traits/Untitled.md",
     "src/key/Untitled.md",
-    "std/_old/key/key.md",
-    "std/_old/key/Pressable.md",
     "std/_old/key/Pressed.md",
     "std/_old/key/Releasable.md",
     "std/_old/key/Released.md",
     "Excalidraw/Drawing 2024-10-31 17.55.53.excalidraw.md",
-    "Excalidraw/Drawing 2024-10-31 17.14.28.excalidraw.md",
-    "Excalidraw/Drawing 2024-10-31 17.12.15.excalidraw.md",
-    "Key/Key.md"
+    "Excalidraw/Drawing 2024-10-31 17.14.28.excalidraw.md"
   ]
 }
