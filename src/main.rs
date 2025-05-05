@@ -2,6 +2,7 @@
 
 mod camera;
 mod conf;
+mod ecs;
 mod ft_vk;
 mod helpers;
 mod input;
@@ -24,6 +25,7 @@ use std::{
 use anyhow::Ok;
 use ash::vk::{self};
 use camera::Camera;
+use ecs::World;
 use ft_vk::{
     descriptor_allocator::DescriptorAllocator,
     descriptor_set_layout::{self, DescriptorSetLayoutCreateInfoBuilder},
@@ -39,7 +41,8 @@ use mesh_constants::MeshConstants;
 use obj_asset::{ObjAssetBuilder, ObjRaw};
 use renderer::MeshRenderer;
 use vertex::Vertex;
-use winit::{event_loop::EventLoop, keyboard::KeyCode, platform::wayland::WindowBuilderExtWayland};
+use winit::{event_loop::EventLoop, keyboard::KeyCode};
+//platform::wayland::WindowBuilderExtWayland
 
 fn main() -> anyhow::Result<()> {
     std::env::set_var("RUST_BACKTRACE", "full");
@@ -258,6 +261,8 @@ fn main() -> anyhow::Result<()> {
                         },
                         _ => {}
                     };
+
+                    loop_engine();
                 },
             )
             .unwrap();
@@ -308,4 +313,8 @@ fn update_camera<'a>(engine: &Engine, camera_pos: glam::Vec3) -> Mat4 {
         ..glam::Mat4::IDENTITY
     };
     projection * fix_upside * view
+}
+
+fn loop_engine() {
+    let mut world = World::new();
 }

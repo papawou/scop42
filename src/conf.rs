@@ -37,12 +37,16 @@ pub fn get_layer_names() -> (Vec<std::ffi::CString>, Vec<*const i8>) {
     (layer_names, layer_names_ptr)
 }
 
+pub const EXTENSION_NAMES: [*const i8; 3] = [
+    ash::ext::debug_utils::NAME.as_ptr(),
+    ash::khr::surface::NAME.as_ptr(),
+    ash::khr::win32_surface::NAME.as_ptr(),
+];
+
+#[cfg(target_os = "linux")]
 pub const EXTENSION_NAMES: [*const i8; 4] = [
     ash::ext::debug_utils::NAME.as_ptr(),
     ash::khr::surface::NAME.as_ptr(),
-    #[cfg(target_os = "windows")]
-    ash::khr::win32_surface::NAME.as_ptr(),
-    #[cfg(target_os = "linux")]
     ash::khr::xlib_surface::NAME.as_ptr(),
     ash::khr::wayland_surface::NAME.as_ptr(),
 ];

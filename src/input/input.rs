@@ -28,7 +28,7 @@ impl<State> Default for Input<State> {
     fn default() -> Self {
         Self {
             at: Instant::now(),
-            ..Default::default()
+            state: std::marker::PhantomData,
         }
     }
 }
@@ -53,6 +53,7 @@ impl<T: Releasable> Releasable for Input<T> {
     }
 }
 
+#[derive(Debug)]
 pub enum InputEnum {
     Down(Down),
     Up(Up),
