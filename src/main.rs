@@ -2,7 +2,7 @@
 
 mod camera;
 mod conf;
-mod ecs;
+pub mod ecs;
 mod ft_vk;
 mod helpers;
 mod input;
@@ -13,6 +13,7 @@ mod mesh_asset;
 mod mesh_constants;
 pub mod obj_asset;
 mod physics;
+mod playground;
 mod renderer;
 mod traits;
 mod vertex;

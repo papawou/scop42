@@ -10,6 +10,7 @@ glam = "0.27.0"
 vk-mem = "0.4.0"
 ash = { version = "0.38.0", features = ["linked", "debug", "std"] }
 winit = "0.29.15"
+my_macros = { path = "./my_macros" }
 
 #[cfg(target_os = "windows")]
 windows = {version = "0.58.0", features = ["Win32_System_LibraryLoader", "Win32_Foundation"] }
@@ -17,3 +18,8 @@ windows = {version = "0.58.0", features = ["Win32_System_LibraryLoader", "Win32_
 [profile.dev]
 opt-level = 0
 debug = true
+
+[workspace]
+members = [
+    "my_macros"
+]

@@ -3,12 +3,15 @@ use std::{
     collections::HashMap,
 };
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct Entity(usize);
-
+pub mod entity;
+pub use entity::Entity;
+use query::Query;
+pub mod query;
+pub mod system;
 pub struct World {
     next_entity: usize,
     components: HashMap<TypeId, HashMap<Entity, Box<dyn Any>>>,
+    systems: Vec<dyn Fn(&Query<dyn Any>)>,
 }
 
 impl World {
@@ -16,6 +19,7 @@ impl World {
         Self {
             next_entity: 0,
             components: HashMap::new(),
+            systems: Vec::new(),
         }
     }
 
@@ -59,5 +63,21 @@ impl World {
                 .map(|component| component.as_mut().downcast_mut::<T>())
                 .flatten()
         })
+    }
+
+    pub fn run_system<T>(f: fn(query: Query<T>)) {
+        let query= Query::<T>::new();
+
+        // does shitty things
+
+        fn(query)
+    }
+
+    pub fn add_system<T: Any>(&mut self, system: fn(query: Query<T>)) {
+        let query = Query::<T>::new();
+
+
+        // extract T
+        system(query);
     }
 }
