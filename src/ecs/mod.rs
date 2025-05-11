@@ -8,10 +8,12 @@ pub use entity::Entity;
 use query::Query;
 pub mod query;
 pub mod system;
+mod traits;
+
 pub struct World {
     next_entity: usize,
     components: HashMap<TypeId, HashMap<Entity, Box<dyn Any>>>,
-    systems: Vec<dyn Fn(&Query<dyn Any>)>,
+    systems: Vec<fn(&Query)>,
 }
 
 impl World {
@@ -65,19 +67,13 @@ impl World {
         })
     }
 
-    pub fn run_system<T>(f: fn(query: Query<T>)) {
-        let query= Query::<T>::new();
-
-        // does shitty things
-
-        fn(query)
+    pub fn add_system<T: Any>(&mut self, system: fn(query: Query<T>)) {
+        self.systems.push(system);
     }
 
-    pub fn add_system<T: Any>(&mut self, system: fn(query: Query<T>)) {
-        let query = Query::<T>::new();
-
-
-        // extract T
-        system(query);
+    pub fn run_system<T>(&self) {
+        for system in self.systems.iter() {
+            system(&self);
+        }
     }
 }
