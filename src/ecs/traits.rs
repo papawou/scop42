@@ -1,56 +1,57 @@
 use std::marker::PhantomData;
 
-use glam::Vec3;
+use super::World;
 
-use super::{Entity, World};
-
-// The `FetchComponents` trait is used to fetch components from the world.
-// It is a generic trait that can be implemented for different types of queries.
-pub trait FetchComponents<'a> {
-    type Iter: Iterator<Item = (Entity, Self::Item)> + 'a;
-    type Item;
-
-    fn fetch(world: &'a World) -> Self::Iter;
-}
-
-// The `Query` struct is generic over the query type and the world.
-// The `Query` struct has a method `iter` that returns an iterator over the components
-// fetched from the world.
-pub struct Query<'a, Q: FetchComponents<'a>> {
-    world: &'a World,
+pub struct Query<'w, Q: QueryData> {
+    world: &'w World,
     _marker: PhantomData<Q>,
 }
 
-impl<'a, Q> Query<'a, Q>
+impl<Q> IntoIterator for Query<'_, Q>
 where
-    Q: FetchComponents<'a>,
+    Q: QueryData,
 {
-    pub fn iter(&self) -> Q::Iter {
+    type Item = Q::Item;
+    type IntoIter = Q::Iter;
+
+    fn into_iter(self) -> Self::IntoIter {
         Q::fetch(self.world)
     }
 }
 
-// The `System` trait is implemented for any function that takes a `Query` as an argument.
-// The `System` trait is generic over the query type and the world.
-// The `System` trait has a method `run` that takes a mutable reference to the world
-// and runs the system.
-pub trait System<'a> {
-    type Query: FetchComponents<'a>;
-    fn run(&self, world: &'a World);
+pub trait QueryData {
+    type Item;
+    type Iter: Iterator<Item = Self::Item>;
+
+    fn fetch(world: &World) -> Self::Iter;
 }
 
-impl<'a, F, Q> System<'a> for F
-where
-    Q: FetchComponents<'a>,
-    F: Fn(Query<'a, Q>) + 'static,
-{
-    type Query = Q;
+impl QueryData for i32 {
+    type Item = i32;
+    type Iter = std::slice::Iter<i32>;
 
-    fn run(&self, world: &'a World) {
-        let query = Query::<Q> {
-            world,
-            _marker: PhantomData,
-        };
-        (self)(query);
+    fn fetch(world: &World) -> Self::Iter {
+        vec![].iter()
+    }
+}
+
+pub trait System<T: QueryData> {
+    fn run(&self, world: &World);
+}
+
+impl<F, Q> System<Q> for F
+where
+    F: Fn(Q::Iter),
+    Q: QueryData,
+{
+    fn run(&self, world: &World) {
+        let iter = Q::fetch(world);
+        (self)(iter);
+    }
+}
+
+fn a_system(query: Query<i32>) {
+    for a_number in query {
+        // Do something with the query
     }
 }

@@ -5,9 +5,6 @@ use std::{
 
 pub mod entity;
 pub use entity::Entity;
-use query::Query;
-pub mod query;
-pub mod system;
 mod traits;
 
 pub struct World {
