@@ -2,7 +2,6 @@
 
 mod camera;
 mod conf;
-pub mod ecs;
 mod ft_vk;
 mod helpers;
 mod input;
@@ -13,7 +12,6 @@ mod mesh_asset;
 mod mesh_constants;
 pub mod obj_asset;
 mod physics;
-mod playground;
 mod renderer;
 mod traits;
 mod vertex;
@@ -26,7 +24,7 @@ use std::{
 use anyhow::Ok;
 use ash::vk::{self};
 use camera::Camera;
-use ecs::World;
+use ecs::macros::Component;
 use ft_vk::{
     descriptor_allocator::DescriptorAllocator,
     descriptor_set_layout::{self, DescriptorSetLayoutCreateInfoBuilder},
