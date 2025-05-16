@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{entity::Entity, world::World};
+use crate::{component::Component, entity::Entity, world::World};
 
 pub struct Query<'w, Q>
 where
@@ -39,30 +39,80 @@ pub trait Fetch<'w> {
     type Iter: Iterator<Item = Self::Item>;
     fn fetch(world: &'w World) -> Self::Iter;
 }
-impl<'w, T> Fetch<'w> for &'w T {
+
+impl<'w, T: Component> Fetch<'w> for &'w T {
     type Item = (&'w Entity, &'w T);
-    type Iter = std::slice::Iter<'w, Self::Item>;
+    type Iter = std::collections::hash_map::Iter<'w, Entity, T>;
+
     fn fetch(world: &'w World) -> Self::Iter {
-        todo!()
-    }
-}
-impl<'w, T> Fetch<'w> for &'w mut T {
-    type Item = (&'w Entity, &'w T);
-    type Iter = std::slice::IterMut<'w, Self::Item>;
-    fn fetch(world: &'w World) -> Self::Iter {
-        todo!()
+        world
+            .get_component_storage::<T>()
+            .expect("Component not found")
+            .iter()
     }
 }
 
-impl<'w, A, B> Fetch<'w> for (A, B)
+pub trait FetchMut<'w> {
+    type Item;
+    type Iter: Iterator<Item = Self::Item>;
+    fn fetch(world: &'w mut World) -> Self::Iter;
+}
+
+impl<'w, T: Component> FetchMut<'w> for &'w mut T {
+    type Item = (&'w Entity, &'w mut T);
+    type Iter = std::collections::hash_map::IterMut<'w, Entity, T>;
+
+    fn fetch(world: &'w mut World) -> Self::Iter {
+        world
+            .get_component_storage_mut::<T>()
+            .expect("Component not found")
+            .iter_mut()
+    }
+}
+
+impl<'w, A, B> Fetch<'w> for (&'w A, &'w B)
 where
-    A: Fetch<'w>,
-    B: Fetch<'w>,
+    A: Component,
+    B: Component,
 {
-    type Item = (A::Item, B::Item);
-    type Iter = std::slice::Iter<'w, Self::Item>;
+    type Item = (Entity, (&'w A, &'w B));
+    type Iter = Zip2<'w, A, B>;
+
     fn fetch(world: &'w World) -> Self::Iter {
-        let a_iter = A::fetch(world);
-        let b_iter = B::fetch(world);
+        let storage_a = world.get_component_storage::<A>().expect("A not found");
+        let storage_b = world.get_component_storage::<B>().expect("B not found");
+
+        // closure to filter and map entities with both components
+        // let filter_map_fn = move |(entity, comp_a): (&Entity, &A)| {
+        //     if let Some(comp_b) = storage_b.get(entity) {
+        //         Some((entity, (comp_a, comp_b)))
+        //     } else {
+        //         None
+        //     }
+        // };
+        // storage_a.iter().filter_map(filter_map_fn)
+
+        Zip2 {
+            iter_a: storage_a.iter(),
+            storage_b,
+        }
+    }
+}
+
+pub struct Zip2<'w, A, B> {
+    iter_a: std::collections::hash_map::Iter<'w, Entity, A>,
+    storage_b: &'w std::collections::HashMap<Entity, B>,
+}
+
+impl<'w, A, B> Iterator for Zip2<'w, A, B> {
+    type Item = (Entity, (&'w A, &'w B));
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some((entity, comp_a)) = self.iter_a.next() {
+            if let Some(comp_b) = self.storage_b.get(entity) {
+                return Some((*entity, (comp_a, comp_b)));
+            }
+        }
+        None
     }
 }
