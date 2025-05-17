@@ -7,7 +7,7 @@ pub trait ComponentStorage: Any {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
-impl<T> ComponentStorage for HashMap<Entity, T>
+impl<T> ComponentStorage for Storage<T>
 where
     T: Component + 'static,
 {
@@ -19,3 +19,5 @@ where
         self
     }
 }
+
+pub type Storage<T> = HashMap<Entity, T>; // T: Component

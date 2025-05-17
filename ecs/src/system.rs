@@ -12,7 +12,6 @@ pub struct QuerySystem<F, Q> {
     f: F,
     _marker: PhantomData<Q>,
 }
-
 impl<F, Q> QuerySystem<F, Q> {
     pub fn new(f: F) -> Self {
         Self {

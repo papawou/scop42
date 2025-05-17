@@ -24,7 +24,7 @@ use std::{
 use anyhow::Ok;
 use ash::vk::{self};
 use camera::Camera;
-use ecs::macros::Component;
+use ecs::{macros::Component, world::World};
 use ft_vk::{
     descriptor_allocator::DescriptorAllocator,
     descriptor_set_layout::{self, DescriptorSetLayoutCreateInfoBuilder},

@@ -1,7 +1,11 @@
 use std::{any::TypeId, collections::HashMap};
 
 use crate::{
-    component::Component, entity::Entity, query::Query, storage::ComponentStorage, system::SystemFn,
+    component::Component,
+    entity::Entity,
+    query::Query,
+    storage::{ComponentStorage, Storage},
+    system::SystemFn,
 };
 
 pub struct World {
@@ -30,31 +34,22 @@ impl World {
 
         self.components
             .entry(type_id)
-            .or_insert_with(|| Box::new(HashMap::<Entity, T>::new()));
+            .or_insert_with(|| Box::new(Storage::<T>::new()));
 
         let storage = self.get_component_storage_mut::<T>().unwrap();
         storage.insert(*entity, component);
     }
 
-    pub fn remove_component<T: Component>(&mut self, entity: &Entity) {
-        self.get_component_mut(entity).and_modify(|hash| {
-            hash.remove(entity);
-        });
-    }
-
-    pub fn get_component_storage<T: Component>(&self) -> Option<&HashMap<Entity, T>> {
+    pub fn get_component_storage<T: Component>(&self) -> Option<&Storage<T>> {
         let type_id = TypeId::of::<T>();
-        self.components
-            .get(&type_id)?
-            .as_any()
-            .downcast_ref::<HashMap<Entity, T>>()
+        self.components.get(&type_id)?.as_any().downcast_ref()
     }
-    pub fn get_component_storage_mut<T: Component>(&mut self) -> Option<&mut HashMap<Entity, T>> {
+    pub fn get_component_storage_mut<T: Component>(&mut self) -> Option<&mut Storage<T>> {
         let type_id = TypeId::of::<T>();
         self.components
             .get_mut(&type_id)?
             .as_any_mut()
-            .downcast_mut::<HashMap<Entity, T>>()
+            .downcast_mut()
     }
 
     pub fn get_component<T: Component>(&mut self, entity: &Entity) -> Option<&T> {
