@@ -24,7 +24,7 @@ use std::{
 use anyhow::Ok;
 use ash::vk::{self};
 use camera::Camera;
-use ecs::{macros::Component, world::World};
+use ecs::{component::Component, macros::Component, query::Query, system::System, world::World};
 use ft_vk::{
     descriptor_allocator::DescriptorAllocator,
     descriptor_set_layout::{self, DescriptorSetLayoutCreateInfoBuilder},
@@ -314,6 +314,20 @@ fn update_camera<'a>(engine: &Engine, camera_pos: glam::Vec3) -> Mat4 {
     projection * fix_upside * view
 }
 
+#[derive(Component, Debug)]
+struct Position(Vec3);
+
 fn loop_engine() {
     let mut world = World::new();
+    let pos = Position { 0: Vec3::ONE };
+    let camera = world.spawn();
+    world.components.add_component(&camera, pos);
+    let f_box: Box<dyn System<'static>> = Box::new(a_system as for<'w> fn(Query<'w, &'w Position>));
+    world.add_system(f_box);
+}
+
+fn a_system<'a>(query: Query<'a, &'a Position>) {
+    for (entity, position) in query {
+        println!("{:?}", position)
+    }
 }

@@ -8,15 +8,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
     let name = input.ident;
 
     let expanded = quote! {
-        impl Component for #name {
-            fn as_any(&self) -> &dyn Any {
-                self
-            }
-
-            fn as_any_mut(&mut self) -> &mut dyn Any {
-                self
-            }
-        }
+        impl Component for #name {}
     };
 
     TokenStream::from(expanded)

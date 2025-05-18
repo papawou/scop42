@@ -1,33 +1,38 @@
-use std::marker::PhantomData;
+use crate::{
+    query::{Fetch, Query},
+    storage::ComponentsStorage,
+};
 
-use crate::world::World;
-
-use super::query::{Fetch, Query};
-
-pub trait SystemFn<'w> {
-    fn run(&mut self, world: &'w mut World);
+pub trait ErasedGeneric<'w> {
+    fn run(&self, components: &'w mut ComponentsStorage);
 }
 
-pub struct QuerySystem<F, Q> {
-    f: F,
-    _marker: PhantomData<Q>,
+pub trait System<'w> {
+    fn run(&self, components: &'w mut ComponentsStorage);
 }
-impl<F, Q> QuerySystem<F, Q> {
-    pub fn new(f: F) -> Self {
-        Self {
-            f,
-            _marker: PhantomData,
-        }
+
+impl<'w> ErasedGeneric<'w> for dyn System<'w> {
+    fn run(&self, components: &'w mut ComponentsStorage) {
+        self.run(components);
     }
 }
 
-impl<'w, F, Q> SystemFn<'w> for QuerySystem<F, Q>
+impl<'w, Q> System<'w> for dyn Fn(Query<'w, Q>)
 where
-    F: Fn(Query<Q>),
-    Q: for<'a> Fetch<'a>,
+    Q: Fetch<'w>,
 {
-    fn run(&mut self, world: &'w mut World) {
-        let query = Query::<'w, Q>::new(world);
-        (self.f)(query);
+    fn run(&self, components: &'w mut ComponentsStorage) {
+        let query: Query<'w, Q> = Query::new(components);
+        (self)(query)
+    }
+}
+
+impl<'w, Q> System<'w> for fn(Query<'w, Q>)
+where
+    Q: Fetch<'w>,
+{
+    fn run(&self, components: &'w mut ComponentsStorage) {
+        let query = Query::<'w, Q>::new(components);
+        (self)(query);
     }
 }

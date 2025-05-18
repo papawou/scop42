@@ -1,19 +1,19 @@
 use std::marker::PhantomData;
 
-use crate::{component::Component, entity::Entity, world::World};
+use crate::{component::Component, entity::Entity, storage::ComponentsStorage};
 
 pub struct Query<'w, Q>
 where
     Q: Fetch<'w>,
 {
-    world: &'w World,
+    world: &'w ComponentsStorage,
     _marker: PhantomData<Q>,
 }
 impl<'w, Q> Query<'w, Q>
 where
     Q: Fetch<'w>,
 {
-    pub fn new(world: &'w World) -> Self {
+    pub fn new(world: &'w ComponentsStorage) -> Self {
         Self {
             world,
             _marker: PhantomData,
@@ -37,14 +37,14 @@ where
 pub trait Fetch<'w> {
     type Item;
     type Iter: Iterator<Item = Self::Item>;
-    fn fetch(world: &'w World) -> Self::Iter;
+    fn fetch(world: &'w ComponentsStorage) -> Self::Iter;
 }
 
 impl<'w, T: Component> Fetch<'w> for &'w T {
     type Item = (&'w Entity, &'w T);
     type Iter = std::collections::hash_map::Iter<'w, Entity, T>;
 
-    fn fetch(world: &'w World) -> Self::Iter {
+    fn fetch(world: &'w ComponentsStorage) -> Self::Iter {
         world
             .get_component_storage::<T>()
             .expect("Component not found")
@@ -55,15 +55,15 @@ impl<'w, T: Component> Fetch<'w> for &'w T {
 pub trait FetchMut<'w> {
     type Item;
     type Iter: Iterator<Item = Self::Item>;
-    fn fetch(world: &'w mut World) -> Self::Iter;
+    fn fetch(components: &'w mut ComponentsStorage) -> Self::Iter;
 }
 
 impl<'w, T: Component> FetchMut<'w> for &'w mut T {
     type Item = (&'w Entity, &'w mut T);
     type Iter = std::collections::hash_map::IterMut<'w, Entity, T>;
 
-    fn fetch(world: &'w mut World) -> Self::Iter {
-        world
+    fn fetch(components: &'w mut ComponentsStorage) -> Self::Iter {
+        components
             .get_component_storage_mut::<T>()
             .expect("Component not found")
             .iter_mut()
@@ -78,7 +78,7 @@ where
     type Item = (Entity, (&'w A, &'w B));
     type Iter = Zip2<'w, A, B>;
 
-    fn fetch(world: &'w World) -> Self::Iter {
+    fn fetch(world: &'w ComponentsStorage) -> Self::Iter {
         let storage_a = world.get_component_storage::<A>().expect("A not found");
         let storage_b = world.get_component_storage::<B>().expect("B not found");
 
