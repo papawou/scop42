@@ -34,13 +34,13 @@ where
 }
 
 // Fetch trait
-pub trait Fetch<'w> {
+pub trait Fetch {
     type Item;
     type Iter: Iterator<Item = Self::Item>;
     fn fetch(world: &'w ComponentsStorage) -> Self::Iter;
 }
 
-impl<'w, T: Component> Fetch<'w> for &'w T {
+impl<'w, T: Component> Fetch for &'w T {
     type Item = (&'w Entity, &'w T);
     type Iter = std::collections::hash_map::Iter<'w, Entity, T>;
 

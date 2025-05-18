@@ -3,26 +3,26 @@ use crate::{
     storage::ComponentsStorage,
 };
 
-pub trait ErasedGeneric<'w> {
-    fn run(&self, components: &'w mut ComponentsStorage);
+pub trait ErasedGeneric {
+    fn run(&self, components: &mut ComponentsStorage);
 }
 
-pub trait System<'w> {
-    fn run(&self, components: &'w mut ComponentsStorage);
+pub trait System {
+    fn run(&self, components: &mut ComponentsStorage);
 }
 
-impl<'w> ErasedGeneric<'w> for dyn System<'w> {
-    fn run(&self, components: &'w mut ComponentsStorage) {
+impl ErasedGeneric for dyn System {
+    fn run(&self, components: &mut ComponentsStorage) {
         self.run(components);
     }
 }
 
-impl<'w, Q> System<'w> for dyn Fn(Query<'w, Q>)
+impl<'w, Q> System for dyn Fn(Query<'w, Q>)
 where
     Q: Fetch<'w>,
 {
-    fn run(&self, components: &'w mut ComponentsStorage) {
-        let query: Query<'w, Q> = Query::new(components);
+    fn run(&self, components: &mut ComponentsStorage) {
+        let query = Query::<'w>::new(components);
         (self)(query)
     }
 }
