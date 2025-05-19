@@ -24,7 +24,13 @@ use std::{
 use anyhow::Ok;
 use ash::vk::{self};
 use camera::Camera;
-use ecs::{component::Component, macros::Component, query::Query, system::System, world::World};
+use ecs::{
+    component::Component,
+    macros::Component,
+    query::Query,
+    system::{ErasedGeneric, System},
+    world::World,
+};
 use ft_vk::{
     descriptor_allocator::DescriptorAllocator,
     descriptor_set_layout::{self, DescriptorSetLayoutCreateInfoBuilder},
@@ -322,11 +328,11 @@ fn loop_engine() {
     let pos = Position { 0: Vec3::ONE };
     let camera = world.spawn();
     world.components.add_component(&camera, pos);
-    let f_box: Box<dyn System<'static>> = Box::new(a_system as for<'w> fn(Query<'w, &'w Position>));
+    let f_box: Box<dyn System> = Box::new(a_system as for<'a> fn(Query<'a, &'a Position>));
     world.add_system(f_box);
 }
 
-fn a_system<'a>(query: Query<'a, &'a Position>) {
+fn a_system(query: Query<'_, &Position>) {
     for (entity, position) in query {
         println!("{:?}", position)
     }

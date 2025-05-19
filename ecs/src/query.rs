@@ -2,18 +2,18 @@ use std::marker::PhantomData;
 
 use crate::{component::Component, entity::Entity, storage::ComponentsStorage};
 
-pub struct Query<'w, Q>
+pub struct Query<'a, Q>
 where
-    Q: Fetch<'w>,
+    Q: Fetch,
 {
-    world: &'w ComponentsStorage,
+    world: &'a ComponentsStorage,
     _marker: PhantomData<Q>,
 }
-impl<'w, Q> Query<'w, Q>
+impl<'a, Q> Query<'a, Q>
 where
-    Q: Fetch<'w>,
+    Q: Fetch,
 {
-    pub fn new(world: &'w ComponentsStorage) -> Self {
+    pub fn new(world: &'a ComponentsStorage) -> Self {
         Self {
             world,
             _marker: PhantomData,
@@ -21,12 +21,12 @@ where
     }
 }
 
-impl<'w, Q> IntoIterator for Query<'w, Q>
+impl<'a, Q> IntoIterator for Query<'a, Q>
 where
-    Q: Fetch<'w>,
+    Q: Fetch,
 {
-    type Item = Q::Item;
-    type IntoIter = Q::Iter;
+    type Item = Q::Item<'a>;
+    type IntoIter = Q::Iter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         Q::fetch(self.world)
@@ -35,16 +35,16 @@ where
 
 // Fetch trait
 pub trait Fetch {
-    type Item;
-    type Iter: Iterator<Item = Self::Item>;
-    fn fetch(world: &'w ComponentsStorage) -> Self::Iter;
+    type Item<'w>;
+    type Iter<'w>: Iterator<Item = Self::Item<'w>>;
+    fn fetch<'a>(world: &'a ComponentsStorage) -> Self::Iter<'a>;
 }
 
-impl<'w, T: Component> Fetch for &'w T {
-    type Item = (&'w Entity, &'w T);
-    type Iter = std::collections::hash_map::Iter<'w, Entity, T>;
+impl<T: Component> Fetch for &T {
+    type Item<'w> = (&'w Entity, &'w T);
+    type Iter<'w> = std::collections::hash_map::Iter<'w, Entity, T>;
 
-    fn fetch(world: &'w ComponentsStorage) -> Self::Iter {
+    fn fetch<'a>(world: &'a ComponentsStorage) -> Self::Iter<'a> {
         world
             .get_component_storage::<T>()
             .expect("Component not found")
@@ -70,15 +70,15 @@ impl<'w, T: Component> FetchMut<'w> for &'w mut T {
     }
 }
 
-impl<'w, A, B> Fetch<'w> for (&'w A, &'w B)
+impl<A, B> Fetch for (&A, &B)
 where
     A: Component,
     B: Component,
 {
-    type Item = (Entity, (&'w A, &'w B));
-    type Iter = Zip2<'w, A, B>;
+    type Item<'w> = (Entity, (&'w A, &'w B));
+    type Iter<'w> = Zip2<'w, A, B>;
 
-    fn fetch(world: &'w ComponentsStorage) -> Self::Iter {
+    fn fetch<'a>(world: &'a ComponentsStorage) -> Self::Iter<'a> {
         let storage_a = world.get_component_storage::<A>().expect("A not found");
         let storage_b = world.get_component_storage::<B>().expect("B not found");
 

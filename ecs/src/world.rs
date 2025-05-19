@@ -1,9 +1,9 @@
-use crate::{entity::Entity, storage::ComponentsStorage, system::ErasedGeneric};
+use crate::{entity::Entity, storage::ComponentsStorage, system::System};
 
 pub struct World {
     next_entity: usize,
     pub components: ComponentsStorage,
-    systems: Vec<Box<dyn for<'a> ErasedGeneric<'a>>>,
+    systems: Vec<Box<dyn System>>,
 }
 
 impl World {
@@ -27,7 +27,7 @@ impl World {
         }
     }
 
-    pub fn add_system(&mut self, system: Box<dyn for<'a> ErasedGeneric<'a>>) {
+    pub fn add_system(&mut self, system: Box<dyn System>) {
         self.systems.push(system);
     }
 }
