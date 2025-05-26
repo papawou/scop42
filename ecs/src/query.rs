@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use crate::{component::Component, entity::Entity, storage::ComponentsStorage};
 
+//Query
 pub struct Query<'a, Q>
 where
     Q: Fetch<'a>,
@@ -33,7 +34,38 @@ where
     }
 }
 
-// Fetch trait
+//QueryMut
+pub struct QueryMut<'a, Q>
+where
+    Q: FetchMut<'a>,
+{
+    world: &'a mut ComponentsStorage,
+    _marker: PhantomData<Q>,
+}
+impl<'a, Q> QueryMut<'a, Q>
+where
+    Q: FetchMut<'a>,
+{
+    pub fn new(world: &'a mut ComponentsStorage) -> Self {
+        Self {
+            world,
+            _marker: PhantomData,
+        }
+    }
+}
+impl<'a, Q> IntoIterator for QueryMut<'a, Q>
+where
+    Q: FetchMut<'a>,
+{
+    type Item = Q::Item;
+    type IntoIter = Q::Iter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Q::fetch(self.world)
+    }
+}
+
+// Fetch
 pub trait Fetch<'a> {
     type Item;
     type Iter: Iterator<Item = Self::Item>;
@@ -52,23 +84,23 @@ impl<'a, T: Component> Fetch<'a> for &T {
     }
 }
 
-// pub trait FetchMut<'a> {
-//     type Item;
-//     type Iter: Iterator<Item = Self::Item>;
-//     fn fetch(components: &'a mut ComponentsStorage) -> Self::Iter;
-// }
+pub trait FetchMut<'a> {
+    type Item;
+    type Iter: Iterator<Item = Self::Item>;
+    fn fetch(components: &'a mut ComponentsStorage) -> Self::Iter;
+}
 
-// impl<'a, T: Component> FetchMut<'a> for &mut T {
-//     type Item = (&'a Entity, &'a mut T);
-//     type Iter = std::collections::hash_map::IterMut<'a, Entity, T>;
+impl<'a, T: Component> FetchMut<'a> for &mut T {
+    type Item = (&'a Entity, &'a mut T);
+    type Iter = std::collections::hash_map::IterMut<'a, Entity, T>;
 
-//     fn fetch(components: &'a mut ComponentsStorage) -> Self::Iter {
-//         components
-//             .get_component_storage_mut::<T>()
-//             .expect("Component not found")
-//             .iter_mut()
-//     }
-// }
+    fn fetch(components: &'a mut ComponentsStorage) -> Self::Iter {
+        components
+            .get_component_storage_mut::<T>()
+            .expect("Component not found")
+            .iter_mut()
+    }
+}
 
 // impl<'a, A, B> Fetch<'a> for (&A, &B)
 // where

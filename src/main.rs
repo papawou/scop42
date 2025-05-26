@@ -27,8 +27,8 @@ use camera::Camera;
 use ecs::{
     component::Component,
     macros::Component,
-    query::Query,
-    system::{ErasedGeneric, System},
+    query::{Query, QueryMut},
+    system::{system, system_mut, System, SystemMut},
     world::World,
 };
 use ft_vk::{
@@ -157,6 +157,15 @@ fn main() -> anyhow::Result<()> {
     // let cursor_vel: glam::Vec3 = glam::Vec3::ONE;
     // let cursor_rot: glam::Quat = Quat::IDENTITY; // perpendicular axis to cursor_vel (direction is defined by cursor_vel's positivity)
 
+    let mut world = World::new();
+    {
+        let pos = Position { 0: Vec3::ONE };
+        let test_entity = world.spawn();
+        world.components.add_component(&test_entity, pos);
+        world.add_system(system(a_system));
+        world.add_system_mut(system_mut(a_mut_system));
+    }
+
     let mut recorder = InputRecorder::new();
     {
         // closure data
@@ -261,13 +270,12 @@ fn main() -> anyhow::Result<()> {
                                     }
                                 };
                                 window.request_redraw();
+                                world.run_systems();
                             }
                             _ => {}
                         },
                         _ => {}
                     };
-
-                    loop_engine();
                 },
             )
             .unwrap();
@@ -323,17 +331,14 @@ fn update_camera<'a>(engine: &Engine, camera_pos: glam::Vec3) -> Mat4 {
 #[derive(Component, Debug)]
 struct Position(Vec3);
 
-fn loop_engine() {
-    let mut world = World::new();
-    let pos = Position { 0: Vec3::ONE };
-    let camera = world.spawn();
-    world.components.add_component(&camera, pos);
-    let f_box: Box<dyn System> = Box::new(a_system as for<'a> fn(Query<'a, Q>));
-    world.add_system(f_box);
-}
-
 fn a_system(query: Query<'_, &Position>) {
     for (entity, position) in query {
         println!("{:?}", position)
+    }
+}
+
+fn a_mut_system(query: QueryMut<'_, &mut Position>) {
+    for (entity, position) in query {
+        position.0 = position.0 + Vec3::ONE;
     }
 }
