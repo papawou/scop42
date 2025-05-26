@@ -328,7 +328,7 @@ fn loop_engine() {
     let pos = Position { 0: Vec3::ONE };
     let camera = world.spawn();
     world.components.add_component(&camera, pos);
-    let f_box: Box<dyn System> = Box::new(a_system as for<'a> fn(Query<'a, &'a Position>));
+    let f_box: Box<dyn System> = Box::new(a_system);
     world.add_system(f_box);
 }
 

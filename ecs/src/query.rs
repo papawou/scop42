@@ -21,12 +21,12 @@ where
     }
 }
 
-impl<'a, Q> IntoIterator for Query<'a, Q>
+impl<Q> IntoIterator for Query<'_, Q>
 where
     Q: Fetch,
 {
-    type Item = Q::Item<'a>;
-    type IntoIter = Q::Iter<'a>;
+    type Item = Q::Item;
+    type IntoIter = Q::Iter;
 
     fn into_iter(self) -> Self::IntoIter {
         Q::fetch(self.world)
@@ -34,17 +34,17 @@ where
 }
 
 // Fetch trait
-pub trait Fetch {
-    type Item<'w>;
-    type Iter<'w>: Iterator<Item = Self::Item<'w>>;
-    fn fetch<'a>(world: &'a ComponentsStorage) -> Self::Iter<'a>;
+pub trait Fetch<'a> {
+    type Item;
+    type Iter: Iterator<Item = Self::Item>;
+    fn fetch(world: &'a ComponentsStorage) -> Self::Iter;
 }
 
-impl<T: Component> Fetch for &T {
-    type Item<'w> = (&'w Entity, &'w T);
-    type Iter<'w> = std::collections::hash_map::Iter<'w, Entity, T>;
+impl<'a, T: Component> Fetch<'a> for &T {
+    type Item = (&'a Entity, &'a T);
+    type Iter = std::collections::hash_map::Iter<'a, Entity, T>;
 
-    fn fetch<'a>(world: &'a ComponentsStorage) -> Self::Iter<'a> {
+    fn fetch(world: &'a ComponentsStorage) -> Self::Iter {
         world
             .get_component_storage::<T>()
             .expect("Component not found")
@@ -52,17 +52,17 @@ impl<T: Component> Fetch for &T {
     }
 }
 
-pub trait FetchMut<'w> {
+pub trait FetchMut<'a> {
     type Item;
     type Iter: Iterator<Item = Self::Item>;
-    fn fetch(components: &'w mut ComponentsStorage) -> Self::Iter;
+    fn fetch(components: &'a mut ComponentsStorage) -> Self::Iter;
 }
 
-impl<'w, T: Component> FetchMut<'w> for &'w mut T {
-    type Item = (&'w Entity, &'w mut T);
-    type Iter = std::collections::hash_map::IterMut<'w, Entity, T>;
+impl<'a, T: Component> FetchMut<'a> for &mut T {
+    type Item = (&'a Entity, &'a mut T);
+    type Iter = std::collections::hash_map::IterMut<'a, Entity, T>;
 
-    fn fetch(components: &'w mut ComponentsStorage) -> Self::Iter {
+    fn fetch(components: &'a mut ComponentsStorage) -> Self::Iter {
         components
             .get_component_storage_mut::<T>()
             .expect("Component not found")
@@ -70,15 +70,15 @@ impl<'w, T: Component> FetchMut<'w> for &'w mut T {
     }
 }
 
-impl<A, B> Fetch for (&A, &B)
+impl<'a, A, B> Fetch<'a> for (&A, &B)
 where
     A: Component,
     B: Component,
 {
-    type Item<'w> = (Entity, (&'w A, &'w B));
-    type Iter<'w> = Zip2<'w, A, B>;
+    type Item = (Entity, (&'a A, &'a B));
+    type Iter = Zip2<'a, A, B>;
 
-    fn fetch<'a>(world: &'a ComponentsStorage) -> Self::Iter<'a> {
+    fn fetch(world: &'a ComponentsStorage) -> Self::Iter {
         let storage_a = world.get_component_storage::<A>().expect("A not found");
         let storage_b = world.get_component_storage::<B>().expect("B not found");
 
@@ -99,13 +99,13 @@ where
     }
 }
 
-pub struct Zip2<'w, A, B> {
-    iter_a: std::collections::hash_map::Iter<'w, Entity, A>,
-    storage_b: &'w std::collections::HashMap<Entity, B>,
+pub struct Zip2<'a, A, B> {
+    iter_a: std::collections::hash_map::Iter<'a, Entity, A>,
+    storage_b: &'a std::collections::HashMap<Entity, B>,
 }
 
-impl<'w, A, B> Iterator for Zip2<'w, A, B> {
-    type Item = (Entity, (&'w A, &'w B));
+impl<'a, A, B> Iterator for Zip2<'a, A, B> {
+    type Item = (Entity, (&'a A, &'a B));
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some((entity, comp_a)) = self.iter_a.next() {
