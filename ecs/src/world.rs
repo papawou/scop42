@@ -1,7 +1,7 @@
 use crate::{
     entity::Entity,
     storage::ComponentsStorage,
-    system::{System, SystemMut},
+    system::traits::{System, SystemMut},
 };
 
 pub struct World {

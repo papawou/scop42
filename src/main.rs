@@ -28,7 +28,6 @@ use ecs::{
     component::Component,
     macros::Component,
     query::{Query, QueryMut},
-    system::{system, system_mut, System, SystemMut},
     world::World,
 };
 use ft_vk::{
