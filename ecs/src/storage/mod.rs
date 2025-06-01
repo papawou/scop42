@@ -6,17 +6,25 @@ use std::{
 };
 
 use crate::{component::Component, entity::Entity};
-///
 pub mod traits;
 
-///
-
 pub type Storage<T> = HashMap<Entity, T>; // T: Component
+impl<T> ComponentStorage for Storage<T>
+where
+    T: Component + 'static,
+{
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
 
 pub struct ComponentsStorage {
     pub components: HashMap<TypeId, Box<dyn ComponentStorage>>,
 }
-
 impl ComponentsStorage {
     pub fn new() -> Self {
         Self {
@@ -52,17 +60,5 @@ impl ComponentsStorage {
     }
     pub fn get_component_mut<T: Component>(&mut self, entity: &Entity) -> Option<&mut T> {
         self.get_component_storage_mut::<T>()?.get_mut(entity)
-    }
-}
-impl<T> ComponentStorage for Storage<T>
-where
-    T: Component + 'static,
-{
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
     }
 }
