@@ -17,7 +17,6 @@ where
 {
     fn run(&self, world: &ComponentsStorage);
 }
-
 impl<F, Q> IntoSystem<Q> for F
 where
     F: for<'a> Fn(Query<'a, Q>),
@@ -40,7 +39,6 @@ where
 {
     fn run(&mut self, world: &mut ComponentsStorage);
 }
-
 impl<F, Q> IntoSystemMut<Q> for F
 where
     F: for<'a> FnMut(QueryMut<'a, Q>),

@@ -1,40 +1,17 @@
-use traits::ComponentStorage;
-
-use std::{
-    any::{Any, TypeId},
-    collections::HashMap,
-};
-
-use crate::{component::Component, entity::Entity};
+use std::{any::TypeId, collections::HashMap};
 
 pub mod traits;
 
-pub type Storage<T> = HashMap<Entity, T>;
-impl<T> ComponentStorage for Storage<T>
-where
-    T: Component + 'static,
-{
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
+use traits::Resource;
 
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-}
+pub struct ResourceStorage(HashMap<TypeId, Box<dyn Resource>>);
 
-pub struct ComponentsStorage {
-    pub components: HashMap<TypeId, Box<dyn ComponentStorage>>,
-}
-
-impl ComponentsStorage {
+impl ResourceStorage {
     pub fn new() -> Self {
-        Self {
-            components: HashMap::new(),
-        }
+        Self(HashMap::new())
     }
 
-    pub fn get_component_storage<T: Component>(&self) -> Option<&Storage<T>> {
+    pub fn get_component_storage<T: Resource>(&self) -> Option<&Storage<T>> {
         let type_id = TypeId::of::<T>();
         self.components.get(&type_id)?.as_any().downcast_ref()
     }
