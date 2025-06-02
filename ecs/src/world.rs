@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{
     entity::Entity,
     resource::ResourceStorage,
@@ -10,9 +8,9 @@ use crate::{
 pub struct World {
     next_entity: usize,
     pub components: ComponentsStorage,
+    pub resources: ResourceStorage,
     systems: Vec<Box<dyn System>>,
     systems_mut: Vec<Box<dyn SystemMut>>,
-    pub resources: ResourceStorage,
 }
 
 impl World {
@@ -22,7 +20,7 @@ impl World {
             components: ComponentsStorage::new(),
             systems: Vec::new(),
             systems_mut: Vec::new(),
-            resources: HashMap::new(),
+            resources: ResourceStorage::new(),
         }
     }
 

@@ -7,10 +7,7 @@ use crate::{
     storage::ComponentsStorage,
 };
 
-///
 pub mod traits;
-
-///
 
 // FnSystem
 pub struct FnSystem<Q, F>(pub F, pub PhantomData<Q>);

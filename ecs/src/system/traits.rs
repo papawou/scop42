@@ -4,6 +4,7 @@ use crate::{
         Query, QueryMut,
     },
     storage::ComponentsStorage,
+    world::World,
 };
 
 // System
@@ -49,3 +50,12 @@ where
         (self)(query);
     }
 }
+
+// SystemParam
+pub trait SystemParam<'a> {
+    type Param;
+
+    fn fetch(world: &'a World) -> Self::Param;
+}
+
+impl SystemParam for 
