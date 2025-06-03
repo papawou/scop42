@@ -1,6 +1,7 @@
 #![allow(warnings)]
 
 mod camera;
+mod components;
 mod conf;
 mod ft_vk;
 mod helpers;
@@ -27,7 +28,8 @@ use camera::Camera;
 use ecs::{
     component::Component,
     macros::Component,
-    query::{Query, QueryMut},
+    resource::ResourceStorage,
+    storage::ComponentsStorage,
     system::{system, system_mut},
     world::World,
 };
@@ -47,6 +49,8 @@ use obj_asset::{ObjAssetBuilder, ObjRaw};
 use renderer::MeshRenderer;
 use vertex::Vertex;
 use winit::{event_loop::EventLoop, keyboard::KeyCode};
+
+use crate::components::Position;
 //platform::wayland::WindowBuilderExtWayland
 
 fn main() -> anyhow::Result<()> {
@@ -65,15 +69,6 @@ fn main() -> anyhow::Result<()> {
         .build(&event_loop)?;
 
     let mut engine = ft_vk::Engine::new(entry, &window);
-
-    //MESH RENDERER
-    // let mut test = me sh::load_default_mesh(
-    //     &engine.device,
-    //     engine.allocator.as_mut().unwrap(),
-    //     engine.graphics_queue,
-    //     engine.frames[0].command_buffer,
-    //     engine.frames[0].command_pool,
-    // );
 
     // assets
     let obj = {
@@ -139,34 +134,22 @@ fn main() -> anyhow::Result<()> {
         &pipeline_layout,
     );
 
-    // camera
-    struct Scene {
-        material: Option<Material<material::Pipeline>>,
-    };
-
-    //let mut input = input::winit::WinitInputManager::new();
-
-    let mut camera = Camera::new(glam::Vec3 {
-        z: 2.0f32,
-        ..glam::Vec3::ZERO
-    });
-
-    // let sensibility: f32 = 1.0f32; // needed because cursor_motion's units is platform-specific
-    // let cursor_motion: glam::Vec3 = glam::Vec3::ONE;
-
-    // let cursor_vel: glam::Vec3 = glam::Vec3::ONE;
-    // let cursor_rot: glam::Quat = Quat::IDENTITY; // perpendicular axis to cursor_vel (direction is defined by cursor_vel's positivity)
-
     let mut world = World::new();
-    {
-        let pos = Position { 0: Vec3::ONE };
-        let test_entity = world.spawn();
-        world.components.add_component(&test_entity, pos);
+
+    let camera = {
+        let entity = world.spawn();
+        world
+            .components
+            .add_component(&entity, components::Position(Vec3::ZERO));
+
         world.add_system(system(a_system));
         world.add_system_mut(system_mut(a_mut_system));
-    }
+
+        entity
+    };
 
     let mut recorder = InputRecorder::new();
+
     {
         // closure data
         let mut material = Some(material);
@@ -185,16 +168,10 @@ fn main() -> anyhow::Result<()> {
                             unsafe { engine.device.device_wait_idle() }.unwrap();
                         }
 
-                        // MOUSE CONTROLS
+                        // DEVICE
                         winit::event::Event::DeviceEvent { event, .. } => match event {
                             winit::event::DeviceEvent::MouseMotion { delta } => {
                                 //dbg!("{:?}", delta);
-
-                                // if  input.is_pressed(winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode:));{}
-
-                                //1 gather all delta => give a vector
-                                // should be seens as the mouse acceleration ? (= rotation acceleration (impulse) ?)
-                                //2 this vector translate to a rotation to apply in space's object
                             }
                             _ => {}
                         },
@@ -206,11 +183,9 @@ fn main() -> anyhow::Result<()> {
                                     let new_size = window.inner_size();
 
                                     unsafe { engine.device.device_wait_idle().unwrap() }; // FLOW CONTROL wait for device no more work
-
                                     unsafe {
                                         engine.handle_resize((new_size.width, new_size.height))
                                     };
-
                                     material = Some(
                                         material
                                             .take()
@@ -233,7 +208,14 @@ fn main() -> anyhow::Result<()> {
                                     pipeline_layout: &pipeline_layout,
                                     push_constants: {
                                         Some(MeshConstants {
-                                            render_matrix: update_camera(&engine, camera.position),
+                                            render_matrix: update_camera(
+                                                engine.swapchain.aspect_ratio(),
+                                                world
+                                                    .components
+                                                    .get_component::<Position>(&camera)
+                                                    .unwrap()
+                                                    .0,
+                                            ),
                                             vertex_buffer: mesh
                                                 .vertex_buffer
                                                 .as_ref()
@@ -251,7 +233,7 @@ fn main() -> anyhow::Result<()> {
                             winit::event::WindowEvent::Resized(_) => require_resize = true,
                             winit::event::WindowEvent::CloseRequested => elwt.exit(),
 
-                            // CONTROLS
+                            // KEYBOARD EVENTSs
                             winit::event::WindowEvent::KeyboardInput {
                                 event:
                                     winit::event::KeyEvent {
@@ -306,20 +288,11 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn update_camera<'a>(engine: &Engine, camera_pos: glam::Vec3) -> Mat4 {
-    let elapsed = engine.start_instant.elapsed().as_secs_f32();
-
-    let cam_pos = camera_pos;
-    let cam_target = glam::Vec3::new(0.0, 0.0, 0.0);
-    let cam_up = glam::Vec3::new(0.0, 1.0, 0.0);
-
-    let view = glam::Mat4::look_at_rh(cam_pos, cam_target, cam_up);
-    let projection = glam::Mat4::perspective_rh(
-        70.0_f32.to_radians(),
-        engine.swapchain.extent.width as f32 / engine.swapchain.extent.height as f32,
-        0.1,
-        200.0,
-    );
+fn update_camera(aspect_ra tio: f32, pos: glam::Vec3) -> Mat4 {
+    let target = glam::Vec3::new(0.0, 0.0, 0.0);
+    let up = glam::Vec3::new(0.0, 1.0, 0.0);
+    let view = glam::Mat4::look_at_rh(pos, target, up);
+    let projection = glam::Mat4::perspective_rh(70.0_f32.to_radians(), aspect_ratio, 0.1, 200.0);
 
     let fix_upside = glam::Mat4 {
         y_axis: glam::vec4(0.0, -1.0, 0.0, 0.0),
@@ -328,17 +301,6 @@ fn update_camera<'a>(engine: &Engine, camera_pos: glam::Vec3) -> Mat4 {
     projection * fix_upside * view
 }
 
-#[derive(Component, Debug)]
-struct Position(Vec3);
+fn a_system(components: &ComponentsStorage, resources: &ResourceStorage) {}
 
-fn a_system(query: Query<'_, &Position>) {
-    for (entity, position) in query {
-        println!("{:?}", position)
-    }
-}
-
-fn a_mut_system(query: QueryMut<'_, &mut Position>) {
-    for (entity, position) in query {
-        position.0 = position.0 + Vec3::ONE;
-    }
-}
+fn a_mut_system(components: &mut ComponentsStorage, resources: &mut ResourceStorage) {}

@@ -138,6 +138,10 @@ impl Swapchain {
         }
     }
 
+    pub fn aspect_ratio(&self) -> f32 {
+        self.extent.width as f32 / self.extent.height as f32
+    }
+
     //self dropped because shoud not be used more
     pub fn destroy(
         self,

@@ -2,7 +2,7 @@ use crate::{
     entity::Entity,
     resource::ResourceStorage,
     storage::ComponentsStorage,
-    system::traits::{System, SystemMut},
+    system::{System, SystemMut},
 };
 
 pub struct World {
@@ -32,11 +32,11 @@ impl World {
 
     pub fn run_systems(&mut self) {
         for system in &self.systems {
-            system.run(&mut self.components);
+            system.run(&self.components, &self.resources);
         }
 
         for system in &mut self.systems_mut {
-            system.run(&mut self.components);
+            system.run(&mut self.components, &mut self.resources);
         }
     }
 
