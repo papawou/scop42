@@ -1,6 +1,5 @@
 #![allow(warnings)]
 
-mod camera;
 mod components;
 mod conf;
 mod ft_vk;
@@ -14,6 +13,8 @@ mod mesh_constants;
 pub mod obj_asset;
 mod physics;
 mod renderer;
+mod systems;
+pub mod todo;
 mod traits;
 mod vertex;
 
@@ -24,9 +25,9 @@ use std::{
 
 use anyhow::Ok;
 use ash::vk::{self};
-use camera::Camera;
 use ecs::{
     component::Component,
+    entity::Entity,
     macros::Component,
     resource::ResourceStorage,
     storage::ComponentsStorage,
@@ -50,7 +51,8 @@ use renderer::MeshRenderer;
 use vertex::Vertex;
 use winit::{event_loop::EventLoop, keyboard::KeyCode};
 
-use crate::components::Position;
+use crate::todo::on_resize;
+
 //platform::wayland::WindowBuilderExtWayland
 
 fn main() -> anyhow::Result<()> {
@@ -137,13 +139,23 @@ fn main() -> anyhow::Result<()> {
     let mut world = World::new();
 
     let camera = {
-        let entity = world.spawn();
+        let entity = world.spawn(Some(ecs::EntityTag::Camera));
         world
             .components
             .add_component(&entity, components::Position(Vec3::ZERO));
+        world.components.add_component(
+            &entity,
+            components::Camera {
+                aspect_ratio: engine.swapchain.aspect_ratio(),
+                look_at: None,
+                fov: 70.0f32,
+                near: 0.1f32,
+                far: 1.0f32,
+            },
+        );
 
-        world.add_system(system(a_system));
-        world.add_system_mut(system_mut(a_mut_system));
+        world.add_system(system(systems::a_system));
+        world.add_system_mut(system_mut(systems::a_mut_system));
 
         entity
     };
@@ -170,9 +182,7 @@ fn main() -> anyhow::Result<()> {
 
                         // DEVICE
                         winit::event::Event::DeviceEvent { event, .. } => match event {
-                            winit::event::DeviceEvent::MouseMotion { delta } => {
-                                //dbg!("{:?}", delta);
-                            }
+                            winit::event::DeviceEvent::MouseMotion { delta } => {}
                             _ => {}
                         },
 
@@ -186,6 +196,9 @@ fn main() -> anyhow::Result<()> {
                                     unsafe {
                                         engine.handle_resize((new_size.width, new_size.height))
                                     };
+
+                                    on_resize(&mut world, &engine);
+
                                     material = Some(
                                         material
                                             .take()
@@ -212,7 +225,7 @@ fn main() -> anyhow::Result<()> {
                                                 engine.swapchain.aspect_ratio(),
                                                 world
                                                     .components
-                                                    .get_component::<Position>(&camera)
+                                                    .get_component::<components::Position>(&camera)
                                                     .unwrap()
                                                     .0,
                                             ),
@@ -226,8 +239,8 @@ fn main() -> anyhow::Result<()> {
                                         })
                                     },
                                 };
-
                                 require_resize = unsafe { engine.draw_frame(&renderer) };
+
                                 window.request_redraw();
                             }
                             winit::event::WindowEvent::Resized(_) => require_resize = true,
@@ -288,8 +301,7 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn update_camera(aspect_ra tio: f32, pos: glam::Vec3) -> Mat4 {
-    let target = glam::Vec3::new(0.0, 0.0, 0.0);
+fn update_camera(aspect_ratio: f32, pos: glam::Vec3) -> Mat4 {
     let up = glam::Vec3::new(0.0, 1.0, 0.0);
     let view = glam::Mat4::look_at_rh(pos, target, up);
     let projection = glam::Mat4::perspective_rh(70.0_f32.to_radians(), aspect_ratio, 0.1, 200.0);
@@ -300,7 +312,3 @@ fn update_camera(aspect_ra tio: f32, pos: glam::Vec3) -> Mat4 {
     };
     projection * fix_upside * view
 }
-
-fn a_system(components: &ComponentsStorage, resources: &ResourceStorage) {}
-
-fn a_mut_system(components: &mut ComponentsStorage, resources: &mut ResourceStorage) {}

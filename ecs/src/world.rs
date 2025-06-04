@@ -1,5 +1,7 @@
+use std::collections::HashMap;
+
 use crate::{
-    entity::Entity,
+    entity::{Entity, EntityTag},
     resource::ResourceStorage,
     storage::ComponentsStorage,
     system::{System, SystemMut},
@@ -11,6 +13,7 @@ pub struct World {
     pub resources: ResourceStorage,
     systems: Vec<Box<dyn System>>,
     systems_mut: Vec<Box<dyn SystemMut>>,
+    pub entities: HashMap<EntityTag, Entity>,
 }
 
 impl World {
@@ -21,13 +24,17 @@ impl World {
             systems: Vec::new(),
             systems_mut: Vec::new(),
             resources: ResourceStorage::new(),
+            entities: HashMap::new(),
         }
     }
 
-    pub fn spawn(&mut self) -> Entity {
-        let e = Entity(self.next_entity);
+    pub fn spawn(&mut self, entity_tag: Option<EntityTag>) -> Entity {
+        let entity = Entity(self.next_entity);
         self.next_entity += 1;
-        e
+        if let Some(entity_tag) = entity_tag {
+            self.entities.insert(entity_tag, entity);
+        }
+        entity
     }
 
     pub fn run_systems(&mut self) {

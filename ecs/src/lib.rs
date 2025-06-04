@@ -6,3 +6,5 @@ pub mod system;
 pub mod world;
 
 pub use macros;
+
+pub use entity::{Entity, EntityTag};

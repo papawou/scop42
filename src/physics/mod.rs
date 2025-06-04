@@ -3,6 +3,8 @@ use std::{
     time::Duration,
 };
 
+mod conf;
+
 use glam::Vec3;
 
 struct Engine {
@@ -13,25 +15,21 @@ struct Engine {
     last_update: std::time::Instant,
 }
 
-const MAX_FRAME_TIME: Duration = Duration::from_millis(250); //ms
-
-const PHYSICS_FPS: Duration = Duration::from_millis(16); // 60fps (1/60)
-
 impl Engine {
     pub fn update(&mut self) {
-        let frame_time = self.last_update.elapsed().min(MAX_FRAME_TIME);
+        let frame_time = self.last_update.elapsed().min(conf::MAX_FRAME_TIME);
         self.last_update = std::time::Instant::now();
 
         self.frame_time_acc = self.frame_time_acc.add(frame_time);
 
-        while (self.frame_time_acc >= PHYSICS_FPS) {
+        while (self.frame_time_acc >= conf::PHYSICS_FPS) {
             // do your physics brah
 
-            self.frame_time_acc = self.frame_time_acc.sub(PHYSICS_FPS);
+            self.frame_time_acc = self.frame_time_acc.sub(conf::PHYSICS_FPS);
         }
 
         // PREV STATE - RENDER STATE - (FINAL) STATE
-        let alpha = self.frame_time_acc.div_duration_f64(PHYSICS_FPS);
+        let alpha = self.frame_time_acc.div_duration_f64(conf::PHYSICS_FPS);
 
         // do your render state using alpha brah
     }

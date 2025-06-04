@@ -260,7 +260,7 @@ impl Engine {
             Err(vk::Result::ERROR_OUT_OF_DATE_KHR) | Err(vk::Result::SUBOPTIMAL_KHR) => {
                 return true
             }
-            Err(e) => panic!("{}", e),
+            Err(e) => panic!("{:?}", e),
         };
 
         let framebuffer = self.framebuffers[swapchain_image_idx as usize];
@@ -310,7 +310,7 @@ impl Engine {
             Err(vk::Result::ERROR_OUT_OF_DATE_KHR) | Err(vk::Result::SUBOPTIMAL_KHR) => {
                 return true
             }
-            Err(e) => panic!("{}", e),
+            Err(e) => panic!("{:?}", e),
             _ => (),
         };
 
