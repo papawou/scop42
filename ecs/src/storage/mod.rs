@@ -48,9 +48,9 @@ impl ComponentsStorage {
             .or_insert_with(|| Box::new(Storage::<T>::new()));
 
         let storage = self.get_component_storage_mut::<T>().unwrap();
-        storage.insert(*entity, component);
+        storage.insert(entity.clone(), component);
     }
-    pub fn get_component<T: Component>(&mut self, entity: &Entity) -> Option<&T> {
+    pub fn get_component<T: Component>(&self, entity: &Entity) -> Option<&T> {
         self.get_component_storage::<T>()?.get(entity)
     }
     pub fn get_component_mut<T: Component>(&mut self, entity: &Entity) -> Option<&mut T> {

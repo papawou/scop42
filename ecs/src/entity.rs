@@ -1,8 +1,7 @@
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct Entity(pub usize);
-
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
-pub enum EntityTag {
+pub enum Entity {
     Camera,
+    Origin,
     Custom(String),
+    Id(usize),
 }

@@ -14,9 +14,9 @@ pub mod obj_asset;
 mod physics;
 mod renderer;
 mod systems;
-pub mod todo;
 mod traits;
 mod vertex;
+mod window;
 
 use std::{
     path::{self, Path},
@@ -49,9 +49,12 @@ use mesh_constants::MeshConstants;
 use obj_asset::{ObjAssetBuilder, ObjRaw};
 use renderer::MeshRenderer;
 use vertex::Vertex;
-use winit::{event_loop::EventLoop, keyboard::KeyCode};
+use winit::{dpi::PhysicalSize, event_loop::EventLoop, keyboard::KeyCode};
 
-use crate::todo::on_resize;
+use crate::{
+    components::{Camera, Direction, Position},
+    material::Pipeline,
+};
 
 //platform::wayland::WindowBuilderExtWayland
 
@@ -136,28 +139,43 @@ fn main() -> anyhow::Result<()> {
         &pipeline_layout,
     );
 
-    let mut world = World::new();
+    let mut world = {
+        let mut world = World::new();
 
-    let camera = {
-        let entity = world.spawn(Some(ecs::EntityTag::Camera));
+        {
+            //Systems
+            world.add_system(system(systems::a_system));
+            world.add_system_mut(system_mut(systems::a_mut_system));
+        }
+        {
+            //Origin entity
+            world.spawn(Some(Entity::Origin));
+            world
+                .components
+                .add_component::<Position>(&Entity::Origin, Position(Vec3::ZERO));
+        }
+        {
+            //Camera entity
+            world.spawn(Some(ecs::Entity::Camera)).unwrap();
+            world.components.add_component(
+                &Entity::Camera,
+                components::Position(Vec3::ZERO.with_z(5.0f32)),
+            );
+            world.components.add_component(
+                &Entity::Camera,
+                components::Camera {
+                    aspect_ratio: engine.swapchain.aspect_ratio(),
+                    look_at: Some(Entity::Origin),
+                    fov: 90.0f32,
+                    near: 0.1f32,
+                    far: 200.0f32,
+                },
+            );
+            world
+                .components
+                .add_component(&Entity::Camera, components::Direction(Quat::IDENTITY));
+        }
         world
-            .components
-            .add_component(&entity, components::Position(Vec3::ZERO));
-        world.components.add_component(
-            &entity,
-            components::Camera {
-                aspect_ratio: engine.swapchain.aspect_ratio(),
-                look_at: None,
-                fov: 70.0f32,
-                near: 0.1f32,
-                far: 1.0f32,
-            },
-        );
-
-        world.add_system(system(systems::a_system));
-        world.add_system_mut(system_mut(systems::a_mut_system));
-
-        entity
     };
 
     let mut recorder = InputRecorder::new();
@@ -167,7 +185,7 @@ fn main() -> anyhow::Result<()> {
         let mut material = Some(material);
 
         // loop logic
-        let mut require_resize = true;
+        let mut require_resize: Option<window::Size> = None;
         let mut last_update = std::time::Instant::now();
 
         event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
@@ -179,41 +197,60 @@ fn main() -> anyhow::Result<()> {
                         winit::event::Event::LoopExiting => {
                             unsafe { engine.device.device_wait_idle() }.unwrap();
                         }
-
                         // DEVICE
                         winit::event::Event::DeviceEvent { event, .. } => match event {
                             winit::event::DeviceEvent::MouseMotion { delta } => {}
                             _ => {}
                         },
-
                         winit::event::Event::WindowEvent { event, .. } => match event {
                             // WINDOW
                             winit::event::WindowEvent::RedrawRequested => {
-                                if require_resize {
-                                    let new_size = window.inner_size();
+                                let render_matrix = {
+                                    let position = world
+                                        .components
+                                        .get_component::<Position>(&Entity::Camera)
+                                        .unwrap();
+                                    let direction = world
+                                        .components
+                                        .get_component::<Direction>(&Entity::Camera)
+                                        .unwrap_or(&Direction(Quat::IDENTITY));
+                                    let camera = world
+                                        .components
+                                        .get_component::<Camera>(&Entity::Camera)
+                                        .unwrap();
 
-                                    unsafe { engine.device.device_wait_idle().unwrap() }; // FLOW CONTROL wait for device no more work
-                                    unsafe {
-                                        engine.handle_resize((new_size.width, new_size.height))
+                                    let view = {
+                                        match &camera.look_at {
+                                            Some(target_entity) => {
+                                                let target_position = world
+                                                    .components
+                                                    .get_component::<Position>(&target_entity)
+                                                    .unwrap();
+
+                                                glam::Mat4::look_at_rh(
+                                                    position.0,
+                                                    target_position.0,
+                                                    glam::Vec3::Y,
+                                                )
+                                            }
+                                            None => glam::Mat4::from_quat(direction.0),
+                                        }
                                     };
 
-                                    on_resize(&mut world, &engine);
-
-                                    material = Some(
-                                        material
-                                            .take()
-                                            .unwrap()
-                                            .unload_pipeline(&engine.device)
-                                            .load_pipeline(
-                                                &engine.device,
-                                                engine.render_pass,
-                                                engine.swapchain.extent,
-                                                &pipeline_layout,
-                                            ),
+                                    let projection = glam::Mat4::perspective_rh(
+                                        camera.fov.to_radians(),
+                                        camera.aspect_ratio,
+                                        camera.near,
+                                        camera.far,
                                     );
 
-                                    require_resize = false;
-                                }
+                                    let fix_upside = glam::Mat4 {
+                                        y_axis: glam::Vec4::NEG_Y,
+                                        ..glam::Mat4::IDENTITY
+                                    };
+
+                                    projection * fix_upside * view
+                                };
 
                                 let renderer = MeshRenderer {
                                     material: material.as_ref().unwrap(),
@@ -221,14 +258,7 @@ fn main() -> anyhow::Result<()> {
                                     pipeline_layout: &pipeline_layout,
                                     push_constants: {
                                         Some(MeshConstants {
-                                            render_matrix: update_camera(
-                                                engine.swapchain.aspect_ratio(),
-                                                world
-                                                    .components
-                                                    .get_component::<components::Position>(&camera)
-                                                    .unwrap()
-                                                    .0,
-                                            ),
+                                            render_matrix,
                                             vertex_buffer: mesh
                                                 .vertex_buffer
                                                 .as_ref()
@@ -239,14 +269,31 @@ fn main() -> anyhow::Result<()> {
                                         })
                                     },
                                 };
-                                require_resize = unsafe { engine.draw_frame(&renderer) };
+
+                                match unsafe { engine.draw_frame(&renderer) } {
+                                    Err(vk::Result::ERROR_OUT_OF_DATE_KHR)
+                                    | Err(vk::Result::SUBOPTIMAL_KHR) => {
+                                        let window_size = window.inner_size();
+                                        require_resize = Some(window::Size {
+                                            width: window_size.width,
+                                            height: window_size.height,
+                                        });
+                                    }
+                                    Err(e) => panic!("{:?}", e),
+                                    _ => {}
+                                }
 
                                 window.request_redraw();
                             }
-                            winit::event::WindowEvent::Resized(_) => require_resize = true,
+                            winit::event::WindowEvent::Resized(new_size) => {
+                                require_resize = Some(window::Size {
+                                    width: new_size.width,
+                                    height: new_size.height,
+                                });
+                            }
                             winit::event::WindowEvent::CloseRequested => elwt.exit(),
 
-                            // KEYBOARD EVENTSs
+                            // KEYBOARD EVENTS
                             winit::event::WindowEvent::KeyboardInput {
                                 event:
                                     winit::event::KeyEvent {
@@ -265,12 +312,22 @@ fn main() -> anyhow::Result<()> {
                                     }
                                 };
                                 window.request_redraw();
-                                world.run_systems();
                             }
                             _ => {}
                         },
                         _ => {}
                     };
+
+                    if let Some(new_size) = require_resize {
+                        on_resize(
+                            &mut material,
+                            &pipeline_layout,
+                            &mut world,
+                            &mut engine,
+                            new_size,
+                        );
+                        require_resize = None;
+                    }
                 },
             )
             .unwrap();
@@ -280,35 +337,60 @@ fn main() -> anyhow::Result<()> {
             .unload_pipeline(&engine.device)
             .destroy(engine.allocator.as_ref().unwrap());
     }
+    // clean
+    {
+        unsafe {
+            engine
+                .device
+                .destroy_descriptor_set_layout(material_set_layout, None)
+        };
 
-    unsafe {
-        engine
-            .device
-            .destroy_descriptor_set_layout(material_set_layout, None)
-    };
+        if let Some(allocator) = &engine.allocator {
+            mesh.unload(&allocator);
+        }
+        unsafe {
+            engine
+                .device
+                .destroy_pipeline_layout(pipeline_layout.as_vk(), None)
+        };
 
-    if let Some(allocator) = &engine.allocator {
-        mesh.unload(&allocator);
+        unsafe { engine.destroy() };
     }
-    unsafe {
-        engine
-            .device
-            .destroy_pipeline_layout(pipeline_layout.as_vk(), None)
-    };
-
-    unsafe { engine.destroy() };
 
     Ok(())
 }
 
-fn update_camera(aspect_ratio: f32, pos: glam::Vec3) -> Mat4 {
-    let up = glam::Vec3::new(0.0, 1.0, 0.0);
-    let view = glam::Mat4::look_at_rh(pos, target, up);
-    let projection = glam::Mat4::perspective_rh(70.0_f32.to_radians(), aspect_ratio, 0.1, 200.0);
+fn on_resize<TPipelineLayout>(
+    material: &mut Option<Material<Pipeline>>,
+    pipeline_layout: &PipelineLayout<TPipelineLayout>,
+    world: &mut World,
+    engine: &mut Engine,
+    new_size: window::Size,
+) {
+    // Engine
+    unsafe { engine.device.device_wait_idle() };
+    unsafe { engine.handle_resize((new_size.width, new_size.height)) };
 
-    let fix_upside = glam::Mat4 {
-        y_axis: glam::vec4(0.0, -1.0, 0.0, 0.0),
-        ..glam::Mat4::IDENTITY
-    };
-    projection * fix_upside * view
+    // Material
+    *material = Some(
+        material
+            .take()
+            .unwrap()
+            .unload_pipeline(&engine.device)
+            .load_pipeline(
+                &engine.device,
+                engine.render_pass,
+                engine.swapchain.extent,
+                pipeline_layout,
+            ),
+    );
+
+    // Camera component
+    world
+        .components
+        .get_component_mut::<components::Camera>(&Entity::Camera)
+        .unwrap()
+        .aspect_ratio = engine.swapchain.aspect_ratio();
 }
+
+fn camera_move(world: &mut World) {}

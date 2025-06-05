@@ -7,4 +7,4 @@ pub mod world;
 
 pub use macros;
 
-pub use entity::{Entity, EntityTag};
+pub use entity::Entity;

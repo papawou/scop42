@@ -18,7 +18,7 @@ mod surface_support;
 mod swapchain;
 
 use ash::vk::{self};
-use std::time::Instant;
+use std::{error::Error, time::Instant};
 use vk_mem::Alloc;
 use winit::raw_window_handle::HasRawWindowHandle;
 
@@ -236,7 +236,7 @@ impl Engine {
         }
     }
 
-    pub unsafe fn draw_frame(&mut self, renderer: &impl Renderer) -> bool {
+    pub unsafe fn draw_frame(&mut self, renderer: &impl Renderer) -> Result<(), vk::Result> {
         self.frame_count += 1;
         let FrameData {
             command_buffer: cmd,
@@ -250,18 +250,15 @@ impl Engine {
             .wait_for_fences(&[fence], true, u64::MAX)
             .unwrap();
 
-        let swapchain_image_idx = match self.swapchain_loader.acquire_next_image(
-            self.swapchain.chain,
-            u64::MAX,
-            present_semaphore,
-            vk::Fence::null(),
-        ) {
-            Result::Ok((image_index, _)) => image_index,
-            Err(vk::Result::ERROR_OUT_OF_DATE_KHR) | Err(vk::Result::SUBOPTIMAL_KHR) => {
-                return true
-            }
-            Err(e) => panic!("{:?}", e),
-        };
+        let swapchain_image_idx = self
+            .swapchain_loader
+            .acquire_next_image(
+                self.swapchain.chain,
+                u64::MAX,
+                present_semaphore,
+                vk::Fence::null(),
+            )?
+            .0;
 
         let framebuffer = self.framebuffers[swapchain_image_idx as usize];
 
@@ -303,18 +300,10 @@ impl Engine {
             .swapchains(&swapchains)
             .wait_semaphores(&render_semaphores)
             .image_indices(&image_indices);
-        match self
-            .swapchain_loader
-            .queue_present(self.graphics_queue, &present_info)
-        {
-            Err(vk::Result::ERROR_OUT_OF_DATE_KHR) | Err(vk::Result::SUBOPTIMAL_KHR) => {
-                return true
-            }
-            Err(e) => panic!("{:?}", e),
-            _ => (),
-        };
+        self.swapchain_loader
+            .queue_present(self.graphics_queue, &present_info)?;
 
-        false
+        Ok(())
     }
 
     pub unsafe fn destroy(mut self) {
