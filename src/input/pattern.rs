@@ -21,8 +21,8 @@ pub enum State {
 
 #[derive(Debug)]
 pub struct Event {
-    state: State,
-    duration: Duration,
+    pub state: State,
+    pub duration: Duration,
 }
 impl Event {
     pub fn new() -> Self {
@@ -92,7 +92,7 @@ impl Event {
 
 #[derive(Debug)]
 pub struct Pattern {
-    events: Vec<Event>,
+    pub events: Vec<Event>,
 }
 impl Default for Pattern {
     fn default() -> Self {
@@ -190,8 +190,6 @@ impl Pattern {
     }
 }
 
-pub type InputSequence = HashMap<KeyCode, Pattern>;
-
 // --+--- b
 // -+-
 
@@ -222,85 +220,6 @@ pub fn pattern_match(pattern_a: &Pattern, pattern_b: &Pattern) -> bool {
 
         if iter_b.peek().is_none() {
             return true;
-        }
-    }
-
-    false
-}
-
-/**
- * clean pattern: trim VOID, merge consecutive State
- */
-pub fn record_match(events: &Vec<InputEnum>, pattern: &Pattern) -> bool {
-    let base_instant = Instant::now();
-    for (i, _) in events.iter().enumerate() {
-        let mut events_it = events[i..].iter().peekable();
-        let mut pattern_it = pattern.events.iter().peekable();
-
-        while let (Some(pat), Some(evt)) = (pattern_it.next(), events_it.next()) {
-            let right_evt = events_it.peek();
-            let right_pat = pattern_it.peek();
-
-            let duration_e: Option<Duration> = {
-                match events_it.peek() {
-                    None => None, // last right_e
-                    Some(right_evt) => Some(right_evt.at().duration_since(evt.at())),
-                }
-            };
-        }
-
-        if pattern_it.next().is_none() {
-            return true;
-        }
-    }
-
-    false
-}
-
-pub fn test(sequence: &Vec<InputEnum>, pattern: &Pattern) -> bool {
-    struct Candidate {
-        at_range: (Instant, Instant),
-        last_index: usize, // last index matching pattern
-    }
-    let candidates: Vec<Candidate> = vec![];
-    let mut sequence = sequence.iter().peekable();
-
-    while let Some(event) = sequence.next() {
-        let Some(next_event) = sequence.peek() else {
-            continue;
-        };
-        let mut new_candidates: Vec<Candidate> = vec![];
-
-        for candidate in &candidates {
-            match (event, pattern.events.get(candidate.last_index + 1)) {
-                (
-                    InputEnum::Down(_),
-                    Some(Event {
-                        state: State::DOWN,
-                        duration: duration_pattern,
-                    }),
-                )
-                | (
-                    InputEnum::Up(_),
-                    Some(Event {
-                        state: State::UP,
-                        duration: duration_pattern,
-                    }),
-                ) => {
-                    if event.at() < candidate.at_range.0 && candidate.at_range.1 < event.at() {
-                        // event at_start doesn't fit in candidate.at_range
-                    }
-
-                    new_candidates.push(Candidate {
-                        at_range: (event.at(), event.at()),
-                        last_index: candidate.last_index + 1,
-                    })
-                }
-                (_, None) => {
-                    return true;
-                }
-                _ => {}
-            }
         }
     }
 

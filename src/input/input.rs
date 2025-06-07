@@ -53,7 +53,7 @@ impl<T: Releasable> Releasable for Input<T> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum InputEnum {
     Down(Down),
     Up(Up),

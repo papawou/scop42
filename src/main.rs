@@ -20,6 +20,7 @@ mod window;
 
 use std::{
     path::{self, Path},
+    rc::Rc,
     time::{Duration, Instant},
 };
 
@@ -52,7 +53,8 @@ use vertex::Vertex;
 use winit::{dpi::PhysicalSize, event_loop::EventLoop, keyboard::KeyCode};
 
 use crate::{
-    components::{Camera, Direction, Position},
+    components::{Camera, Direction, PhysicsBody, Position},
+    input::recorder_to_queue,
     material::Pipeline,
 };
 
@@ -139,6 +141,8 @@ fn main() -> anyhow::Result<()> {
         &pipeline_layout,
     );
 
+    let mut recorder = InputRecorder::new();
+
     let mut world = {
         let mut world = World::new();
 
@@ -174,11 +178,51 @@ fn main() -> anyhow::Result<()> {
             world
                 .components
                 .add_component(&Entity::Camera, components::Direction(Quat::IDENTITY));
+
+            world.components.add_component(
+                &Entity::Camera,
+                components::Input(Rc::new(|entity, world| {
+                    let input_recorder = world
+                        .resources
+                        .get::<InputRecorder>()
+                        .ok()
+                        .flatten()
+                        .unwrap();
+                    let physics_body = world
+                        .components
+                        .get_component_mut::<PhysicsBody>(&entity)
+                        .unwrap();
+
+                    let queue = recorder_to_queue(&input_recorder);
+
+                    for (keycode, instant) in queue {
+                        match keycode {
+                            KeyCode::KeyW => {
+                                physics_body.velocity += Vec3::Z * 0.1;
+                            }
+                            KeyCode::KeyS => {
+                                physics_body.velocity -= Vec3::Z * 0.1;
+                            }
+                            KeyCode::KeyA => {
+                                physics_body.velocity -= Vec3::X * 0.1;
+                            }
+                            KeyCode::KeyD => {
+                                physics_body.velocity += Vec3::X * 0.1;
+                            }
+                            KeyCode::Space => {
+                                physics_body.velocity += Vec3::Y * 0.1;
+                            }
+                            KeyCode::ControlLeft => {
+                                physics_body.velocity -= Vec3::Y * 0.1;
+                            }
+                            _ => {}
+                        }
+                    }
+                })),
+            );
         }
         world
     };
-
-    let mut recorder = InputRecorder::new();
 
     {
         // closure data
@@ -385,7 +429,7 @@ fn on_resize<TPipelineLayout>(
             ),
     );
 
-    // Camera component
+    // Camera
     world
         .components
         .get_component_mut::<components::Camera>(&Entity::Camera)
@@ -393,4 +437,15 @@ fn on_resize<TPipelineLayout>(
         .aspect_ratio = engine.swapchain.aspect_ratio();
 }
 
-fn camera_move(world: &mut World) {}
+fn process_input(world: &mut World, engine: &mut Engine) {
+    let storage = world
+        .components
+        .get_component_storage::<components::Input>()
+        .cloned();
+
+    if let Some(storage) = storage {
+        for (entity, input) in storage {
+            input.apply(&entity, world);
+        }
+    }
+}

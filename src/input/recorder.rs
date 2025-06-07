@@ -4,7 +4,7 @@ use winit::keyboard::KeyCode;
 
 use super::{
     input::{Down, Input, InputEnum, Up},
-    pattern::{InputSequence, Pattern},
+    pattern::Pattern,
     traits::Releasable,
 };
 
@@ -16,7 +16,7 @@ pub struct ALREADY_DOWN<'a>(&'a Down);
 pub struct ALREADY_UP<'a>(&'a Up);
 
 #[derive(Debug)]
-pub struct InputRecorder(HashMap<KeyCode, Vec<InputEnum>>);
+pub struct InputRecorder(pub HashMap<KeyCode, Vec<InputEnum>>);
 impl InputRecorder {
     pub fn new() -> Self {
         Self { 0: HashMap::new() }
@@ -92,36 +92,4 @@ impl InputRecorder {
             Ok(last)
         }
     }
-}
-
-// convert at, to how_long
-fn record_to_pattern(events: &Vec<InputEnum>) -> Pattern {
-    let mut pattern = Pattern::default();
-
-    let mut events_iter = events.iter();
-    let mut left = events_iter.next();
-
-    if let Some(left) = left {
-        let mut left = left;
-        for right in events_iter {
-            match (left, right) {
-                (&InputEnum::Down(_), &InputEnum::Up(_))
-                | (&InputEnum::Up(_), &InputEnum::Down(_)) => {
-                    pattern.down_mut(right.at().duration_since(left.at()));
-                    left = right;
-                }
-                _ => {}
-            }
-        }
-    }
-    pattern
-}
-
-pub fn recorder_to_sequence(recorder: &InputRecorder) -> InputSequence {
-    let mut sequence: InputSequence = InputSequence::new();
-
-    for (key, events) in recorder.0.iter() {
-        sequence.insert(*key, record_to_pattern(events));
-    }
-    sequence
 }
