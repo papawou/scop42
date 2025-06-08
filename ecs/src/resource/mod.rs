@@ -22,8 +22,9 @@ impl ResourceStorage {
 
     pub fn get<T: Resource>(&self) -> Result<Option<&T>> {
         let type_id = TypeId::of::<T>();
+
         match self.0.get(&type_id) {
-            Some(res) => match res.as_any().downcast_ref() {
+            Some(res) => match res.as_ref().as_any().downcast_ref() {
                 Some(cast) => Ok(Some(cast)),
                 None => Err(Box::new(Error::TypeMismatch)),
             },
@@ -34,7 +35,7 @@ impl ResourceStorage {
     pub fn get_mut<T: Resource>(&mut self) -> Result<Option<&mut T>> {
         let type_id = TypeId::of::<T>();
         match self.0.get_mut(&type_id) {
-            Some(res) => match res.as_any_mut().downcast_mut() {
+            Some(res) => match res.as_mut().as_any_mut().downcast_mut() {
                 Some(cast) => Ok(Some(cast)),
                 None => Err(Box::new(Error::TypeMismatch)),
             },

@@ -32,11 +32,15 @@ impl ComponentsStorage {
     // Internal storage
     pub fn get_component_storage<T: Component>(&self) -> Option<&Storage<T>> {
         let type_id = TypeId::of::<T>();
-        self.0.get(&type_id)?.as_any().downcast_ref()
+        self.0.get(&type_id)?.as_ref().as_any().downcast_ref()
     }
     pub fn get_component_storage_mut<T: Component>(&mut self) -> Option<&mut Storage<T>> {
         let type_id = TypeId::of::<T>();
-        self.0.get_mut(&type_id)?.as_any_mut().downcast_mut()
+        self.0
+            .get_mut(&type_id)?
+            .as_mut()
+            .as_any_mut()
+            .downcast_mut()
     }
 
     // Component function

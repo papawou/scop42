@@ -92,4 +92,8 @@ impl InputRecorder {
             Ok(last)
         }
     }
+
+    pub fn last(&self, code: &KeyCode) -> Option<&InputEnum> {
+        self.0.get(code)?.last()
+    }
 }

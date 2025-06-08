@@ -13,7 +13,7 @@ pub struct World {
     pub resources: ResourceStorage,
     systems: Vec<Box<dyn System>>,
     systems_mut: Vec<Box<dyn SystemMut>>,
-    entities: HashSet<Entity>,
+    pub entities: HashSet<Entity>,
 }
 
 impl World {
