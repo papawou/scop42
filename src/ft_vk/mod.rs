@@ -18,7 +18,7 @@ mod surface_support;
 mod swapchain;
 
 use ash::vk::{self};
-use std::time::Instant;
+use std::{error::Error, time::Instant};
 use vk_mem::Alloc;
 use winit::raw_window_handle::HasRawWindowHandle;
 
@@ -121,30 +121,43 @@ impl Engine {
             use winit::raw_window_handle::HasDisplayHandle;
             use winit::raw_window_handle::HasWindowHandle;
 
-            let (window_handle, display_handle) = {
-                let window_handle = window.window_handle().unwrap().as_raw();
-                let display_handle = window.display_handle().unwrap().as_raw();
-                match (window_handle, display_handle) {
-                    (
-                        winit::raw_window_handle::RawWindowHandle::Xlib(window_handle),
-                        winit::raw_window_handle::RawDisplayHandle::Xlib(display_handle),
-                    ) => (
-                        window_handle.window,
-                        display_handle
-                            .display
-                            .map(|d| d.as_ptr())
-                            .unwrap_or(std::ptr::null_mut()),
-                    ),
-                    _ => panic!("Unsupported platform!"),
+            let window_handle = window.window_handle().unwrap().as_raw();
+            let display_handle = window.display_handle().unwrap().as_raw();
+            match (window_handle, display_handle) {
+                // Xlib
+                (
+                    winit::raw_window_handle::RawWindowHandle::Xlib(window_handle),
+                    winit::raw_window_handle::RawDisplayHandle::Xlib(display_handle),
+                ) => {
+                    let window = window_handle.window;
+                    let display = display_handle
+                        .display
+                        .map(|d| d.as_ptr())
+                        .unwrap_or(std::ptr::null_mut());
+
+                    let window_info = vk::XlibSurfaceCreateInfoKHR::default()
+                        .window(window)
+                        .dpy(display);
+                    let surface_loader = ash::khr::xlib_surface::Instance::new(&entry, &instance);
+                    unsafe { surface_loader.create_xlib_surface(&window_info, None) }.unwrap()
                 }
-            };
+                // Wayland
+                (
+                    winit::raw_window_handle::RawWindowHandle::Wayland(window_handle),
+                    winit::raw_window_handle::RawDisplayHandle::Wayland(display_handle),
+                ) => {
+                    let surface = window_handle.surface.as_ptr();
+                    let display = display_handle.display.as_ptr();
 
-            let window_info = vk::XlibSurfaceCreateInfoKHR::default()
-                .window(window_handle)
-                .dpy(display_handle);
-
-            let xlib_surface_loader = ash::khr::xlib_surface::Instance::new(&entry, &instance);
-            unsafe { xlib_surface_loader.create_xlib_surface(&window_info, None) }.unwrap()
+                    let window_info = vk::WaylandSurfaceCreateInfoKHR::default()
+                        .surface(surface)
+                        .display(display);
+                    let surface_loader =
+                        ash::khr::wayland_surface::Instance::new(&entry, &instance);
+                    unsafe { surface_loader.create_wayland_surface(&window_info, None) }.unwrap()
+                }
+                _ => panic!("Unsupported platform!"),
+            }
         };
 
         // Surface
@@ -170,8 +183,7 @@ impl Engine {
                 .descriptor_count(1)],
         );
 
-        // SWAPCHAIN
-
+        // Swapchain
         let swapchain_loader = ash::khr::swapchain::Device::new(&instance, &device);
         let swapchain = Swapchain::new(
             &swapchain_loader,
@@ -224,7 +236,7 @@ impl Engine {
         }
     }
 
-    pub unsafe fn draw_frame(&mut self, renderer: &impl Renderer) -> bool {
+    pub unsafe fn draw_frame(&mut self, renderer: &impl Renderer) -> Result<(), vk::Result> {
         self.frame_count += 1;
         let FrameData {
             command_buffer: cmd,
@@ -238,18 +250,15 @@ impl Engine {
             .wait_for_fences(&[fence], true, u64::MAX)
             .unwrap();
 
-        let swapchain_image_idx = match self.swapchain_loader.acquire_next_image(
-            self.swapchain.chain,
-            u64::MAX,
-            present_semaphore,
-            vk::Fence::null(),
-        ) {
-            Result::Ok((image_index, _)) => image_index,
-            Err(vk::Result::ERROR_OUT_OF_DATE_KHR) | Err(vk::Result::SUBOPTIMAL_KHR) => {
-                return true
-            }
-            Err(e) => panic!("{}", e),
-        };
+        let swapchain_image_idx = self
+            .swapchain_loader
+            .acquire_next_image(
+                self.swapchain.chain,
+                u64::MAX,
+                present_semaphore,
+                vk::Fence::null(),
+            )?
+            .0;
 
         let framebuffer = self.framebuffers[swapchain_image_idx as usize];
 
@@ -291,18 +300,10 @@ impl Engine {
             .swapchains(&swapchains)
             .wait_semaphores(&render_semaphores)
             .image_indices(&image_indices);
-        match self
-            .swapchain_loader
-            .queue_present(self.graphics_queue, &present_info)
-        {
-            Err(vk::Result::ERROR_OUT_OF_DATE_KHR) | Err(vk::Result::SUBOPTIMAL_KHR) => {
-                return true
-            }
-            Err(e) => panic!("{}", e),
-            _ => (),
-        };
+        self.swapchain_loader
+            .queue_present(self.graphics_queue, &present_info)?;
 
-        false
+        Ok(())
     }
 
     pub unsafe fn destroy(mut self) {
@@ -411,7 +412,7 @@ fn get_physical_device(instance: &ash::Instance) -> vk::PhysicalDevice {
                 _ => None,
             }
         })
-        .unwrap(); //onpanic ? see conf::PHYSICAL_DEVICE_NAME
+        .unwrap(); //onpanic: see conf::PHYSICAL_DEVICE_NAME
 
     phys_dev
 }

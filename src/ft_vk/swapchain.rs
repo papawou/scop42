@@ -44,13 +44,12 @@ impl Swapchain {
             let mut desired_image_count = surface_support.capabilities.min_image_count + 1;
             // For `MAILBOX` present mode, we want at least 3 images for triple-buffering
             if present_mode == vk::PresentModeKHR::MAILBOX {
-                desired_image_count = 3;
+                desired_image_count = desired_image_count.max(3);
             }
             // Surface has a limit
             if surface_support.capabilities.max_image_count > 0 {
-                desired_image_count = desired_image_count
-                    .min(surface_support.capabilities.max_image_count) //minimum is max
-                    .max(surface_support.capabilities.min_image_count); //maximum is min
+                desired_image_count =
+                    desired_image_count.min(surface_support.capabilities.max_image_count)
             }
             desired_image_count
         };
@@ -137,6 +136,10 @@ impl Swapchain {
             min_image_count,
             depth_images,
         }
+    }
+
+    pub fn aspect_ratio(&self) -> f32 {
+        self.extent.width as f32 / self.extent.height as f32
     }
 
     //self dropped because shoud not be used more

@@ -1,31 +1,47 @@
 #![allow(warnings)]
 
+mod components;
 mod conf;
 mod ft_vk;
 mod helpers;
+mod input;
 pub mod material;
 mod material_asset;
 mod mesh;
 mod mesh_asset;
 mod mesh_constants;
 pub mod obj_asset;
+mod physics;
 mod renderer;
+mod systems;
 mod traits;
 mod vertex;
+mod window;
 
 use std::{
     path::{self, Path},
-    time::Duration,
+    rc::Rc,
+    time::{Duration, Instant},
 };
 
 use anyhow::Ok;
 use ash::vk::{self};
+use ecs::{
+    component::Component,
+    entity::Entity,
+    macros::Component,
+    resource::ResourceStorage,
+    storage::ComponentsStorage,
+    system::{system, system_mut},
+    world::World,
+};
 use ft_vk::{
     descriptor_allocator::DescriptorAllocator,
     descriptor_set_layout::{self, DescriptorSetLayoutCreateInfoBuilder},
-    Engine, PipelineLayout,
+    PipelineLayout,
 };
-use glam::{Mat4, Vec3};
+use glam::{Mat4, Quat, Vec3, Vec3Swizzles};
+use input::recorder::InputRecorder;
 use material::Material;
 use material_asset::MaterialAsset;
 use mesh::Mesh;
@@ -34,7 +50,15 @@ use mesh_constants::MeshConstants;
 use obj_asset::{ObjAssetBuilder, ObjRaw};
 use renderer::MeshRenderer;
 use vertex::Vertex;
-use winit::event_loop::EventLoop;
+use winit::{dpi::PhysicalSize, event_loop::EventLoop, keyboard::KeyCode};
+
+use crate::{
+    components::{Camera, Direction, PhysicsBody, Position},
+    input::{input::InputEnum, recorder, recorder_to_queue},
+    material::Pipeline,
+};
+
+//platform::wayland::WindowBuilderExtWayland
 
 fn main() -> anyhow::Result<()> {
     std::env::set_var("RUST_BACKTRACE", "full");
@@ -51,20 +75,15 @@ fn main() -> anyhow::Result<()> {
         ))
         .build(&event_loop)?;
 
-    let mut engine = ft_vk::Engine::new(entry, &window);
-
-    //MESH RENDERER
-    // let mut test = mesh::load_default_mesh(
-    //     &engine.device,
-    //     engine.allocator.as_mut().unwrap(),
-    //     engine.graphics_queue,
-    //     engine.frames[0].command_buffer,
-    //     engine.frames[0].command_pool,
-    // );
+    let mut render_engine = ft_vk::Engine::new(entry, &window);
+    let mut physics_engine = physics::Engine {
+        frame_time_acc: Duration::ZERO,
+        last_update: Instant::now(),
+    };
 
     // assets
     let obj = {
-        let obj_path = Path::new("resources/teapot2.obj");
+        let obj_path = Path::new("resources/cow.obj");
         ObjRaw::load_from_file(&obj_path).optimise_positions()
     };
     let obj_asset = ObjAssetBuilder::new(&obj).build();
@@ -79,15 +98,14 @@ fn main() -> anyhow::Result<()> {
             vertex_buffer: None,
         };
         mesh.load(
-            &engine.device,
-            engine.allocator.as_mut().unwrap(),
-            engine.graphics_queue,
-            engine.frames[0].command_buffer,
-            engine.frames[0].command_pool,
+            &render_engine.device,
+            render_engine.allocator.as_mut().unwrap(),
+            render_engine.graphics_queue,
+            render_engine.frames[0].command_buffer,
+            render_engine.frames[0].command_pool,
         );
         mesh
     };
-
     let material_asset: MaterialAsset = material_libs
         .values()
         .flat_map(|mat_lib| mat_lib.materials.values())
@@ -95,10 +113,7 @@ fn main() -> anyhow::Result<()> {
         .unwrap() //thrown when no material is defined in obj file, should be fallback to a default material (ambient 1.0)
         .clone()
         .into();
-
-    // descriptor_set_layout
-    let material_set_layout = material::descriptor_set_layout(&engine.device);
-
+    let material_set_layout = material::descriptor_set_layout(&render_engine.device);
     // pipeline_layout
     let push_constant_ranges = [
         // scene constants (render_matrix / mesh_buffer_address)
@@ -106,34 +121,135 @@ fn main() -> anyhow::Result<()> {
             .stage_flags(vk::ShaderStageFlags::VERTEX)
             .size(std::mem::size_of::<MeshConstants>() as u32),
     ];
-
     let pipeline_layout = PipelineLayout::<MeshConstants> {
         layout: {
             let set_layouts = [material_set_layout];
             let info = vk::PipelineLayoutCreateInfo::default()
                 .push_constant_ranges(&push_constant_ranges)
                 .set_layouts(&set_layouts);
-            unsafe { engine.device.create_pipeline_layout(&info, None).unwrap() }
+            unsafe {
+                render_engine
+                    .device
+                    .create_pipeline_layout(&info, None)
+                    .unwrap()
+            }
         },
         _marker: std::marker::PhantomData,
     };
-
     // material
-    let material = Material::new(&mut engine, &material_asset, material_set_layout).load_pipeline(
-        &engine.device,
-        engine.render_pass,
-        engine.swapchain.extent,
-        &pipeline_layout,
-    );
+    let material = Material::new(&mut render_engine, &material_asset, material_set_layout)
+        .load_pipeline(
+            &render_engine.device,
+            render_engine.render_pass,
+            render_engine.swapchain.extent,
+            &pipeline_layout,
+        );
 
-    // camera
-    struct Scene {
-        material: Option<Material<material::Pipeline>>,
-    };
+    let mut world = {
+        let mut world = World::new();
 
-    let mut camera_pos = glam::Vec3 {
-        z: 2.0f32,
-        ..glam::Vec3::ZERO
+        //Systems
+        {
+            world.add_system(system(systems::a_system));
+            world.add_system_mut(system_mut(systems::a_mut_system));
+        }
+        // Origin entity
+        {
+            world.spawn(Some(Entity::Origin));
+            world
+                .components
+                .add_component::<Position>(&Entity::Origin, Position(Vec3::ZERO));
+        }
+        // Resources
+        {
+            world.resources.add(InputRecorder::new());
+            let test = world.resources.get::<InputRecorder>().unwrap();
+        }
+        // Camera entity
+        {
+            world.spawn(Some(ecs::Entity::Camera)).unwrap();
+            world.components.add_component(
+                &Entity::Camera,
+                components::Position(Vec3::ZERO.with_z(5.0f32)),
+            );
+            world.components.add_component(
+                &Entity::Camera,
+                components::Camera {
+                    aspect_ratio: render_engine.swapchain.aspect_ratio(),
+                    look_at: Some(Entity::Origin),
+                    fov: 90.0f32,
+                    near: 0.1f32,
+                    far: 200.0f32,
+                },
+            );
+            world
+                .components
+                .add_component(&Entity::Camera, components::Direction(Quat::IDENTITY));
+            world.components.add_component(
+                &Entity::Camera,
+                components::PhysicsBody {
+                    acceleration: Vec3::ZERO,
+                    velocity: Vec3::ZERO,
+                },
+            );
+
+            world.components.add_component(
+                &Entity::Camera,
+                components::Input(Rc::new(|entity, world| {
+                    let input_recorder = world
+                        .resources
+                        .get::<InputRecorder>()
+                        .ok()
+                        .flatten()
+                        .unwrap();
+                    let physics_body = world
+                        .components
+                        .get_component_mut::<PhysicsBody>(&entity)
+                        .unwrap();
+
+                    let mut acceleration = Vec3::ZERO;
+                    match input_recorder.last(&KeyCode::KeyW) {
+                        Some(InputEnum::Down(_)) => {
+                            acceleration += Vec3::NEG_Z;
+                        }
+                        _ => {}
+                    }
+                    match input_recorder.last(&KeyCode::KeyS) {
+                        Some(InputEnum::Down(_)) => {
+                            acceleration += Vec3::Z;
+                        }
+                        _ => {}
+                    }
+                    match input_recorder.last(&KeyCode::KeyA) {
+                        Some(InputEnum::Down(_)) => {
+                            acceleration += Vec3::NEG_X;
+                        }
+                        _ => {}
+                    }
+                    match input_recorder.last(&KeyCode::KeyD) {
+                        Some(InputEnum::Down(_)) => {
+                            acceleration += Vec3::X;
+                        }
+                        _ => {}
+                    }
+                    match input_recorder.last(&KeyCode::Space) {
+                        Some(InputEnum::Down(_)) => {
+                            acceleration += Vec3::Y;
+                        }
+                        _ => {}
+                    }
+                    match input_recorder.last(&KeyCode::ControlLeft) {
+                        Some(InputEnum::Down(_)) => {
+                            acceleration += Vec3::NEG_Y;
+                        }
+                        _ => {}
+                    }
+
+                    physics_body.acceleration = acceleration;
+                })),
+            );
+        }
+        world
     };
 
     {
@@ -141,7 +257,7 @@ fn main() -> anyhow::Result<()> {
         let mut material = Some(material);
 
         // loop logic
-        let mut require_resize = true;
+        let mut require_resize: Option<window::Size> = None;
         let mut last_update = std::time::Instant::now();
 
         event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
@@ -151,40 +267,62 @@ fn main() -> anyhow::Result<()> {
                  elwt: &winit::event_loop::EventLoopWindowTarget<_>| {
                     match event {
                         winit::event::Event::LoopExiting => {
-                            unsafe { engine.device.device_wait_idle() }.unwrap();
+                            unsafe { render_engine.device.device_wait_idle() }.unwrap();
                         }
+                        // DEVICE
+                        winit::event::Event::DeviceEvent { event, .. } => match event {
+                            winit::event::DeviceEvent::MouseMotion { delta } => {}
+                            _ => {}
+                        },
                         winit::event::Event::WindowEvent { event, .. } => match event {
                             // WINDOW
                             winit::event::WindowEvent::RedrawRequested => {
-                                match window.is_minimized() {
-                                    Some(false) => (),
-                                    _ => return,
-                                }
+                                let render_matrix = {
+                                    let position = world
+                                        .components
+                                        .get_component::<Position>(&Entity::Camera)
+                                        .unwrap();
+                                    let direction = world
+                                        .components
+                                        .get_component::<Direction>(&Entity::Camera)
+                                        .unwrap_or(&Direction(Quat::IDENTITY));
+                                    let camera = world
+                                        .components
+                                        .get_component::<Camera>(&Entity::Camera)
+                                        .unwrap();
 
-                                if require_resize {
-                                    let new_size = window.inner_size();
+                                    let view = {
+                                        match &camera.look_at {
+                                            Some(target_entity) => {
+                                                let target_position = world
+                                                    .components
+                                                    .get_component::<Position>(&target_entity)
+                                                    .unwrap();
 
-                                    unsafe { engine.device.device_wait_idle().unwrap() }; // FLOW CONTROL wait for device no more work
-
-                                    unsafe {
-                                        engine.handle_resize((new_size.width, new_size.height))
+                                                glam::Mat4::look_at_rh(
+                                                    position.0,
+                                                    target_position.0,
+                                                    glam::Vec3::Y,
+                                                )
+                                            }
+                                            None => glam::Mat4::from_quat(direction.0),
+                                        }
                                     };
 
-                                    material = Some(
-                                        material
-                                            .take()
-                                            .unwrap()
-                                            .unload_pipeline(&engine.device)
-                                            .load_pipeline(
-                                                &engine.device,
-                                                engine.render_pass,
-                                                engine.swapchain.extent,
-                                                &pipeline_layout,
-                                            ),
+                                    let projection = glam::Mat4::perspective_rh(
+                                        camera.fov.to_radians(),
+                                        camera.aspect_ratio,
+                                        camera.near,
+                                        camera.far,
                                     );
 
-                                    require_resize = false;
-                                }
+                                    let fix_upside = glam::Mat4 {
+                                        y_axis: glam::Vec4::NEG_Y,
+                                        ..glam::Mat4::IDENTITY
+                                    };
+
+                                    projection * fix_upside * view
+                                };
 
                                 let renderer = MeshRenderer {
                                     material: material.as_ref().unwrap(),
@@ -192,7 +330,7 @@ fn main() -> anyhow::Result<()> {
                                     pipeline_layout: &pipeline_layout,
                                     push_constants: {
                                         Some(MeshConstants {
-                                            render_matrix: update_camera(&engine, camera_pos),
+                                            render_matrix,
                                             vertex_buffer: mesh
                                                 .vertex_buffer
                                                 .as_ref()
@@ -204,120 +342,151 @@ fn main() -> anyhow::Result<()> {
                                     },
                                 };
 
-                                require_resize = unsafe { engine.draw_frame(&renderer) };
+                                match unsafe { render_engine.draw_frame(&renderer) } {
+                                    Err(vk::Result::ERROR_OUT_OF_DATE_KHR)
+                                    | Err(vk::Result::SUBOPTIMAL_KHR) => {
+                                        let window_size = window.inner_size();
+                                        require_resize = Some(window::Size {
+                                            width: window_size.width,
+                                            height: window_size.height,
+                                        });
+                                    }
+                                    Err(e) => panic!("{:?}", e),
+                                    _ => {}
+                                }
+
                                 window.request_redraw();
                             }
-                            winit::event::WindowEvent::Resized(_) => require_resize = true,
+                            winit::event::WindowEvent::Resized(new_size) => {
+                                require_resize = Some(window::Size {
+                                    width: new_size.width,
+                                    height: new_size.height,
+                                });
+                            }
                             winit::event::WindowEvent::CloseRequested => elwt.exit(),
 
-                            // CONTROLS
+                            // KEYBOARD EVENTS
                             winit::event::WindowEvent::KeyboardInput {
                                 event:
                                     winit::event::KeyEvent {
-                                        physical_key,
-                                        state: winit::event::ElementState::Pressed,
+                                        physical_key: winit::keyboard::PhysicalKey::Code(code),
+                                        state,
                                         ..
                                     },
                                 ..
                             } => {
-                                last_update = std::time::Instant::now();
-                                let time_elapsed = last_update
-                                    .duration_since(engine.start_instant)
-                                    .min(Duration::from_millis(30));
-
-                                match physical_key {
-                                    winit::keyboard::PhysicalKey::Code(
-                                        winit::keyboard::KeyCode::KeyW,
-                                    ) => {
-                                        camera_pos.z += -1.0f32 * time_elapsed.as_secs_f32();
+                                let recorder = world
+                                    .resources
+                                    .get_mut::<InputRecorder>()
+                                    .ok()
+                                    .flatten()
+                                    .unwrap();
+                                match state {
+                                    winit::event::ElementState::Pressed => {
+                                        recorder.press(code, Instant::now());
                                     }
-                                    winit::keyboard::PhysicalKey::Code(
-                                        winit::keyboard::KeyCode::KeyS,
-                                    ) => {
-                                        camera_pos.z += 1.0f32 * time_elapsed.as_secs_f32();
+                                    winit::event::ElementState::Released => {
+                                        recorder.release(code, Instant::now());
                                     }
-                                    winit::keyboard::PhysicalKey::Code(
-                                        winit::keyboard::KeyCode::KeyA,
-                                    ) => {
-                                        camera_pos.x += -1.0f32 * time_elapsed.as_secs_f32();
-                                    }
-                                    winit::keyboard::PhysicalKey::Code(
-                                        winit::keyboard::KeyCode::KeyD,
-                                    ) => {
-                                        camera_pos.x += 1.0f32 * time_elapsed.as_secs_f32();
-                                    }
-                                    winit::keyboard::PhysicalKey::Code(
-                                        winit::keyboard::KeyCode::Space,
-                                    ) => {
-                                        camera_pos.y += 1.0f32 * time_elapsed.as_secs_f32();
-                                    }
-                                    winit::keyboard::PhysicalKey::Code(
-                                        winit::keyboard::KeyCode::ControlLeft,
-                                    ) => {
-                                        camera_pos.y += -1.0f32 * time_elapsed.as_secs_f32();
-                                    }
-                                    _ => {}
-                                }
+                                };
                                 window.request_redraw();
                             }
                             _ => {}
                         },
                         _ => {}
+                    };
+
+                    if let Some(new_size) = require_resize {
+                        on_resize(
+                            &mut material,
+                            &pipeline_layout,
+                            &mut world,
+                            &mut render_engine,
+                            new_size,
+                        );
+                        require_resize = None;
                     }
+
+                    // Loop logic
+                    process_input(&mut world);
+                    physics_engine.run(&mut world);
                 },
             )
             .unwrap();
 
         material
             .unwrap()
-            .unload_pipeline(&engine.device)
-            .destroy(engine.allocator.as_ref().unwrap());
+            .unload_pipeline(&render_engine.device)
+            .destroy(render_engine.allocator.as_ref().unwrap());
     }
 
-    unsafe {
-        engine
-            .device
-            .destroy_descriptor_set_layout(material_set_layout, None)
-    };
+    // Clean
+    {
+        unsafe {
+            render_engine
+                .device
+                .destroy_descriptor_set_layout(material_set_layout, None)
+        };
 
-    if let Some(allocator) = &engine.allocator {
-        mesh.unload(&allocator);
+        if let Some(allocator) = &render_engine.allocator {
+            mesh.unload(&allocator);
+        }
+        unsafe {
+            render_engine
+                .device
+                .destroy_pipeline_layout(pipeline_layout.as_vk(), None)
+        };
+
+        unsafe { render_engine.destroy() };
     }
-    unsafe {
-        engine
-            .device
-            .destroy_pipeline_layout(pipeline_layout.as_vk(), None)
-    };
-
-    unsafe { engine.destroy() };
 
     Ok(())
 }
 
-fn update_camera<'a>(engine: &Engine, camera_pos: glam::Vec3) -> Mat4 {
-    let elapsed = engine.start_instant.elapsed().as_secs_f32();
+// Handle window resize events and update the engine, material, and camera accordingly.
+fn on_resize<TPipelineLayout>(
+    material: &mut Option<Material<Pipeline>>,
+    pipeline_layout: &PipelineLayout<TPipelineLayout>,
+    world: &mut World,
+    render_engine: &mut ft_vk::Engine,
+    new_size: window::Size,
+) {
+    // Engine
+    unsafe { render_engine.device.device_wait_idle() };
+    unsafe { render_engine.handle_resize((new_size.width, new_size.height)) };
 
-    let cam_pos = camera_pos;
-    let cam_target = glam::Vec3::new(0.0, 0.0, 0.0);
-    let cam_up = glam::Vec3::new(0.0, 1.0, 0.0);
-
-    let view = glam::Mat4::look_at_rh(cam_pos, cam_target, cam_up);
-    let projection = glam::Mat4::perspective_rh(
-        70.0_f32.to_radians(),
-        engine.swapchain.extent.width as f32 / engine.swapchain.extent.height as f32,
-        0.1,
-        200.0,
+    // Material
+    *material = Some(
+        material
+            .take()
+            .unwrap()
+            .unload_pipeline(&render_engine.device)
+            .load_pipeline(
+                &render_engine.device,
+                render_engine.render_pass,
+                render_engine.swapchain.extent,
+                pipeline_layout,
+            ),
     );
 
-    let fix_upside = glam::Mat4 {
-        y_axis: glam::vec4(0.0, -1.0, 0.0, 0.0),
-        ..glam::Mat4::IDENTITY
-    };
-    projection * fix_upside * view
+    // Camera
+    world
+        .components
+        .get_component_mut::<components::Camera>(&Entity::Camera)
+        .unwrap()
+        .aspect_ratio = render_engine.swapchain.aspect_ratio();
 }
 
-struct GPUSceneData {
-    view: glam::Mat4,
-    proj: glam::Mat4,
-    viewproj: glam::Mat4,
+// Process input events and apply them to the world.
+fn process_input(world: &mut World) {
+    let storage = world
+        .components
+        .get_component_storage::<components::Input>()
+        .cloned();
+
+    if let Some(storage) = storage {
+        for (entity, input) in storage {
+            input.apply(&entity, world);
+        }
+    }
 }
