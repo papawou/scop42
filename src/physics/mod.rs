@@ -26,26 +26,24 @@ impl Engine {
         self.frame_time_acc = self.frame_time_acc.add(frame_time);
 
         while (self.frame_time_acc >= conf::PHYSICS_FPS) {
-            {
-                let components_ptr = &mut world.components as *mut ComponentsStorage;
-                let physics_bodies = unsafe {
+            let components_ptr = &mut world.components as *mut ComponentsStorage;
+            let physics_bodies = unsafe {
+                (*components_ptr)
+                    .get_component_storage_mut::<PhysicsBody>()
+                    .unwrap()
+            };
+
+            for (entity, physics_body) in physics_bodies.iter_mut() {
+                let position = unsafe {
+                    // split borrow, because Position !== PhysicsBody
                     (*components_ptr)
-                        .get_component_storage_mut::<PhysicsBody>()
+                        .get_component_mut::<Position>(entity)
                         .unwrap()
                 };
 
-                for (entity, physics_body) in physics_bodies.iter_mut() {
-                    let position = unsafe {
-                        // split borrow, because Position !== PhysicsBody
-                        (*components_ptr)
-                            .get_component_mut::<Position>(entity)
-                            .unwrap()
-                    };
-
-                    physics_body.velocity +=
-                        physics_body.acceleration * conf::PHYSICS_FPS.as_secs_f32();
-                    position.0 += physics_body.velocity * conf::PHYSICS_FPS.as_secs_f32();
-                }
+                physics_body.velocity +=
+                    physics_body.acceleration * conf::PHYSICS_FPS.as_secs_f32();
+                position.0 += physics_body.velocity * conf::PHYSICS_FPS.as_secs_f32();
             }
 
             self.frame_time_acc = self.frame_time_acc.sub(conf::PHYSICS_FPS);

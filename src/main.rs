@@ -53,7 +53,7 @@ use vertex::Vertex;
 use winit::{dpi::PhysicalSize, event_loop::EventLoop, keyboard::KeyCode};
 
 use crate::{
-    components::{Camera, Direction, PhysicsBody, Position},
+    components::{Camera, PhysicsBody, Position, Rotation},
     input::{input::InputEnum, recorder, recorder_to_queue},
     material::Pipeline,
 };
@@ -163,7 +163,6 @@ fn main() -> anyhow::Result<()> {
         // Resources
         {
             world.resources.add(InputRecorder::new());
-            let test = world.resources.get::<InputRecorder>().unwrap();
         }
         // Camera entity
         {
@@ -184,7 +183,7 @@ fn main() -> anyhow::Result<()> {
             );
             world
                 .components
-                .add_component(&Entity::Camera, components::Direction(Quat::IDENTITY));
+                .add_component(&Entity::Camera, components::Rotation(Quat::IDENTITY));
             world.components.add_component(
                 &Entity::Camera,
                 components::PhysicsBody {
@@ -207,45 +206,45 @@ fn main() -> anyhow::Result<()> {
                         .get_component_mut::<PhysicsBody>(&entity)
                         .unwrap();
 
-                    let mut acceleration = Vec3::ZERO;
+                    let mut velocity = Vec3::ZERO;
                     match input_recorder.last(&KeyCode::KeyW) {
                         Some(InputEnum::Down(_)) => {
-                            acceleration += Vec3::NEG_Z;
+                            velocity += Vec3::NEG_Z;
                         }
                         _ => {}
                     }
                     match input_recorder.last(&KeyCode::KeyS) {
                         Some(InputEnum::Down(_)) => {
-                            acceleration += Vec3::Z;
+                            velocity += Vec3::Z;
                         }
                         _ => {}
                     }
                     match input_recorder.last(&KeyCode::KeyA) {
                         Some(InputEnum::Down(_)) => {
-                            acceleration += Vec3::NEG_X;
+                            velocity += Vec3::NEG_X;
                         }
                         _ => {}
                     }
                     match input_recorder.last(&KeyCode::KeyD) {
                         Some(InputEnum::Down(_)) => {
-                            acceleration += Vec3::X;
+                            velocity += Vec3::X;
                         }
                         _ => {}
                     }
                     match input_recorder.last(&KeyCode::Space) {
                         Some(InputEnum::Down(_)) => {
-                            acceleration += Vec3::Y;
+                            velocity += Vec3::Y;
                         }
                         _ => {}
                     }
                     match input_recorder.last(&KeyCode::ControlLeft) {
                         Some(InputEnum::Down(_)) => {
-                            acceleration += Vec3::NEG_Y;
+                            velocity += Vec3::NEG_Y;
                         }
                         _ => {}
                     }
 
-                    physics_body.acceleration = acceleration;
+                    physics_body.velocity = velocity;
                 })),
             );
         }
@@ -284,8 +283,8 @@ fn main() -> anyhow::Result<()> {
                                         .unwrap();
                                     let direction = world
                                         .components
-                                        .get_component::<Direction>(&Entity::Camera)
-                                        .unwrap_or(&Direction(Quat::IDENTITY));
+                                        .get_component::<Rotation>(&Entity::Camera)
+                                        .unwrap_or(&Rotation(Quat::IDENTITY));
                                     let camera = world
                                         .components
                                         .get_component::<Camera>(&Entity::Camera)
