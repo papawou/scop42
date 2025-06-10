@@ -13,7 +13,6 @@ mod mesh_constants;
 pub mod obj_asset;
 mod physics;
 mod renderer;
-mod systems;
 mod traits;
 mod vertex;
 mod window;
@@ -33,7 +32,7 @@ use ecs::{
     resource::ResourceStorage,
     storage::ComponentsStorage,
     system::{system, system_mut},
-    world::World,
+    world::{self, World},
 };
 use ft_vk::{
     descriptor_allocator::DescriptorAllocator,
@@ -56,6 +55,7 @@ use crate::{
     components::{Camera, PhysicsBody, Position, Rotation},
     input::{input::InputEnum, recorder, recorder_to_queue},
     material::Pipeline,
+    physics::traits::IntegrateFn,
 };
 
 //platform::wayland::WindowBuilderExtWayland
@@ -83,7 +83,7 @@ fn main() -> anyhow::Result<()> {
 
     // assets
     let obj = {
-        let obj_path = Path::new("resources/cow.obj");
+        let obj_path = Path::new("resources/teapot2.obj");
         ObjRaw::load_from_file(&obj_path).optimise_positions()
     };
     let obj_asset = ObjAssetBuilder::new(&obj).build();
@@ -149,10 +149,7 @@ fn main() -> anyhow::Result<()> {
         let mut world = World::new();
 
         //Systems
-        {
-            world.add_system(system(systems::a_system));
-            world.add_system_mut(system_mut(systems::a_mut_system));
-        }
+        {}
         // Origin entity
         {
             world.spawn(Some(Entity::Origin));
@@ -189,6 +186,36 @@ fn main() -> anyhow::Result<()> {
                 components::PhysicsBody {
                     acceleration: Vec3::ZERO,
                     velocity: Vec3::ZERO,
+                    integrate: Some(Rc::new(|entity, world| {
+                        let cam = world.components.get_component::<Camera>(entity).unwrap();
+
+                        match &cam.look_at {
+                            Some(target_entity) => {
+                                let target_position = world
+                                    .components
+                                    .get_component::<Position>(target_entity)
+                                    .unwrap();
+                            }
+                            None => {}
+                        }
+
+                        impl<F> IntegrateFn for F
+                        where
+                            F: FnMut(Duration),
+                        {
+                            fn integrate(&mut self, dt: Duration) {
+                                self(dt)
+                            }
+                        };
+
+                        Box::new(|dt: Duration| {
+                            let position = world
+                                .components
+                                .get_component_mut::<Position>(entity)
+                                .unwrap();
+                            println!("{:?}", position)
+                        }) as Box<dyn IntegrateFn>
+                    })),
                 },
             );
 
@@ -408,7 +435,7 @@ fn main() -> anyhow::Result<()> {
 
                     // Loop logic
                     process_input(&mut world);
-                    physics_engine.tick(&mut world);
+                    physics_system(&mut world, &mut physics_engine);
                 },
             )
             .unwrap();
@@ -488,4 +515,56 @@ fn process_input(world: &mut World) {
             input.apply(&entity, world);
         }
     }
+}
+
+fn physics_system(world: &mut World, engine: &mut physics::Engine) {
+    let mut bodies: Vec<(&Entity, &mut PhysicsBody, &mut Position)> = vec![];
+    {
+        let components_ptr = &mut world.components as *mut ComponentsStorage;
+        let physics_bodies = unsafe {
+            (*components_ptr)
+                .get_component_storage_mut::<PhysicsBody>()
+                .unwrap()
+        };
+        for (entity, physics_body) in physics_bodies.iter_mut() {
+            let position = unsafe {
+                // split borrow, because Position !== PhysicsBody
+                (*components_ptr)
+                    .get_component_mut::<Position>(entity)
+                    .unwrap()
+            };
+
+            bodies.push((entity, physics_body, position));
+        }
+    }
+
+    impl IntegrateFn for (&Entity, &mut PhysicsBody, &mut Position) {
+        fn integrate(&mut self, dt: Duration) {
+            let (_, physics_body, position) = self;
+            let dt = dt.as_secs_f32();
+            physics_body.velocity += physics_body.acceleration * dt;
+            position.0 += physics_body.velocity * dt;
+        }
+    }
+
+    let test = unsafe {
+        let world = world as *mut World;
+        (*world)
+            .components
+            .get_component_mut::<PhysicsBody>(&Entity::Camera)
+            .unwrap()
+            .integrate(&Entity::Camera, &mut *world)
+            .unwrap()
+    };
+
+    let mut bodies: Vec<Box<dyn IntegrateFn>> = bodies
+        .into_iter()
+        .map(|(entity, physics_body, position)| {
+            Box::new((entity, physics_body, position)) as Box<dyn IntegrateFn>
+        })
+        .collect();
+
+    bodies.push(test);
+
+    engine.tick(bodies);
 }

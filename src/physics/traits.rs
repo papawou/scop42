@@ -11,12 +11,20 @@ pub trait Body {
     fn set_acceleration(&mut self, acceleration: Vec3);
     fn rotation(&self) -> Quat;
     fn set_rotation(&mut self, rotation: Quat);
+}
 
+pub trait IntegrateFn {
+    fn integrate(&mut self, dt: Duration);
+}
+
+impl IntegrateFn for dyn Body {
     fn integrate(&mut self, dt: Duration) {
+        let mut body = self;
         let dt = dt.as_secs_f32();
-        let new_velocity = self.velocity() + self.acceleration() * dt;
-        self.set_velocity(new_velocity);
-        let new_position = self.position() + new_velocity * dt;
-        self.set_position(new_position);
+        let velocity = body.velocity();
+        let acceleration = body.acceleration();
+        let new_velocity = velocity + acceleration * dt;
+        body.set_velocity(new_velocity);
+        body.set_position(body.position() + new_velocity * dt);
     }
 }
