@@ -408,7 +408,7 @@ fn main() -> anyhow::Result<()> {
 
                     // Loop logic
                     process_input(&mut world);
-                    physics_engine.run(&mut world);
+                    physics_engine.tick(&mut world);
                 },
             )
             .unwrap();
