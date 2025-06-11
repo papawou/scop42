@@ -36,3 +36,11 @@ impl Engine {
         // let alpha = self.frame_time_acc.div_duration_f64(conf::PHYSICS_FPS);
     }
 }
+
+pub fn compute_velocity(velocity: Vec3, acceleration: Vec3, duration: Duration) -> Vec3 {
+    velocity + acceleration * duration.as_secs_f32()
+}
+
+pub fn compute_position(position: Vec3, velocity: Vec3, duration: Duration) -> Vec3 {
+    position + velocity * duration.as_secs_f32()
+}
