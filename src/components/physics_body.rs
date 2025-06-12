@@ -31,15 +31,16 @@ impl PhysicsBody {
 
 pub fn integrate<'a>(entity: &'a Entity, world: &'a mut World) -> Box<dyn IntegrateFn + 'a> {
     Box::new(|dt: Duration| {
-        let world = world as *mut World;
         let mut physics_body = unsafe {
-            (*world)
+            world
+                .as_unsafe_mut()
                 .components
                 .get_component_mut::<PhysicsBody>(entity)
                 .unwrap()
         };
         let mut position = unsafe {
-            (*world)
+            world
+                .as_unsafe_mut()
                 .components
                 .get_component_mut::<position::Position>(entity)
                 .unwrap()

@@ -52,7 +52,7 @@ use vertex::Vertex;
 use winit::{dpi::PhysicalSize, event_loop::EventLoop, keyboard::KeyCode};
 
 use crate::{
-    components::{Camera, PhysicsBody, Position, Rotation},
+    components::{Camera, Direction, PhysicsBody, Position},
     input::{input::InputEnum, recorder, recorder_to_queue},
     material::Pipeline,
     physics::{compute_position, compute_velocity, traits::IntegrateFn},
@@ -180,7 +180,7 @@ fn main() -> anyhow::Result<()> {
             );
             world
                 .components
-                .add_component(&Entity::Camera, components::Rotation(Quat::IDENTITY));
+                .add_component(&Entity::Camera, components::Direction(Vec3::NEG_Z));
             world.components.add_component(
                 &Entity::Camera,
                 components::PhysicsBody {
@@ -211,24 +211,40 @@ fn main() -> anyhow::Result<()> {
                                     .get_component_mut::<Position>(entity)
                                     .unwrap()
                             };
-                            let rotation = unsafe {
+                            let body = unsafe {
                                 world
                                     .as_unsafe_mut()
                                     .components
-                                    .get_component::<Rotation>(entity)
+                                    .get_component_mut::<PhysicsBody>(entity)
                                     .unwrap()
                             };
 
-                            let target_position = match &cam.look_at {
-                                Some(target_entity) => Some(unsafe {
-                                    world
-                                        .as_unsafe_mut()
-                                        .components
-                                        .get_component::<Position>(target_entity)
-                                        .unwrap()
-                                }),
-                                None => None,
+                            let direction = match &cam.look_at {
+                                Some(target_entity) => {
+                                    let target_position = unsafe {
+                                        world
+                                            .as_unsafe_mut()
+                                            .components
+                                            .get_component::<Position>(target_entity)
+                                            .unwrap()
+                                    };
+                                    (target_position.0 - position.0).normalize()
+                                }
+                                None => {
+                                    let direction = unsafe {
+                                        world
+                                            .as_unsafe_mut()
+                                            .components
+                                            .get_component::<Direction>(entity)
+                                            .unwrap_or(&Direction(Vec3::NEG_Z))
+                                    };
+                                    direction.0
+                                }
                             };
+
+                            let rot = Quat::from_rotation_arc(Vec3::NEG_Z, direction);
+
+                            position.0 += rot * (body.velocity * dt.as_secs_f32());
                         })
                     })),
                 },
@@ -325,8 +341,8 @@ fn main() -> anyhow::Result<()> {
                                         .unwrap();
                                     let direction = world
                                         .components
-                                        .get_component::<Rotation>(&Entity::Camera)
-                                        .unwrap_or(&Rotation(Quat::IDENTITY));
+                                        .get_component::<Direction>(&Entity::Camera)
+                                        .unwrap_or(&Direction(Vec3::NEG_Z));
                                     let camera = world
                                         .components
                                         .get_component::<Camera>(&Entity::Camera)
@@ -346,7 +362,10 @@ fn main() -> anyhow::Result<()> {
                                                     glam::Vec3::Y,
                                                 )
                                             }
-                                            None => glam::Mat4::from_quat(direction.0),
+                                            None => glam::Mat4::from_quat(Quat::from_rotation_arc(
+                                                Vec3::NEG_Z,
+                                                direction.0,
+                                            )),
                                         }
                                     };
 
