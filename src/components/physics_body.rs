@@ -29,7 +29,7 @@ impl PhysicsBody {
     }
 }
 
-fn integrate<'a>(entity: &'a Entity, world: &'a mut World) -> Box<dyn IntegrateFn + 'a> {
+pub fn integrate<'a>(entity: &'a Entity, world: &'a mut World) -> Box<dyn IntegrateFn + 'a> {
     Box::new(|dt: Duration| {
         let world = world as *mut World;
         let mut physics_body = unsafe {

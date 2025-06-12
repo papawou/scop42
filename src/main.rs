@@ -187,18 +187,6 @@ fn main() -> anyhow::Result<()> {
                     acceleration: Vec3::ZERO,
                     velocity: Vec3::ZERO,
                     integrate: Some(Box::new(|entity, world| {
-                        let cam = world.components.get_component::<Camera>(entity).unwrap();
-
-                        match &cam.look_at {
-                            Some(target_entity) => {
-                                let target_position = world
-                                    .components
-                                    .get_component::<Position>(target_entity)
-                                    .unwrap();
-                            }
-                            None => {}
-                        }
-
                         impl<F> IntegrateFn for F
                         where
                             F: FnMut(Duration),
@@ -209,12 +197,39 @@ fn main() -> anyhow::Result<()> {
                         };
 
                         Box::new(|dt: Duration| {
-                            let position = world
-                                .components
-                                .get_component_mut::<Position>(entity)
-                                .unwrap();
-                            println!("{:?}", position)
-                        }) as Box<dyn IntegrateFn>
+                            let cam = unsafe {
+                                world
+                                    .as_unsafe_mut()
+                                    .components
+                                    .get_component::<Camera>(entity)
+                                    .unwrap()
+                            };
+                            let position = unsafe {
+                                world
+                                    .as_unsafe_mut()
+                                    .components
+                                    .get_component_mut::<Position>(entity)
+                                    .unwrap()
+                            };
+                            let rotation = unsafe {
+                                world
+                                    .as_unsafe_mut()
+                                    .components
+                                    .get_component::<Rotation>(entity)
+                                    .unwrap()
+                            };
+
+                            let target_position = match &cam.look_at {
+                                Some(target_entity) => Some(unsafe {
+                                    world
+                                        .as_unsafe_mut()
+                                        .components
+                                        .get_component::<Position>(target_entity)
+                                        .unwrap()
+                                }),
+                                None => None,
+                            };
+                        })
                     })),
                 },
             );
