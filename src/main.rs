@@ -219,7 +219,7 @@ fn main() -> anyhow::Result<()> {
                                     .unwrap()
                             };
 
-                            let direction = match &cam.look_at {
+                            match &cam.look_at {
                                 Some(target_entity) => {
                                     let target_position = unsafe {
                                         world
@@ -228,7 +228,36 @@ fn main() -> anyhow::Result<()> {
                                             .get_component::<Position>(target_entity)
                                             .unwrap()
                                     };
-                                    (target_position.0 - position.0).normalize()
+                                    let direction = (target_position.0 - position.0).normalize();
+
+                                    let front_back_mat = {
+                                        let translation = Mat4::from_translation(
+                                            Vec3::ZERO.with_z(body.velocity.z) * dt.as_secs_f32(),
+                                        ); // move forward/backward in local space
+                                        let rotation =
+                                            Quat::from_rotation_arc(Vec3::NEG_Z, direction); // rotate the translation to target
+                                        Mat4::from_quat(rotation) * translation
+                                    };
+
+                                    // rotate around camera target
+                                    let rotate_around_target = {
+                                        let rotation = Quat::from_axis_angle(
+                                            Vec3::Y,
+                                            body.velocity.x * dt.as_secs_f32(),
+                                        ) * Quat::from_axis_angle(
+                                            Vec3::X,
+                                            body.velocity.y * dt.as_secs_f32(),
+                                        );
+
+                                        let into_target_space =
+                                            Mat4::from_translation(-target_position.0);
+                                        into_target_space.inverse()
+                                            * Mat4::from_quat(rotation)
+                                            * into_target_space
+                                    };
+
+                                    position.0 = (rotate_around_target * front_back_mat)
+                                        .transform_point3(position.0);
                                 }
                                 None => {
                                     let direction = unsafe {
@@ -236,15 +265,10 @@ fn main() -> anyhow::Result<()> {
                                             .as_unsafe_mut()
                                             .components
                                             .get_component::<Direction>(entity)
-                                            .unwrap_or(&Direction(Vec3::NEG_Z))
+                                            .unwrap_or(&Direction(Vec3::NEG_Z)) // default to look at -z
                                     };
-                                    direction.0
                                 }
                             };
-
-                            let rot = Quat::from_rotation_arc(Vec3::NEG_Z, direction);
-
-                            position.0 += rot * (body.velocity * dt.as_secs_f32());
                         })
                     })),
                 },
@@ -317,7 +341,7 @@ fn main() -> anyhow::Result<()> {
         let mut require_resize: Option<window::Size> = None;
         let mut last_update = std::time::Instant::now();
 
-        event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
+        event_loop.set_control_flow(winit::event_loop::ControlFlow::Wait);
         event_loop
             .run(
                 |event: winit::event::Event<_>,
