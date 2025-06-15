@@ -228,36 +228,23 @@ fn main() -> anyhow::Result<()> {
                                             .get_component::<Position>(target_entity)
                                             .unwrap()
                                     };
-                                    let direction = (target_position.0 - position.0).normalize();
+                                    let yaw = body.velocity.x * dt.as_secs_f32();
+                                    let pitch = body.velocity.y * dt.as_secs_f32();
+                                    let zoom = body.velocity.z * dt.as_secs_f32();
 
-                                    let front_back_mat = {
-                                        let translation = Mat4::from_translation(
-                                            Vec3::ZERO.with_z(body.velocity.z) * dt.as_secs_f32(),
-                                        ); // move forward/backward in local space
-                                        let rotation =
-                                            Quat::from_rotation_arc(Vec3::NEG_Z, direction); // rotate the translation to target
-                                        Mat4::from_quat(rotation) * translation
-                                    };
+                                    let mut offset = position.0 - target_position.0;
 
-                                    // rotate around camera target
-                                    let rotate_around_target = {
-                                        let rotation = Quat::from_axis_angle(
-                                            Vec3::Y,
-                                            body.velocity.x * dt.as_secs_f32(),
-                                        ) * Quat::from_axis_angle(
-                                            Vec3::X,
-                                            body.velocity.y * dt.as_secs_f32(),
-                                        );
+                                    let yaw_rot = Quat::from_axis_angle(Vec3::Y, yaw);
+                                    offset = yaw_rot * offset;
 
-                                        let into_target_space =
-                                            Mat4::from_translation(-target_position.0);
-                                        into_target_space.inverse()
-                                            * Mat4::from_quat(rotation)
-                                            * into_target_space
-                                    };
+                                    let right = offset.cross(Vec3::Y).normalize();
+                                    let pitch_rot = Quat::from_axis_angle(right, pitch);
+                                    offset = pitch_rot * offset;
 
-                                    position.0 = (rotate_around_target * front_back_mat)
-                                        .transform_point3(position.0);
+                                    let sight_line = offset.normalize();
+                                    offset += sight_line * zoom;
+
+                                    position.0 = target_position.0 + offset;
                                 }
                                 None => {
                                     let direction = unsafe {
