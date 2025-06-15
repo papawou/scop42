@@ -13,7 +13,6 @@ mod mesh_constants;
 pub mod obj_asset;
 mod physics;
 mod renderer;
-mod systems;
 mod traits;
 mod vertex;
 mod window;
@@ -33,7 +32,7 @@ use ecs::{
     resource::ResourceStorage,
     storage::ComponentsStorage,
     system::{system, system_mut},
-    world::World,
+    world::{self, World},
 };
 use ft_vk::{
     descriptor_allocator::DescriptorAllocator,
@@ -53,9 +52,10 @@ use vertex::Vertex;
 use winit::{dpi::PhysicalSize, event_loop::EventLoop, keyboard::KeyCode};
 
 use crate::{
-    components::{Camera, PhysicsBody, Position, Rotation},
+    components::{Camera, Direction, PhysicsBody, Position},
     input::{input::InputEnum, recorder, recorder_to_queue},
     material::Pipeline,
+    physics::{compute_position, compute_velocity, traits::IntegrateFn},
 };
 
 //platform::wayland::WindowBuilderExtWayland
@@ -83,7 +83,7 @@ fn main() -> anyhow::Result<()> {
 
     // assets
     let obj = {
-        let obj_path = Path::new("resources/cow.obj");
+        let obj_path = Path::new("resources/teapot2.obj");
         ObjRaw::load_from_file(&obj_path).optimise_positions()
     };
     let obj_asset = ObjAssetBuilder::new(&obj).build();
@@ -149,10 +149,7 @@ fn main() -> anyhow::Result<()> {
         let mut world = World::new();
 
         //Systems
-        {
-            world.add_system(system(systems::a_system));
-            world.add_system_mut(system_mut(systems::a_mut_system));
-        }
+        {}
         // Origin entity
         {
             world.spawn(Some(Entity::Origin));
@@ -183,12 +180,84 @@ fn main() -> anyhow::Result<()> {
             );
             world
                 .components
-                .add_component(&Entity::Camera, components::Rotation(Quat::IDENTITY));
+                .add_component(&Entity::Camera, components::Direction(Vec3::NEG_Z));
             world.components.add_component(
                 &Entity::Camera,
                 components::PhysicsBody {
                     acceleration: Vec3::ZERO,
                     velocity: Vec3::ZERO,
+                    integrate: Some(Box::new(|entity, world| {
+                        impl<F> IntegrateFn for F
+                        where
+                            F: FnMut(Duration),
+                        {
+                            fn integrate(&mut self, dt: Duration) {
+                                self(dt)
+                            }
+                        };
+
+                        Box::new(|dt: Duration| {
+                            let cam = unsafe {
+                                world
+                                    .as_unsafe_mut()
+                                    .components
+                                    .get_component::<Camera>(entity)
+                                    .unwrap()
+                            };
+                            let position = unsafe {
+                                world
+                                    .as_unsafe_mut()
+                                    .components
+                                    .get_component_mut::<Position>(entity)
+                                    .unwrap()
+                            };
+                            let body = unsafe {
+                                world
+                                    .as_unsafe_mut()
+                                    .components
+                                    .get_component_mut::<PhysicsBody>(entity)
+                                    .unwrap()
+                            };
+
+                            match &cam.look_at {
+                                Some(target_entity) => {
+                                    let target_position = unsafe {
+                                        world
+                                            .as_unsafe_mut()
+                                            .components
+                                            .get_component::<Position>(target_entity)
+                                            .unwrap()
+                                    };
+                                    let yaw = body.velocity.x * dt.as_secs_f32();
+                                    let pitch = body.velocity.y * dt.as_secs_f32();
+                                    let zoom = body.velocity.z * dt.as_secs_f32();
+
+                                    let mut offset = position.0 - target_position.0;
+
+                                    let yaw_rot = Quat::from_axis_angle(Vec3::Y, yaw);
+                                    offset = yaw_rot * offset;
+
+                                    let right = offset.cross(Vec3::Y).normalize();
+                                    let pitch_rot = Quat::from_axis_angle(right, pitch);
+                                    offset = pitch_rot * offset;
+
+                                    let sight_line = offset.normalize();
+                                    offset += sight_line * zoom;
+
+                                    position.0 = target_position.0 + offset;
+                                }
+                                None => {
+                                    let direction = unsafe {
+                                        world
+                                            .as_unsafe_mut()
+                                            .components
+                                            .get_component::<Direction>(entity)
+                                            .unwrap_or(&Direction(Vec3::NEG_Z)) // default to look at -z
+                                    };
+                                }
+                            };
+                        })
+                    })),
                 },
             );
 
@@ -259,7 +328,7 @@ fn main() -> anyhow::Result<()> {
         let mut require_resize: Option<window::Size> = None;
         let mut last_update = std::time::Instant::now();
 
-        event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
+        event_loop.set_control_flow(winit::event_loop::ControlFlow::Wait);
         event_loop
             .run(
                 |event: winit::event::Event<_>,
@@ -283,8 +352,8 @@ fn main() -> anyhow::Result<()> {
                                         .unwrap();
                                     let direction = world
                                         .components
-                                        .get_component::<Rotation>(&Entity::Camera)
-                                        .unwrap_or(&Rotation(Quat::IDENTITY));
+                                        .get_component::<Direction>(&Entity::Camera)
+                                        .unwrap_or(&Direction(Vec3::NEG_Z));
                                     let camera = world
                                         .components
                                         .get_component::<Camera>(&Entity::Camera)
@@ -304,7 +373,10 @@ fn main() -> anyhow::Result<()> {
                                                     glam::Vec3::Y,
                                                 )
                                             }
-                                            None => glam::Mat4::from_quat(direction.0),
+                                            None => glam::Mat4::from_quat(Quat::from_rotation_arc(
+                                                Vec3::NEG_Z,
+                                                direction.0,
+                                            )),
                                         }
                                     };
 
@@ -408,7 +480,7 @@ fn main() -> anyhow::Result<()> {
 
                     // Loop logic
                     process_input(&mut world);
-                    physics_engine.run(&mut world);
+                    physics_system(&mut world, &mut physics_engine);
                 },
             )
             .unwrap();
@@ -488,4 +560,20 @@ fn process_input(world: &mut World) {
             input.apply(&entity, world);
         }
     }
+}
+
+fn physics_system(world: &mut World, engine: &mut physics::Engine) {
+    let world = world as *mut World;
+
+    let bodies = unsafe {
+        (*world)
+            .components
+            .get_component_storage::<PhysicsBody>()
+            .unwrap()
+            .iter()
+            .map(|(entity, physics_body)| physics_body.integrate(entity, &mut *world))
+            .collect()
+    };
+
+    engine.tick(bodies);
 }

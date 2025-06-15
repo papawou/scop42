@@ -59,4 +59,9 @@ impl World {
     pub fn add_system_mut(&mut self, system: Box<dyn SystemMut>) {
         self.systems_mut.push(system);
     }
+
+    #[allow(invalid_reference_casting)]
+    pub unsafe fn as_unsafe_mut(&self) -> &mut Self {
+        &mut *(self as *const _ as *mut _)
+    }
 }

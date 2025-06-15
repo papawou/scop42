@@ -4,13 +4,14 @@ use std::{
 };
 
 mod conf;
+pub mod traits;
 
-use ecs::{storage::ComponentsStorage, world::World};
+use ecs::{entity, storage::ComponentsStorage, world::World, Entity};
 use glam::Vec3;
 
 use crate::{
-    components::{position, PhysicsBody, Position},
-    physics,
+    components::{physics_body, position, PhysicsBody, Position},
+    physics::{self, traits::IntegrateFn},
 };
 
 pub struct Engine {
@@ -19,37 +20,27 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub fn run(&mut self, world: &mut World) {
+    pub fn tick(&mut self, mut bodies: Vec<Box<dyn IntegrateFn>>) {
         let frame_time = self.last_update.elapsed().min(conf::MAX_FRAME_TIME);
         self.last_update = std::time::Instant::now();
-
         self.frame_time_acc = self.frame_time_acc.add(frame_time);
 
         while (self.frame_time_acc >= conf::PHYSICS_FPS) {
-            let components_ptr = &mut world.components as *mut ComponentsStorage;
-            let physics_bodies = unsafe {
-                (*components_ptr)
-                    .get_component_storage_mut::<PhysicsBody>()
-                    .unwrap()
-            };
-
-            for (entity, physics_body) in physics_bodies.iter_mut() {
-                let position = unsafe {
-                    // split borrow, because Position !== PhysicsBody
-                    (*components_ptr)
-                        .get_component_mut::<Position>(entity)
-                        .unwrap()
-                };
-
-                physics_body.velocity +=
-                    physics_body.acceleration * conf::PHYSICS_FPS.as_secs_f32();
-                position.0 += physics_body.velocity * conf::PHYSICS_FPS.as_secs_f32();
+            for body in bodies.iter_mut() {
+                body.integrate(conf::PHYSICS_FPS);
             }
-
             self.frame_time_acc = self.frame_time_acc.sub(conf::PHYSICS_FPS);
         }
 
         //todo!("Alpha rendering logic here");
         // let alpha = self.frame_time_acc.div_duration_f64(conf::PHYSICS_FPS);
     }
+}
+
+pub fn compute_velocity(velocity: Vec3, acceleration: Vec3, duration: Duration) -> Vec3 {
+    velocity + acceleration * duration.as_secs_f32()
+}
+
+pub fn compute_position(position: Vec3, velocity: Vec3, duration: Duration) -> Vec3 {
+    position + velocity * duration.as_secs_f32()
 }
