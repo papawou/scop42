@@ -175,7 +175,11 @@ fn main() -> anyhow::Result<()> {
                     fov: 90.0f32,
                     near: 0.1f32,
                     far: 200.0f32,
-                    mode: camera::Mode::Follow { target: Entity::Origin, yaw: (), pitch: () },
+                    mode: camera::Mode::Follow {
+                        target: Entity::Origin,
+                        yaw: 0.0f32,
+                        pitch: 0.0f32,
+                    },
                 },
             );
             world
@@ -201,7 +205,7 @@ fn main() -> anyhow::Result<()> {
                                 world
                                     .as_unsafe_mut()
                                     .components
-                                    .get_component::<Camera>(entity)
+                                    .get_component_mut::<Camera>(entity)
                                     .unwrap()
                             };
                             let position = unsafe {
@@ -220,12 +224,7 @@ fn main() -> anyhow::Result<()> {
                             };
 
                             match &mut cam.mode {
-                                camera::Mode::Follow {
-                                    target,
-                                    distance,
-                                    yaw,
-                                    pitch,
-                                } => {
+                                camera::Mode::Follow { target, yaw, pitch } => {
                                     let target_position = unsafe {
                                         world
                                             .as_unsafe_mut()
@@ -233,23 +232,23 @@ fn main() -> anyhow::Result<()> {
                                             .get_component::<Position>(&target)
                                             .unwrap()
                                     };
-                                    *yaw += body.velocity.x * dt.as_secs_f32();
-                                    *pitch = body.velocity.y * dt.as_secs_f32();
-                                    *zoom = body.velocity.z * dt.as_secs_f32();
+                                    *yaw = (*yaw + body.velocity.x * dt.as_secs_f32());
+                                    *pitch = (*pitch + body.velocity.y * dt.as_secs_f32()).clamp(
+                                        -std::f32::consts::FRAC_PI_2 + 0.001f32,
+                                        std::f32::consts::FRAC_PI_2 - 0.001f32,
+                                    );
+                                    let mut distance = Vec3::ZERO.with_z(
+                                        (position.0.distance(target_position.0)
+                                            + body.velocity.z * dt.as_secs_f32())
+                                        .max(0.01f32),
+                                    );
+                                    let yaw_rot = Quat::from_axis_angle(Vec3::Y, *yaw);
+                                    distance = yaw_rot * distance;
+                                    let right = distance.cross(Vec3::Y).normalize();
+                                    let pitch_rot = Quat::from_axis_angle(right, *pitch);
+                                    distance = pitch_rot * distance;
 
-                                    let mut offset = position.0 - target_position.0;
-
-                                    let yaw_rot = Quat::from_axis_angle(Vec3::Y, yaw);
-                                    offset = yaw_rot * offset;
-
-                                    let right = offset.cross(Vec3::Y).normalize();
-                                    let pitch_rot = Quat::from_axis_angle(right, pitch);
-                                    offset = pitch_rot * offset;
-
-                                    let sight_line = offset.normalize();
-                                    offset += sight_line * zoom;
-
-                                    position.0 = target_position.0 + offset;
+                                    position.0 = target_position.0 + distance;
                                 }
                                 camera::Mode::Free => {
                                     let direction = unsafe {
@@ -257,7 +256,7 @@ fn main() -> anyhow::Result<()> {
                                             .as_unsafe_mut()
                                             .components
                                             .get_component::<Direction>(entity)
-                                            .unwrap_or(&Direction(Vec3::NEG_Z)) // default to look at -z
+                                            .unwrap_or(&Direction(Vec3::NEG_Z))
                                     };
                                 }
                             };
@@ -365,11 +364,11 @@ fn main() -> anyhow::Result<()> {
                                         .unwrap();
 
                                     let view = {
-                                        match &camera.look_at {
-                                            Some(target_entity) => {
+                                        match &camera.mode {
+                                            camera::Mode::Follow { target, .. } => {
                                                 let target_position = world
                                                     .components
-                                                    .get_component::<Position>(&target_entity)
+                                                    .get_component::<Position>(target)
                                                     .unwrap();
 
                                                 glam::Mat4::look_at_rh(
@@ -378,10 +377,9 @@ fn main() -> anyhow::Result<()> {
                                                     glam::Vec3::Y,
                                                 )
                                             }
-                                            None => glam::Mat4::from_quat(Quat::from_rotation_arc(
-                                                Vec3::NEG_Z,
-                                                direction.0,
-                                            )),
+                                            camera::Mode::Free => glam::Mat4::from_quat(
+                                                Quat::from_rotation_arc(Vec3::NEG_Z, direction.0),
+                                            ),
                                         }
                                     };
 

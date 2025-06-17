@@ -14,7 +14,7 @@ pub enum Mode {
     Free,
     Follow {
         target: Entity,
-        yaw: Quat,
-        pitch: Quat,
+        yaw: f32,
+        pitch: f32,
     },
 }
