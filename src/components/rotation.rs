@@ -1,5 +1,5 @@
 use ecs::{component::Component, macros::Component};
-use glam::{Quat, Vec3};
+use glam::Quat;
 
 #[derive(Component, Debug)]
-pub struct Position(pub Vec3);
+pub struct Rotation(pub Quat);

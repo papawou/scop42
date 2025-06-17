@@ -190,6 +190,8 @@ fn main() -> anyhow::Result<()> {
                 components::PhysicsBody {
                     acceleration: Vec3::ZERO,
                     velocity: Vec3::ZERO,
+                    angular_acceleration: Vec3::ZERO,
+                    angular_velocity: Vec3::ZERO,
                     integrate: Some(Box::new(|entity, world| {
                         impl<F> IntegrateFn for F
                         where
