@@ -52,7 +52,7 @@ use vertex::Vertex;
 use winit::{dpi::PhysicalSize, event_loop::EventLoop, keyboard::KeyCode};
 
 use crate::{
-    components::{Camera, Direction, PhysicsBody, Position},
+    components::{camera, Camera, Direction, PhysicsBody, Position},
     input::{input::InputEnum, recorder, recorder_to_queue},
     material::Pipeline,
     physics::{compute_position, compute_velocity, traits::IntegrateFn},
@@ -172,10 +172,10 @@ fn main() -> anyhow::Result<()> {
                 &Entity::Camera,
                 components::Camera {
                     aspect_ratio: render_engine.swapchain.aspect_ratio(),
-                    look_at: Some(Entity::Origin),
                     fov: 90.0f32,
                     near: 0.1f32,
                     far: 200.0f32,
+                    mode: camera::Mode::Follow { target: Entity::Origin, yaw: (), pitch: () },
                 },
             );
             world
@@ -219,18 +219,23 @@ fn main() -> anyhow::Result<()> {
                                     .unwrap()
                             };
 
-                            match &cam.look_at {
-                                Some(target_entity) => {
+                            match &mut cam.mode {
+                                camera::Mode::Follow {
+                                    target,
+                                    distance,
+                                    yaw,
+                                    pitch,
+                                } => {
                                     let target_position = unsafe {
                                         world
                                             .as_unsafe_mut()
                                             .components
-                                            .get_component::<Position>(target_entity)
+                                            .get_component::<Position>(&target)
                                             .unwrap()
                                     };
-                                    let yaw = body.velocity.x * dt.as_secs_f32();
-                                    let pitch = body.velocity.y * dt.as_secs_f32();
-                                    let zoom = body.velocity.z * dt.as_secs_f32();
+                                    *yaw += body.velocity.x * dt.as_secs_f32();
+                                    *pitch = body.velocity.y * dt.as_secs_f32();
+                                    *zoom = body.velocity.z * dt.as_secs_f32();
 
                                     let mut offset = position.0 - target_position.0;
 
@@ -246,7 +251,7 @@ fn main() -> anyhow::Result<()> {
 
                                     position.0 = target_position.0 + offset;
                                 }
-                                None => {
+                                camera::Mode::Free => {
                                     let direction = unsafe {
                                         world
                                             .as_unsafe_mut()
