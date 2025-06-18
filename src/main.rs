@@ -52,7 +52,9 @@ use vertex::Vertex;
 use winit::{dpi::PhysicalSize, event_loop::EventLoop, keyboard::KeyCode};
 
 use crate::{
-    components::{camera, Camera, Direction, PhysicsBody, Position},
+    components::{
+        camera, physics_body::integrate, rotation, Camera, PhysicsBody, Position, Rotation,
+    },
     input::{input::InputEnum, recorder, recorder_to_queue},
     material::Pipeline,
     physics::{compute_position, compute_velocity, traits::IntegrateFn},
@@ -168,6 +170,9 @@ fn main() -> anyhow::Result<()> {
                 &Entity::Camera,
                 components::Position(Vec3::ZERO.with_z(5.0f32)),
             );
+            world
+                .components
+                .add_component(&Entity::Camera, components::Rotation(Quat::IDENTITY));
             world.components.add_component(
                 &Entity::Camera,
                 components::Camera {
@@ -175,16 +180,14 @@ fn main() -> anyhow::Result<()> {
                     fov: 90.0f32,
                     near: 0.1f32,
                     far: 200.0f32,
-                    mode: camera::Mode::Follow {
-                        target: Entity::Origin,
-                        yaw: 0.0f32,
-                        pitch: 0.0f32,
-                    },
+                    // mode: camera::Mode::Follow {
+                    //     target: Entity::Origin,
+                    //     yaw: 0.0f32,
+                    //     pitch: 0.0f32,
+                    // },
+                    mode: camera::Mode::Free,
                 },
             );
-            world
-                .components
-                .add_component(&Entity::Camera, components::Direction(Vec3::NEG_Z));
             world.components.add_component(
                 &Entity::Camera,
                 components::PhysicsBody {
@@ -253,13 +256,7 @@ fn main() -> anyhow::Result<()> {
                                     position.0 = target_position.0 + distance;
                                 }
                                 camera::Mode::Free => {
-                                    let direction = unsafe {
-                                        world
-                                            .as_unsafe_mut()
-                                            .components
-                                            .get_component::<Direction>(entity)
-                                            .unwrap_or(&Direction(Vec3::NEG_Z))
-                                    };
+                                    integrate(entity, world).integrate(dt);
                                 }
                             };
                         })
@@ -282,6 +279,8 @@ fn main() -> anyhow::Result<()> {
                         .unwrap();
 
                     let mut velocity = Vec3::ZERO;
+                    let mut angular_velocity = Vec3::ZERO;
+
                     match input_recorder.last(&KeyCode::KeyW) {
                         Some(InputEnum::Down(_)) => {
                             velocity += Vec3::NEG_Z;
@@ -318,8 +317,33 @@ fn main() -> anyhow::Result<()> {
                         }
                         _ => {}
                     }
+                    match input_recorder.last(&KeyCode::ArrowUp) {
+                        Some(InputEnum::Down(_)) => {
+                            angular_velocity += Vec3::X;
+                        }
+                        _ => {}
+                    }
+                    match input_recorder.last(&KeyCode::ArrowDown) {
+                        Some(InputEnum::Down(_)) => {
+                            angular_velocity += Vec3::NEG_X;
+                        }
+                        _ => {}
+                    }
+                    match input_recorder.last(&KeyCode::ArrowLeft) {
+                        Some(InputEnum::Down(_)) => {
+                            angular_velocity += Vec3::Y;
+                        }
+                        _ => {}
+                    }
+                    match input_recorder.last(&KeyCode::ArrowRight) {
+                        Some(InputEnum::Down(_)) => {
+                            angular_velocity += Vec3::NEG_Y;
+                        }
+                        _ => {}
+                    }
 
                     physics_body.velocity = velocity;
+                    physics_body.angular_velocity = angular_velocity;
                 })),
             );
         }
@@ -356,10 +380,10 @@ fn main() -> anyhow::Result<()> {
                                         .components
                                         .get_component::<Position>(&Entity::Camera)
                                         .unwrap();
-                                    let direction = world
+                                    let rotation = world
                                         .components
-                                        .get_component::<Direction>(&Entity::Camera)
-                                        .unwrap_or(&Direction(Vec3::NEG_Z));
+                                        .get_component::<Rotation>(&Entity::Camera)
+                                        .unwrap_or(&Rotation(Quat::IDENTITY));
                                     let camera = world
                                         .components
                                         .get_component::<Camera>(&Entity::Camera)
@@ -379,9 +403,11 @@ fn main() -> anyhow::Result<()> {
                                                     glam::Vec3::Y,
                                                 )
                                             }
-                                            camera::Mode::Free => glam::Mat4::from_quat(
-                                                Quat::from_rotation_arc(Vec3::NEG_Z, direction.0),
-                                            ),
+                                            camera::Mode::Free => {
+                                                (glam::Mat4::from_translation(position.0)
+                                                    * glam::Mat4::from_quat(rotation.0))
+                                                .inverse()
+                                            }
                                         }
                                     };
 
@@ -430,8 +456,6 @@ fn main() -> anyhow::Result<()> {
                                     Err(e) => panic!("{:?}", e),
                                     _ => {}
                                 }
-
-                                window.request_redraw();
                             }
                             winit::event::WindowEvent::Resized(new_size) => {
                                 require_resize = Some(window::Size {

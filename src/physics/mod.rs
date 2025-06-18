@@ -53,12 +53,11 @@ pub fn compute_angular_velocity(
     angular_velocity + angular_acceleration * duration.as_secs_f32()
 }
 
-pub fn compute_rotation(rotation: Quat, angular_acceleration: Vec3, duration: Duration) -> Quat {
+pub fn compute_rotation(rotation: Quat, angular_velocity: Vec3, duration: Duration) -> Quat {
     (Quat::from_euler(
         glam::EulerRot::XYZ,
-        angular_acceleration.x,
-        angular_acceleration.y,
-        angular_acceleration.z,
-    ) * duration.as_secs_f32())
-        * rotation
+        angular_velocity.x * duration.as_secs_f32(),
+        angular_velocity.y * duration.as_secs_f32(),
+        angular_velocity.z * duration.as_secs_f32(),
+    )) * rotation
 }

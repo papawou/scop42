@@ -58,7 +58,7 @@ pub fn integrate<'a>(entity: &'a Entity, world: &'a mut World) -> Box<dyn Integr
                 position.0 = compute_position(position.0, physics_body.velocity, dt);
             }
             None => {}
-        }
+        };
 
         match unsafe {
             world
@@ -72,9 +72,9 @@ pub fn integrate<'a>(entity: &'a Entity, world: &'a mut World) -> Box<dyn Integr
                     physics_body.angular_acceleration,
                     dt,
                 );
-                rotation.0 = compute_rotation(rotation.0, physics_body.angular_acceleration, dt);
+                rotation.0 = compute_rotation(rotation.0, physics_body.angular_velocity, dt);
             }
             None => {}
-        }
+        };
     })
 }
