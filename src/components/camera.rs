@@ -18,3 +18,7 @@ pub enum Mode {
         pitch: f32,
     },
 }
+
+impl Mode {
+    input_con
+}

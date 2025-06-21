@@ -256,7 +256,26 @@ fn main() -> anyhow::Result<()> {
                                     position.0 = target_position.0 + distance;
                                 }
                                 camera::Mode::Free => {
-                                    integrate(entity, world).integrate(dt);
+                                    let rotation = unsafe {
+                                        world
+                                            .as_unsafe_mut()
+                                            .components
+                                            .get_component_mut::<Rotation>(entity)
+                                            .unwrap()
+                                    };
+
+                                    let yaw = body.angular_velocity.y * dt.as_secs_f32();
+                                    let pitch = body.angular_velocity.x * dt.as_secs_f32();
+
+                                    let yaw_rot = Quat::from_axis_angle(Vec3::Y, yaw); // world Y axis
+                                    let right = rotation.0 * Vec3::X; // camera's local right
+                                    let pitch_rot = Quat::from_axis_angle(right, pitch);
+
+                                    rotation.0 = (yaw_rot * pitch_rot) * rotation.0;
+
+                                    // --- MOVEMENT (local to world space) ---
+                                    let world_velocity = rotation.0 * body.velocity;
+                                    position.0 += world_velocity * dt.as_secs_f32();
                                 }
                             };
                         })
