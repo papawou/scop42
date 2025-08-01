@@ -12,13 +12,13 @@ pub struct Camera {
 
 pub enum Mode {
     Free,
-    Follow {
+    LookAt {
         target: Entity,
         yaw: f32,
         pitch: f32,
     },
-}
-
-impl Mode {
-    input_con
+    Fps {
+        yaw: f32,
+        pitch: f32,
+    },
 }

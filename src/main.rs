@@ -229,7 +229,7 @@ fn main() -> anyhow::Result<()> {
                             };
 
                             match &mut cam.mode {
-                                camera::Mode::Follow { target, yaw, pitch } => {
+                                camera::Mode::LookAt { target, yaw, pitch } => {
                                     let target_position = unsafe {
                                         world
                                             .as_unsafe_mut()
@@ -277,6 +277,7 @@ fn main() -> anyhow::Result<()> {
                                     let world_velocity = rotation.0 * body.velocity;
                                     position.0 += world_velocity * dt.as_secs_f32();
                                 }
+                                _ => {}
                             };
                         })
                     })),
@@ -410,7 +411,7 @@ fn main() -> anyhow::Result<()> {
 
                                     let view = {
                                         match &camera.mode {
-                                            camera::Mode::Follow { target, .. } => {
+                                            camera::Mode::LookAt { target, .. } => {
                                                 let target_position = world
                                                     .components
                                                     .get_component::<Position>(target)
@@ -427,6 +428,7 @@ fn main() -> anyhow::Result<()> {
                                                     * glam::Mat4::from_quat(rotation.0))
                                                 .inverse()
                                             }
+                                            _ => Mat4::IDENTITY,
                                         }
                                     };
 
